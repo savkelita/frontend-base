@@ -10,6 +10,9 @@ import { NavigationEntry, navigationLink, navigationGroup } from './types'
 
 const allEntries: ReadonlyArray<NavigationEntry> = [
   navigationLink('home', 'Home', Router.format(routes.home, {}), { requiredPermissions: ['home.view'] }),
+  navigationLink('products', 'Products', Router.format(routes.products, {}), {
+    requiredPermissions: ['products.view'],
+  }),
 ]
 
 // -------------------------------------------------------------------------------------

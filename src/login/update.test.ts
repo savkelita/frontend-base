@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { Either, Option } from 'effect'
+import { Option } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import { Msg } from './msg'
 import { init, update } from './index'
@@ -43,10 +43,10 @@ describe('Login', () => {
       expect(cmd).not.toBe(Cmd.none)
     })
 
-    it('should set result on successful LoginCompleted', () => {
+    it('should set result on LoginSucceeded', () => {
       const [model] = init
-      const session = { token: 'tok', username: 'admin', permissions: ['home.view'] }
-      const [newModel, cmd] = update(Msg.LoginCompleted({ result: Either.right(session) }), {
+      const session = { accessToken: 'tok', refreshToken: 'rtok', username: 'admin', permissions: ['home.view'] }
+      const [newModel, cmd] = update(Msg.LoginSucceeded({ session }), {
         ...model,
         isSubmitting: true,
       })
@@ -55,10 +55,10 @@ describe('Login', () => {
       expect(cmd).toBe(Cmd.none)
     })
 
-    it('should set error on failed LoginCompleted', () => {
+    it('should set error on LoginFailed', () => {
       const [model] = init
       const [newModel, cmd] = update(
-        Msg.LoginCompleted({ result: Either.left({ _tag: 'InvalidCredentials' as const }) }),
+        Msg.LoginFailed({ error: { _tag: 'BadStatus' as const, status: 401, body: '' } }),
         { ...model, isSubmitting: true },
       )
       expect(Option.isSome(newModel.error)).toBe(true)

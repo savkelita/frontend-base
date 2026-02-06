@@ -9,14 +9,14 @@ import {
   MessageBarBody,
   tokens,
 } from '@fluentui/react-components'
-import { Either, Option } from 'effect'
+import { Option } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
-import * as Task from 'tea-effect/Task'
+import * as Http from 'tea-effect/Http'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Api from '../auth/api'
 import type { Model } from './model'
-import { Msg, usernameChanged, passwordChanged, submit, loginCompleted } from './msg'
+import { Msg, usernameChanged, passwordChanged, submit, loginSucceeded, loginFailed } from './msg'
 
 export type { Model }
 export type { Msg }
@@ -46,19 +46,19 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     PasswordChanged: ({ password }): [Model, Cmd.Cmd<Msg>] => [{ ...model, password, error: Option.none() }, Cmd.none],
     Submit: (): [Model, Cmd.Cmd<Msg>] => [
       { ...model, isSubmitting: true, error: Option.none() },
-      Task.attempt(loginCompleted)(Api.login({ username: model.username, password: model.password })),
-    ],
-    LoginCompleted: ({ result }): [Model, Cmd.Cmd<Msg>] =>
-      Either.match(result, {
-        onLeft: (error): [Model, Cmd.Cmd<Msg>] => [
-          { ...model, isSubmitting: false, error: Option.some(error) },
-          Cmd.none,
-        ],
-        onRight: (session): [Model, Cmd.Cmd<Msg>] => [
-          { ...model, isSubmitting: false, result: Option.some(session) },
-          Cmd.none,
-        ],
+      Http.send(Api.loginRequest({ username: model.username, password: model.password }), {
+        onSuccess: response => loginSucceeded(Api.toSession(response)),
+        onError: loginFailed,
       }),
+    ],
+    LoginSucceeded: ({ session }): [Model, Cmd.Cmd<Msg>] => [
+      { ...model, isSubmitting: false, result: Option.some(session) },
+      Cmd.none,
+    ],
+    LoginFailed: ({ error }): [Model, Cmd.Cmd<Msg>] => [
+      { ...model, isSubmitting: false, error: Option.some(error) },
+      Cmd.none,
+    ],
   })
 
 // -------------------------------------------------------------------------------------

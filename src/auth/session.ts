@@ -2,7 +2,8 @@ import { Schema } from 'effect'
 import type { AuthorizationConfig } from './types'
 
 export const Session = Schema.Struct({
-  token: Schema.String,
+  accessToken: Schema.String,
+  refreshToken: Schema.String,
   username: Schema.String,
   permissions: Schema.Array(Schema.String),
 })

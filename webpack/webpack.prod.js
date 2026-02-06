@@ -6,6 +6,7 @@ module.exports = {
   plugins: [
     new webpack.DefinePlugin({
       'process.env.basename': JSON.stringify('/'),
+      'process.env.apiBaseUrl': JSON.stringify(''),
     }),
   ],
 }

@@ -1,23 +1,37 @@
-import { Option } from 'effect'
+import { Either, Option } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Html from 'tea-effect/Html'
 import * as Sub from 'tea-effect/Sub'
+import * as Task from 'tea-effect/Task'
 import * as Navigation from 'tea-effect/Navigation'
 import * as Router from 'tea-effect/Router'
 import * as LocalStorage from 'tea-effect/LocalStorage'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import { hasAllPermissions } from '../auth/types'
+import * as Api from '../auth/api'
 import { Session, SESSION_KEY, toAuthorizationConfig } from '../auth/session'
 import * as Home from '../home'
+import * as Products from '../products'
 import * as Login from '../login'
 import * as Nav from '../navigation'
 import { routes, getRoutePermissions } from './route'
 import type { Route } from './route'
 import { Model } from './model'
-import { Msg, urlRequested, urlChanged, screen, navigation, sessionLoaded, sessionLoadError, login } from './msg'
-import { ScreenModel, homeScreen, notFoundScreen, unauthorizedScreen } from './screen-model'
-import { ScreenMsg, homeMsg } from './screen-msg'
+import {
+  Msg,
+  urlRequested,
+  urlChanged,
+  screen,
+  navigation,
+  sessionLoaded,
+  sessionLoadError,
+  login,
+  refreshTick,
+  refreshCompleted,
+} from './msg'
+import { ScreenModel, homeScreen, productsScreen, notFoundScreen, unauthorizedScreen } from './screen-model'
+import { ScreenMsg, homeMsg, productsMsg } from './screen-msg'
 import { selectedNavValue, selectedCategoryValue } from './selected-nav'
 import { Layout } from './components/layout'
 import { NotFoundView } from './components/not-found-view'
@@ -43,6 +57,10 @@ const startScreen = (route: Route): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
       const [model, cmd] = Home.init
       return [homeScreen(model), Cmd.map(homeMsg)(cmd)]
     }
+    case 'products': {
+      const [model, cmd] = Products.init
+      return [productsScreen(model), Cmd.map(productsMsg)(cmd)]
+    }
   }
 }
 
@@ -67,11 +85,17 @@ const updateScreen = (msg: ScreenMsg, screenModel: ScreenModel): [ScreenModel, C
       const [model, cmd] = Home.update(homeMessage, screenModel.model)
       return [homeScreen(model), Cmd.map(homeMsg)(cmd)]
     },
+    ProductsMsg: ({ msg: productsMessage }): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
+      if (screenModel._tag !== 'ProductsScreen') return [screenModel, Cmd.none]
+      const [model, cmd] = Products.update(productsMessage, screenModel.model)
+      return [productsScreen(model), Cmd.map(productsMsg)(cmd)]
+    },
   })
 
 const screenView = (screenModel: ScreenModel): TeaReact.Html<ScreenMsg> =>
   ScreenModel.$match(screenModel, {
     HomeScreen: ({ model }) => Html.map(homeMsg)(Home.view(model)),
+    ProductsScreen: ({ model }) => Html.map(productsMsg)(Products.view(model)),
     NotFoundScreen:
       ({ path }) =>
       (_dispatch: Platform.Dispatch<ScreenMsg>) => <NotFoundView path={path} />,
@@ -176,13 +200,44 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
       const [navModel, navCmd] = Nav.update(navMsg, model.navigation)
       return [Model.Authenticated({ ...model, navigation: navModel }), Cmd.map(navigation)(navCmd)]
     },
+
+    RefreshTick: (): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag !== 'Authenticated') return [model, Cmd.none]
+      return [model, Task.attempt(refreshCompleted)(Api.refresh(model.session.refreshToken))]
+    },
+
+    RefreshCompleted: ({ result }): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag !== 'Authenticated') return [model, Cmd.none]
+      return Either.match(result, {
+        onLeft: (): [Model, Cmd.Cmd<Msg>] => {
+          const [anonModel, anonCmd] = initAnonymous()
+          return [anonModel, Cmd.batch([anonCmd, LocalStorage.removeIgnoreErrors(SESSION_KEY)])]
+        },
+        onRight: (refreshResult): [Model, Cmd.Cmd<Msg>] => {
+          const updatedSession: typeof Session.Type = {
+            ...model.session,
+            accessToken: refreshResult.accessToken,
+            refreshToken: refreshResult.refreshToken,
+          }
+          return [
+            Model.Authenticated({ ...model, session: updatedSession }),
+            LocalStorage.setIgnoreErrors(SESSION_KEY, Session, updatedSession),
+          ]
+        },
+      })
+    },
   })
 
 // -------------------------------------------------------------------------------------
 // Subscriptions
 // -------------------------------------------------------------------------------------
 
-export const subscriptions = (_model: Model): Sub.Sub<Msg> => Sub.none
+const REFRESH_INTERVAL_MS = 4 * 60 * 1000
+
+export const subscriptions = (model: Model): Sub.Sub<Msg> => {
+  if (model._tag !== 'Authenticated') return Sub.none
+  return Sub.interval(REFRESH_INTERVAL_MS, refreshTick())
+}
 
 // -------------------------------------------------------------------------------------
 // View

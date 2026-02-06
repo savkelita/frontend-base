@@ -1,23 +1,30 @@
-import { Hamburger, Text } from '@fluentui/react-components'
 import { Option } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Html from 'tea-effect/Html'
 import * as Sub from 'tea-effect/Sub'
 import * as Navigation from 'tea-effect/Navigation'
 import * as Router from 'tea-effect/Router'
+import * as LocalStorage from 'tea-effect/LocalStorage'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
+import { hasAllPermissions } from '../auth/types'
+import { Session, SESSION_KEY, toAuthorizationConfig } from '../auth/session'
 import * as Home from '../home'
+import * as Login from '../login'
 import * as Nav from '../navigation'
-import { routes } from './route'
+import { routes, getRoutePermissions } from './route'
 import type { Route } from './route'
-import type { Model } from './model'
-import { Msg, urlRequested, urlChanged, screen, navigation } from './msg'
-import { ScreenModel, homeScreen, notFoundScreen } from './screen-model'
+import { Model } from './model'
+import { Msg, urlRequested, urlChanged, screen, navigation, sessionLoaded, sessionLoadError, login } from './msg'
+import { ScreenModel, homeScreen, notFoundScreen, unauthorizedScreen } from './screen-model'
 import { ScreenMsg, homeMsg } from './screen-msg'
 import { selectedNavValue, selectedCategoryValue } from './selected-nav'
 import { Layout } from './components/layout'
 import { NotFoundView } from './components/not-found-view'
+import { UnauthorizedView } from './components/unauthorized-view'
+import { AppHeader } from './components/app-header'
+import { AppNavigation } from './components/app-navigation'
+import { LoadingView } from './components/loading-view'
 
 export type { Model }
 export type { Msg }
@@ -30,16 +37,26 @@ const locationToPath = (location: Navigation.Location): string => location.pathn
 
 const parseRoute = (location: Navigation.Location): Option.Option<Route> => Router.parse(routes, location)
 
-const startScreen = (route: Option.Option<Route>, path: string): [ScreenModel, Cmd.Cmd<ScreenMsg>] =>
+const startScreen = (route: Route): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
+  switch (route._tag) {
+    case 'home': {
+      const [model, cmd] = Home.init
+      return [homeScreen(model), Cmd.map(homeMsg)(cmd)]
+    }
+  }
+}
+
+const startScreenWithAuth = (
+  route: Option.Option<Route>,
+  path: string,
+  config: ReturnType<typeof toAuthorizationConfig>,
+): [ScreenModel, Cmd.Cmd<ScreenMsg>] =>
   Option.match(route, {
     onNone: () => [notFoundScreen(path), Cmd.none],
     onSome: r => {
-      switch (r._tag) {
-        case 'home': {
-          const [model, cmd] = Home.init
-          return [homeScreen(model), Cmd.map(homeMsg)(cmd)]
-        }
-      }
+      const perms = getRoutePermissions(r._tag)
+      if (!hasAllPermissions(config, perms)) return [unauthorizedScreen(path), Cmd.none]
+      return startScreen(r)
     },
   })
 
@@ -58,21 +75,35 @@ const screenView = (screenModel: ScreenModel): TeaReact.Html<ScreenMsg> =>
     NotFoundScreen:
       ({ path }) =>
       (_dispatch: Platform.Dispatch<ScreenMsg>) => <NotFoundView path={path} />,
+    UnauthorizedScreen:
+      ({ path }) =>
+      (_dispatch: Platform.Dispatch<ScreenMsg>) => <UnauthorizedView path={path} />,
   })
+
+const initAuthenticated = (session: typeof Session.Type, location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => {
+  const config = toAuthorizationConfig(session)
+  const route = parseRoute(location)
+  const [screenModel, screenCmd] = startScreenWithAuth(route, location.pathname, config)
+  const [navModel, navCmd] = Nav.init(config)
+  return [
+    Model.Authenticated({ session, location, screen: screenModel, navigation: navModel }),
+    Cmd.batch([Cmd.map(screen)(screenCmd), Cmd.map(navigation)(navCmd)]),
+  ]
+}
+
+const initAnonymous = (): [Model, Cmd.Cmd<Msg>] => {
+  const [loginModel, loginCmd] = Login.init
+  return [Model.Anonymous({ login: loginModel }), Cmd.map(login)(loginCmd)]
+}
 
 // -------------------------------------------------------------------------------------
 // Init
 // -------------------------------------------------------------------------------------
 
-export const init = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => {
-  const route = parseRoute(location)
-  const [screenModel, screenCmd] = startScreen(route, location.pathname)
-  const [navModel, navCmd] = Nav.init
-  return [
-    { location, screen: screenModel, navigation: navModel },
-    Cmd.batch([Cmd.map(screen)(screenCmd), Cmd.map(navigation)(navCmd)]),
-  ]
-}
+export const init = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => [
+  Model.Initializing({ location }),
+  LocalStorage.get(SESSION_KEY, Session, { onSuccess: sessionLoaded, onError: sessionLoadError }),
+]
 
 // -------------------------------------------------------------------------------------
 // Update
@@ -80,7 +111,44 @@ export const init = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => {
 
 export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
   Msg.$match(msg, {
+    SessionLoaded: ({ session }): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag !== 'Initializing') return [model, Cmd.none]
+      return Option.match(session, {
+        onNone: () => initAnonymous(),
+        onSome: s => initAuthenticated(s, model.location),
+      })
+    },
+
+    SessionLoadError: (): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag !== 'Initializing') return [model, Cmd.none]
+      return initAnonymous()
+    },
+
+    Login: ({ loginMsg }): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag !== 'Anonymous') return [model, Cmd.none]
+      const [loginModel, loginCmd] = Login.update(loginMsg, model.login)
+      if (Option.isSome(loginModel.result)) {
+        const session = loginModel.result.value
+        const location: Navigation.Location = {
+          pathname: '/',
+          search: '',
+          hash: '',
+          href: '/',
+          origin: '',
+        }
+        const [authModel, authCmd] = initAuthenticated(session, location)
+        return [authModel, Cmd.batch([authCmd, LocalStorage.setIgnoreErrors(SESSION_KEY, Session, session)])]
+      }
+      return [Model.Anonymous({ login: loginModel }), Cmd.map(login)(loginCmd)]
+    },
+
+    Logout: (): [Model, Cmd.Cmd<Msg>] => {
+      const [anonModel, anonCmd] = initAnonymous()
+      return [anonModel, Cmd.batch([anonCmd, LocalStorage.removeIgnoreErrors(SESSION_KEY)])]
+    },
+
     UrlRequested: ({ request }): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag !== 'Authenticated') return [model, Cmd.none]
       switch (request._tag) {
         case 'Internal':
           return [model, Navigation.pushUrl(locationToPath(request.location))]
@@ -88,18 +156,25 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
           return [model, Navigation.load(request.href)]
       }
     },
+
     UrlChanged: ({ location }): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag !== 'Authenticated') return [model, Cmd.none]
+      const config = toAuthorizationConfig(model.session)
       const route = parseRoute(location)
-      const [screenModel, screenCmd] = startScreen(route, location.pathname)
-      return [{ ...model, location, screen: screenModel }, Cmd.map(screen)(screenCmd)]
+      const [screenModel, screenCmd] = startScreenWithAuth(route, location.pathname, config)
+      return [Model.Authenticated({ ...model, location, screen: screenModel }), Cmd.map(screen)(screenCmd)]
     },
+
     Screen: ({ screenMsg }): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag !== 'Authenticated') return [model, Cmd.none]
       const [screenModel, screenCmd] = updateScreen(screenMsg, model.screen)
-      return [{ ...model, screen: screenModel }, Cmd.map(screen)(screenCmd)]
+      return [Model.Authenticated({ ...model, screen: screenModel }), Cmd.map(screen)(screenCmd)]
     },
+
     Navigation: ({ navMsg }): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag !== 'Authenticated') return [model, Cmd.none]
       const [navModel, navCmd] = Nav.update(navMsg, model.navigation)
-      return [{ ...model, navigation: navModel }, Cmd.map(navigation)(navCmd)]
+      return [Model.Authenticated({ ...model, navigation: navModel }), Cmd.map(navigation)(navCmd)]
     },
   })
 
@@ -115,21 +190,26 @@ export const subscriptions = (_model: Model): Sub.Sub<Msg> => Sub.none
 
 export const view =
   (model: Model): TeaReact.Html<Msg> =>
-  (dispatch: Platform.Dispatch<Msg>) => (
-    <Layout
-      header={
-        <>
-          <Hamburger onClick={() => dispatch(navigation(Nav.toggleDrawer(!model.navigation.isOpen)))} />
-          <Text weight="semibold">frontend-base</Text>
-        </>
-      }
-      nav={Html.map(navigation)(
-        Nav.view(model.navigation, selectedNavValue(model.screen), selectedCategoryValue(model.screen)),
-      )(dispatch)}
-    >
-      {Html.map(screen)(screenView(model.screen))(dispatch)}
-    </Layout>
-  )
+  (dispatch: Platform.Dispatch<Msg>) =>
+    Model.$match(model, {
+      Initializing: () => <LoadingView />,
+      Anonymous: ({ login: loginModel }) => Html.map(login)(Login.view(loginModel))(dispatch),
+      Authenticated: m => (
+        <Layout
+          header={<AppHeader isOpen={m.navigation.isOpen} username={m.session.username} dispatch={dispatch} />}
+          nav={
+            <AppNavigation
+              model={m.navigation}
+              selectedValue={selectedNavValue(m.screen)}
+              selectedCategoryValue={selectedCategoryValue(m.screen)}
+              dispatch={dispatch}
+            />
+          }
+        >
+          {Html.map(screen)(screenView(m.screen))(dispatch)}
+        </Layout>
+      ),
+    })
 
 // -------------------------------------------------------------------------------------
 // Navigation

@@ -5,6 +5,7 @@ export const selectedNavValue = (screenModel: ScreenModel): string =>
   ScreenModel.$match(screenModel, {
     HomeScreen: () => 'home',
     NotFoundScreen: () => '',
+    UnauthorizedScreen: () => '',
   })
 
 export const selectedCategoryValue = (_screenModel: ScreenModel): Option.Option<string> => Option.none()

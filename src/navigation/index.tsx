@@ -12,21 +12,22 @@ import { Option } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
+import type { AuthorizationConfig } from '../auth/types'
 import type { Model } from './model'
-import { Msg, toggleDrawer } from './msg'
+import { Msg, toggleDrawer, authorizationChanged } from './msg'
 import { NavigationEntry } from './types'
-import { buildPublicNavigation } from './config'
+import { buildNavigation } from './config'
 
 export type { Model }
 export type { Msg }
-export { toggleDrawer }
+export { toggleDrawer, authorizationChanged }
 
 // -------------------------------------------------------------------------------------
 // Init
 // -------------------------------------------------------------------------------------
 
-export const init: [Model, Cmd.Cmd<Msg>] = [
-  { entries: buildPublicNavigation(), isOpen: true, openCategories: [] },
+export const init = (config: AuthorizationConfig): [Model, Cmd.Cmd<Msg>] => [
+  { entries: buildNavigation(config), isOpen: true, openCategories: [] },
   Cmd.none,
 ]
 
@@ -44,6 +45,10 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
         : [...model.openCategories, categoryKey]
       return [{ ...model, openCategories }, Cmd.none]
     },
+    AuthorizationChanged: ({ config }): [Model, Cmd.Cmd<Msg>] => [
+      { ...model, entries: buildNavigation(config) },
+      Cmd.none,
+    ],
   })
 
 // -------------------------------------------------------------------------------------

@@ -13,5 +13,5 @@
   },
   "prettier.configPath": ".prettierrc.js",
   "prettier.prettierPath": "./node_modules/prettier",
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "js/ts.tsdk.path": "node_modules/typescript/lib"
 }

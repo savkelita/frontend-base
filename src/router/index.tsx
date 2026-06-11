@@ -13,6 +13,7 @@ import * as Api from '../auth/api'
 import { Session, SESSION_KEY, toAuthorizationConfig } from '../auth/session'
 import * as Home from '../home'
 import * as Products from '../products'
+import * as Orders from '../orders'
 import * as Login from '../login'
 import * as Nav from '../navigation'
 import { routes, getRoutePermissions } from './route'
@@ -30,8 +31,15 @@ import {
   refreshTick,
   refreshCompleted,
 } from './msg'
-import { ScreenModel, homeScreen, productsScreen, notFoundScreen, unauthorizedScreen } from './screen-model'
-import { ScreenMsg, homeMsg, productsMsg } from './screen-msg'
+import {
+  ScreenModel,
+  homeScreen,
+  productsScreen,
+  ordersScreen,
+  notFoundScreen,
+  unauthorizedScreen,
+} from './screen-model'
+import { ScreenMsg, homeMsg, productsMsg, ordersMsg } from './screen-msg'
 import { selectedNavValue, selectedCategoryValue } from './selected-nav'
 import { Layout } from './components/layout'
 import { NotFoundView } from './components/not-found-view'
@@ -60,6 +68,10 @@ const startScreen = (route: Route): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
     case 'products': {
       const [model, cmd] = Products.init
       return [productsScreen(model), Cmd.map(productsMsg)(cmd)]
+    }
+    case 'orders': {
+      const [model, cmd] = Orders.init
+      return [ordersScreen(model), Cmd.map(ordersMsg)(cmd)]
     }
   }
 }
@@ -90,12 +102,18 @@ const updateScreen = (msg: ScreenMsg, screenModel: ScreenModel): [ScreenModel, C
       const [model, cmd] = Products.update(productsMessage, screenModel.model)
       return [productsScreen(model), Cmd.map(productsMsg)(cmd)]
     },
+    OrdersMsg: ({ msg: ordersMessage }): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
+      if (screenModel._tag !== 'OrdersScreen') return [screenModel, Cmd.none]
+      const [model, cmd] = Orders.update(ordersMessage, screenModel.model)
+      return [ordersScreen(model), Cmd.map(ordersMsg)(cmd)]
+    },
   })
 
 const screenView = (screenModel: ScreenModel): TeaReact.Html<ScreenMsg> =>
   ScreenModel.$match(screenModel, {
     HomeScreen: ({ model }) => Html.map(homeMsg)(Home.view(model)),
     ProductsScreen: ({ model }) => Html.map(productsMsg)(Products.view(model)),
+    OrdersScreen: ({ model }) => Html.map(ordersMsg)(Orders.view(model)),
     NotFoundScreen:
       ({ path }) =>
       (_dispatch: Platform.Dispatch<ScreenMsg>) => <NotFoundView path={path} />,

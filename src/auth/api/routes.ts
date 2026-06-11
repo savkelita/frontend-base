@@ -13,7 +13,7 @@ import type { Credentials, RefreshResult } from './types'
 // -------------------------------------------------------------------------------------
 
 const EXPIRES_IN_MINS = 5
-const HARDCODED_PERMISSIONS: ReadonlyArray<string> = ['home.view', 'products.view']
+const HARDCODED_PERMISSIONS: ReadonlyArray<string> = ['home.view', 'products.view', 'orders.view']
 
 // -------------------------------------------------------------------------------------
 // Login

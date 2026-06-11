@@ -13,6 +13,9 @@ const allEntries: ReadonlyArray<NavigationEntry> = [
   navigationLink('products', 'Products', Router.format(routes.products, {}), {
     requiredPermissions: ['products.view'],
   }),
+  navigationLink('orders', 'New order', Router.format(routes.orders, {}), {
+    requiredPermissions: ['orders.view'],
+  }),
 ]
 
 // -------------------------------------------------------------------------------------

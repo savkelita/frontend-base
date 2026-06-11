@@ -4,6 +4,7 @@ import type { Permission } from '../auth/types'
 export const routes = Router.routes({
   home: Router.path('/'),
   products: Router.path('/products'),
+  orders: Router.path('/orders/new'),
 })
 
 export type Route = Router.RouteType<typeof routes>
@@ -11,6 +12,7 @@ export type Route = Router.RouteType<typeof routes>
 const routePermissions: Record<string, ReadonlyArray<Permission>> = {
   home: ['home.view'],
   products: ['products.view'],
+  orders: ['orders.view'],
 }
 
 export const getRoutePermissions = (routeTag: string): ReadonlyArray<Permission> => routePermissions[routeTag] ?? []

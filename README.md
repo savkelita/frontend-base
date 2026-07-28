@@ -55,7 +55,10 @@ src/
 ├── index.tsx                # Entry point (FluentProvider + tea-effect)
 ├── common/
 │   ├── theme/index.ts       # CSS reset / global styles
-│   └── env/index.ts         # Type-safe environment variables
+│   ├── env/index.ts         # Type-safe environment variables
+│   ├── forms/               # Schema-driven forms library (see "Adding a Form")
+│   ├── pretraga/            # Shared backend search contract (combo sources)
+│   └── domain/              # Reusable field schemas (text, number, boolean, choice, datetime)
 ├── home/                    # Home page (placeholder)
 │   ├── model.ts
 │   ├── msg.ts
@@ -106,6 +109,174 @@ Model -> View -> Msg -> Update -> Model
 4. Wire into `startScreen`, `updateScreen`, `screenView` in `src/router/index.tsx`
 5. Add navigation entry in `src/navigation/config.ts`
 6. Update `src/router/selected-nav.ts` for nav highlighting
+
+## Adding a Form
+
+Forms use **`@tea-effect/forms`** (`src/common/forms`): a form is a state machine built from
+field units. State is minimal (values + touched + status); everything a widget needs (`FieldUi`:
+enabled/readonly/dirty/required/issues/validating) is **derived**.
+
+The library is organised as:
+
+```
+common/forms/
+  index.ts      public API (the `Form` object)
+  builders.tsx  field builders (Form.code10 / enumField / combo / datetime / …)
+  page.tsx      Form.page (the standard view shell)
+  core/         the engine — field, object, combine, async, types
+  widgets/      presentational FluentUI widgets (+ WidgetProps, SelectOption)
+  combo/        the async-select TEA unit (single + multi)
+```
+
+Field schemas live in `src/common/domain` (pure `effect/Schema`).
+
+### 1. Describe the form (`form.ts`)
+
+`Form.object` composes field builders. Every builder takes a single config object with a
+`label` (+ type-specific options). `layout` (also in `form.ts`, a `.tsx`) is a render prop:
+you get a `field(key)` renderer and place each field yourself — full control over width,
+position, grid, spans.
+
+```tsx
+import { Form } from '../../common/forms'
+import type { FormModel, FormMsg, FieldRenderer } from '../../common/forms'
+import * as Api from '../api'
+
+export const fields = {
+  code: Form.code10({ label: 'Šifra', validate: v => (/^[A-Za-z]/.test(v) ? undefined : 'Mora počinjati slovom') }),
+  note: Form.desc({ label: 'Opis', optional: true }),
+  price: Form.decimal({ label: 'Cena', min: 0 }),
+  category: Form.enumField({ label: 'Kategorija', options: CATEGORY_OPTIONS }),
+  grupa: Form.combo({ label: 'Grupa', optional: true, source: Api.grupaCombo }),
+  // dependsOn map: reset + disable + feed the chosen grupa as the `grupaID` criterion
+  podgrupa: Form.combo({ label: 'Podgrupa', optional: true, source: Api.podgrupaCombo, dependsOn: { grupaID: 'grupa' } }),
+}
+
+export const ProductForm = Form.object(fields)
+export type ProductFormModel = FormModel<typeof fields>
+export type ProductFormMsg = FormMsg<typeof fields>
+
+// place each field however you like — widths, columns, spans
+export const layout = (field: FieldRenderer<typeof fields>) => (
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+    <div style={{ gridColumn: '1 / -1' }}>{field('code')}</div>
+    <div>{field('price')}</div>
+    <div>{field('category')}</div>
+    <div style={{ gridColumn: '1 / -1' }}>{field('note')}</div>
+  </div>
+)
+```
+
+### 2. Wire the feature (`model.ts` / `msg.ts` / `index.tsx`)
+
+The form owns field interaction; the **feature owns the save** (`trySubmit` → `Http.send`).
+The **view is a single `Form.page`** call — a standard shell (title, error bar, submit/cancel)
+around your `layout`:
+
+```ts
+// Model: { form: ProductFormModel; error; saved }
+// Msg:   Form { msg } | Submit | Saved { product } | Failed { error }
+
+// update
+Form:   ({ msg }) => { const [form, cmd] = ProductForm.update(msg, model.form); return [{ ...model, form }, Cmd.map(formMsg)(cmd)] },
+Submit: () => {
+  const [form, payload] = ProductForm.trySubmit(model.form)
+  return Option.match(payload, {
+    onNone: () => [{ ...model, form }, Cmd.none],
+    onSome: p => [{ ...model, form }, Http.send(Api.createProduct(p), { onSuccess: saved, onError: failed })],
+  })
+},
+Saved: ({ product }) => [{ ...model, form: ProductForm.toEditing(model.form) }, Navigation.pushUrl('/products')],
+
+// view
+export const view = model => dispatch =>
+  Form.page({
+    spec: ProductForm, model: model.form, layout, title: 'New product',
+    error: Option.isSome(model.error) ? 'Snimanje nije uspelo.' : undefined,
+    dispatch: m => dispatch(formMsg(m)),
+    onSubmit: () => dispatch(submit()),
+    cancel: { label: 'Odustani', href: '/products' },
+  })
+```
+
+`FormSpec` gives `create/edit/copy/view`, `update`, `trySubmit`, `render`, `fieldUi`,
+`isDirty/isValid/validate`, `toEditing`, `withServerIssues`.
+
+### Field builders
+
+Every builder takes `{ label, ... }`:
+
+| Backend type | Builder | Payload |
+|---|---|---|
+| code10 / code30 / name / desc / string | `Form.code10/code30/name/desc/text({ label, optional?, validate? })` | `string` |
+| int / decimal | `Form.int/decimal({ label, min?, max?, optional?, validate? })` | `number` |
+| date / time | `Form.date/time({ label, optional?, validate?, seconds? })` | `string` |
+| datetime | `Form.datetime({ label, optional?, validate? })` | `Date` |
+| flag | `Form.flag({ label })` | `boolean` |
+| enum | `Form.enumField({ label, options, optional? })` | `string` |
+| enum multi | `Form.multiEnum({ label, options, optional?, placeholder? })` | `string[]` |
+| combo | `Form.combo({ label, source, optional?, dependsOn?, numeric?, resolve? })` | `number` |
+| combo multi | `Form.multiCombo({ label, source, optional?, dependsOn?, numeric?, resolve? })` | `number[]` |
+
+Values are encoded (string / boolean / string[]); `trySubmit` decodes to the typed payload.
+Date shows dd.mm.yyyy but stores `YYYY-MM-DD`; time is 24h `HH:mm` (`{ seconds: true }` → `HH:mm:ss`).
+**datetime** is a DatePicker + masked time input (dd.mm.yyyy + HH:mm); it has a value only when
+**both** are entered, and decodes to a real `Date`. Time inputs are masked (type digits → `HH:mm`,
+no dropdown); date/time fields have a fixed width. **multiEnum** yields a `string[]` (codes).
+**combo / multiCombo** send the selected **id(s) as numbers** by default (the widget still works
+in string ids); pass `numeric: false` for string ids (codes/GUIDs).
+
+### Combo (async select)
+
+`Form.combo` (single) and `Form.multiCombo` (multi) are async selects. Under the hood both are
+the same TEA unit (`src/common/forms/combo`): fetch is a `Cmd`, state lives in the model, and a
+`seq` guard drops out-of-order responses — all testable through `update`. The form only names a
+**`source`**, declared in the feature's `api/combo-definitions.ts` via `pretragaCombo`
+(which adds the `unetaVrednost` type-ahead criterion automatically):
+
+```ts
+// products/api/combo-definitions.ts — results follow `{ id, sifra?, naziv }`, so the label
+// is derived automatically: `sifra - naziv`, or just `naziv` when there is no sifra.
+export const grupaCombo = pretragaCombo(pretraziGrupaCombo)
+// pass a mapper only for a non-standard label:
+//   pretragaCombo(pretraziKorisnikCombo, k => ({ value: String(k.id), label: `${k.ime} ${k.prezime}` }))
+
+// form
+Form.combo({ label: 'Grupa', source: Api.grupaCombo })
+```
+
+The **route + criteria/result types live in the feature's `api`**, on the shared pretraga
+contract (`src/common/pretraga`: `PretragaRequest`/`PretragaResponse`, `BaseComboCriteria`,
+`contains`, `response`, and `comboRequest` — the route builder that adds `limit_`/`offset_`
+and decodes the response; combos default to `limit_ = 10`, `offset_ = 0`). See `src/products/api`.
+
+**Paging ("load more").** A combo loads the first page (`offset_ = 0`); while more rows match
+than are loaded (`total_ > options.length`), it shows a **"Učitaj još (N od M)"** row. Selecting
+it fetches the next page at `offset_ = <rows loaded>` (10, 20, …) and **appends** it, keeping the
+list open. `seq` still drops stale responses; a new query restarts from the first page. The
+popup is controlled (`Model.open`) so load-more doesn't close it.
+
+### Cascading, sections, async validation, edit mode
+
+- **Cascade** — `dependsOn` on a child combo does everything from one declaration. As an
+  array (`['grupa']`) it resets + disables until the parent is set; as a map
+  (`{ grupaID: 'grupa' }`) it also feeds the chosen parent into the child's search as the
+  named criterion — no `Number()`/mapping code in the form.
+- **Sections** — `Form.combine({ general, lot }, { rebind })` merges field-group maps over
+  dotted paths (`general.warehouse`). Cross-section links use `rebind`
+  (`{ field: 'lot.lot', dep: 'warehouse', to: 'general.warehouse' }`); dangling deps throw at
+  build time. Reset / deps / auto-disable work across sections.
+- **Async validation** — `Form.asyncValidated(field, { check, toIssues, debounceMs })` wraps
+  any field with debounced server validation (e.g. uniqueness). Results surface as the
+  field's issues; `FieldUi.validating` flags in-flight checks.
+- **Edit mode** — pass `resolve: id => Http.Request<SelectOption>` to a combo so a preselected
+  id shows its label (hydration, no cascade); init the form with `spec.edit(record)`.
+
+### Adding a project-specific field type
+
+Add a schema in `common/domain` and a builder in `common/forms` (wrap a widget). Validation
+messages live on the schema, so wording is consistent and translatable in one place. Full
+working example: `src/products/create` (Form.object + combos + cascade, save at `/products/new`).
 
 ## Git Conventions
 

@@ -12,9 +12,11 @@ import {
   TableCell,
   TableCellLayout,
   Avatar,
+  Button,
   tokens,
   makeStyles,
 } from '@fluentui/react-components'
+import { AddRegular } from '@fluentui/react-icons'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Http from 'tea-effect/Http'
 import type * as Platform from 'tea-effect/Platform'
@@ -35,6 +37,11 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column',
     gap: tokens.spacingVerticalM,
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   price: {
     fontWeight: tokens.fontWeightSemibold,
@@ -88,7 +95,12 @@ const ProductsView = ({ model }: { readonly model: Model }) => {
 
   return (
     <div className={styles.container}>
-      <Title1>Products</Title1>
+      <div className={styles.header}>
+        <Title1>Products</Title1>
+        <Button as="a" href="/products/new" appearance="primary" icon={<AddRegular />}>
+          New product
+        </Button>
+      </div>
       {model.isLoading ? (
         <Spinner label="Loading products..." />
       ) : Option.isSome(model.error) ? (

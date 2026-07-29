@@ -8,7 +8,7 @@ import { Form } from '../../common/forms'
 import * as Api from '../api'
 import type { Model } from './model'
 import { Msg, formMsg, submit, saved, failed } from './msg'
-import { ProductForm, layout } from './form'
+import { ProductForm, layout, toCreateBody } from './form'
 
 export type { Model }
 export type { Msg }
@@ -41,7 +41,7 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
         onNone: (): [Model, Cmd.Cmd<Msg>] => [{ ...model, form }, Cmd.none],
         onSome: (validated): [Model, Cmd.Cmd<Msg>] => [
           { ...model, form, error: Option.none() },
-          Http.send(Api.createProduct(validated), { onSuccess: saved, onError: failed }),
+          Http.send(Api.createProduct(toCreateBody(validated)), { onSuccess: saved, onError: failed }),
         ],
       })
     },

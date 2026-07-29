@@ -6,6 +6,9 @@ import {
   ProductsResponse,
   CreateProductBody,
   CreatedProduct,
+  EditProductRecord,
+  UpdateProductBody,
+  DeletedProduct,
   ProizvodComboResult,
   GrupaComboResult,
   PodgrupaComboResult,
@@ -14,6 +17,9 @@ import type {
   ProductsResponse as ProductsResponseType,
   CreateProductBody as CreateProductBodyType,
   CreatedProduct as CreatedProductType,
+  EditProductRecord as EditProductRecordType,
+  UpdateProductBody as UpdateProductBodyType,
+  DeletedProduct as DeletedProductType,
   ProizvodComboResult as ProizvodComboResultType,
   ProizvodComboCriteria,
   GrupaComboResult as GrupaComboResultType,
@@ -37,6 +43,26 @@ export const getProducts: Http.Request<ProductsResponseType> = Http.get(
 
 export const createProduct = (body: CreateProductBodyType): Http.Request<CreatedProductType> =>
   Http.post(`${env.apiBaseUrl}/products/add`, Http.jsonBody(CreateProductBody, body), Http.expectJson(CreatedProduct))
+
+// -------------------------------------------------------------------------------------
+// Edit / delete (Magacin: daj-info -> record, azuriraj(cmd), obriši(identifikator))
+// -------------------------------------------------------------------------------------
+
+/** daj-info: load the editable record for a product. */
+export const getProduct = (id: number): Http.Request<EditProductRecordType> =>
+  Http.get(`${env.apiBaseUrl}/products/${id}`, Http.expectJson(EditProductRecord))
+
+/** azuriraj: update; the command carries id + version (concurrency), category is not editable. */
+export const updateProduct = (body: UpdateProductBodyType): Http.Request<EditProductRecordType> =>
+  Http.put(
+    `${env.apiBaseUrl}/products/${body.id}`,
+    Http.jsonBody(UpdateProductBody, body),
+    Http.expectJson(EditProductRecord),
+  )
+
+/** obriši: delete by identity. */
+export const deleteProduct = (identifikator: { readonly id: number }): Http.Request<DeletedProductType> =>
+  Http.del(`${env.apiBaseUrl}/products/${identifikator.id}`, Http.expectJson(DeletedProduct))
 
 // -------------------------------------------------------------------------------------
 // Combo routes — GET pretrazi*Combo?{...PretragaRequest<Criteria>}

@@ -65,6 +65,41 @@ export const CreatedProduct = S.Struct({
 export type CreatedProduct = typeof CreatedProduct.Type
 
 // -------------------------------------------------------------------------------------
+// Edit / delete (Magacin shape: daj-info -> record, azuriraj(cmd) with id+version, obriši)
+// -------------------------------------------------------------------------------------
+
+/** Object identity for update/delete (optimistic concurrency, like Magacin). */
+export const ObjekatIdentifikator = S.Struct({ id: S.Number, version: S.Number })
+export type ObjekatIdentifikator = typeof ObjekatIdentifikator.Type
+
+// What `getProduct` (daj-info) returns — the currently-stored, editable attributes.
+export const EditProductRecord = S.Struct({
+  id: S.Number,
+  title: S.String,
+  category: S.String,
+  price: S.Number,
+  stock: S.Number,
+  description: S.optional(S.String),
+})
+export type EditProductRecord = typeof EditProductRecord.Type
+
+// Update command. NOTE (create != update): `category` is set at creation and cannot be
+// changed here, so it is intentionally absent; `id` + `version` are injected by the feature.
+export const UpdateProductBody = S.Struct({
+  id: S.Number,
+  version: S.Number,
+  title: S.String,
+  price: S.Number,
+  stock: S.Number,
+  description: S.optional(S.String),
+})
+export type UpdateProductBody = typeof UpdateProductBody.Type
+
+// Delete echoes the removed product; we only confirm the id.
+export const DeletedProduct = S.Struct({ id: S.Number })
+export type DeletedProduct = typeof DeletedProduct.Type
+
+// -------------------------------------------------------------------------------------
 // Proizvod combo — criteria & result (search source for a product combo)
 // -------------------------------------------------------------------------------------
 //

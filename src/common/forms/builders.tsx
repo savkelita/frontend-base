@@ -163,28 +163,26 @@ export const multiEnum = (cfg: Labeled<Opt> & { options: ReadonlyArray<SelectOpt
   })
 
 // --- combo (async select TEA unit; single or multi) ---
-// `dependsOn` has two forms, shared by single and multi combos:
-//   - string[]                     : parents that reset/disable this field
-//   - { [criterion]: parentField } : additionally feed the parent's value into the search
-//     (e.g. { grupaID: 'grupa' } sends the chosen grupa as the `grupaID` criterion)
-type DependsOn = ReadonlyArray<string> | Record<string, string>
+// Two separate, clearly-named concerns (shared by single & multi combos):
+//   - dependsOn : the parent field(s) — one name or several. Changing a parent resets this
+//                 field, disables it until every parent is set, and re-runs the search.
+//   - criteria  : how those parent values become the search criteria for THIS combo, e.g.
+//                 `deps => ({ grupaID: deps.grupa })` (criterion on the left, value on the right).
+type DependsOn = string | ReadonlyArray<string>
+type Criteria = (deps: Record<string, unknown>) => Record<string, unknown>
 
-// Turn `dependsOn` into the parent-field list (reset/disable) + the criteria injector.
-const comboDeps = (dependsOn?: DependsOn) => {
-  const depMap = dependsOn && !Array.isArray(dependsOn) ? (dependsOn as Record<string, string>) : undefined
-  const parentFields = dependsOn ? (Array.isArray(dependsOn) ? dependsOn : Object.values(dependsOn)) : undefined
-  const criteriaFrom = (deps: Record<string, unknown>): Record<string, unknown> =>
-    depMap ? Object.fromEntries(Object.entries(depMap).map(([criterion, field]) => [criterion, deps[field]])) : {}
-  return { parentFields, criteriaFrom }
-}
+const parentsOf = (dependsOn?: DependsOn): ReadonlyArray<string> | undefined =>
+  dependsOn === undefined ? undefined : typeof dependsOn === 'string' ? [dependsOn] : dependsOn
 
 const comboConfig =
-  (source: ComboSource, criteriaFrom: (d: Record<string, unknown>) => Record<string, unknown>) =>
+  (source: ComboSource, criteria: Criteria) =>
   (ctx: { deps: Record<string, unknown> }): Combo.Config<any> => ({
-    search: (q, offset) => source.request(criteriaFrom(ctx.deps), q, offset),
+    search: (q, offset) => source.request(criteria(ctx.deps), q, offset),
     toOptions: source.toOptions,
     total: source.total,
   })
+
+const noCriteria: Criteria = () => ({})
 
 export const combo = (cfg: {
   readonly label: string
@@ -192,14 +190,17 @@ export const combo = (cfg: {
   readonly optional?: boolean
   /** The search route + result->option mapping, declared in the feature's api. */
   readonly source: ComboSource
+  /** Parent field(s) this combo depends on (reset + disable + re-search). */
   readonly dependsOn?: DependsOn
+  /** How the parent values become this combo's search criteria, e.g. `d => ({ grupaID: d.grupa })`. */
+  readonly criteria?: Criteria
   /** Send the selected id as a number (default). Set false for string ids (codes/GUIDs). */
   readonly numeric?: boolean
   /** Edit mode: resolve the label for a preselected id. */
   readonly resolve?: (id: string) => Http.Request<SelectOption>
 }): FieldDef<string, Combo.Model, Combo.Msg> => {
-  const { parentFields, criteriaFrom } = comboDeps(cfg.dependsOn)
-  const config = comboConfig(cfg.source, criteriaFrom)
+  const parentFields = parentsOf(cfg.dependsOn)
+  const config = comboConfig(cfg.source, cfg.criteria ?? noCriteria)
   // The draft is always the string id (the widget's value); the payload is a number by default.
   const schema =
     (cfg.numeric ?? true)
@@ -249,14 +250,17 @@ export const multiCombo = (cfg: {
   readonly placeholder?: string
   readonly optional?: boolean
   readonly source: ComboSource
+  /** Parent field(s) this combo depends on (reset + disable + re-search). */
   readonly dependsOn?: DependsOn
+  /** How the parent values become this combo's search criteria. */
+  readonly criteria?: Criteria
   /** Send the selected ids as numbers (default). Set false for string ids (codes/GUIDs). */
   readonly numeric?: boolean
   /** Edit mode: resolve labels for preselected ids. */
   readonly resolve?: (ids: ReadonlyArray<string>) => Http.Request<ReadonlyArray<SelectOption>>
 }): FieldDef<readonly string[], Combo.Model, Combo.Msg> => {
-  const { parentFields, criteriaFrom } = comboDeps(cfg.dependsOn)
-  const config = comboConfig(cfg.source, criteriaFrom)
+  const parentFields = parentsOf(cfg.dependsOn)
+  const config = comboConfig(cfg.source, cfg.criteria ?? noCriteria)
   const seed = (ids: readonly string[]) => Combo.withSelectedMany(ids.map(id => ({ value: id, label: id })))
   // Draft is the string ids; the payload is number[] by default (String[] when numeric: false).
   const element = (cfg.numeric ?? true) ? Schema.NumberFromString : Schema.String

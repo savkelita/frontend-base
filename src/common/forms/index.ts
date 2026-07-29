@@ -3,6 +3,7 @@ import { object } from './core/object'
 import { combine } from './core/combine'
 import { asyncValidated } from './core/async'
 import { page } from './page'
+import { dialog, confirmDialog } from './dialog'
 
 // -------------------------------------------------------------------------------------
 // @tea-effect/forms — public API
@@ -15,11 +16,12 @@ import { page } from './page'
 //     grupa: Form.combo({ label: 'Grupa', search, toOptions }),
 //   })
 
-export const Form = { ...builders, object, combine, asyncValidated, page }
+export const Form = { ...builders, object, combine, asyncValidated, page, dialog, confirmDialog }
 
 export type { FieldDef } from './core/field'
 export type { AsyncConfig } from './core/async'
 export type { CombineConfig, Rebind } from './core/combine'
 export type { FieldRenderer, PageProps } from './page'
+export type { FormDialogState, FormDialogProps, ConfirmDialogProps } from './dialog'
 export type { FieldUi, FieldCtx, Issue, Severity, Mode, Async } from './core/types'
 export type { FormModel, FormMsg, FormSpec, Config, Draft, Payload, FieldRule, Fields } from './core/object'

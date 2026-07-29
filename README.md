@@ -148,8 +148,14 @@ export const fields = {
   price: Form.decimal({ label: 'Cena', min: 0 }),
   category: Form.enumField({ label: 'Kategorija', options: CATEGORY_OPTIONS }),
   grupa: Form.combo({ label: 'Grupa', optional: true, source: Api.grupaCombo }),
-  // dependsOn map: reset + disable + feed the chosen grupa as the `grupaID` criterion
-  podgrupa: Form.combo({ label: 'Podgrupa', optional: true, source: Api.podgrupaCombo, dependsOn: { grupaID: 'grupa' } }),
+  // dependsOn = which parent; criteria = how it is sent to podgrupa's search
+  podgrupa: Form.combo({
+    label: 'Podgrupa',
+    optional: true,
+    source: Api.podgrupaCombo,
+    dependsOn: 'grupa',
+    criteria: deps => ({ grupaID: deps.grupa }),
+  }),
 }
 
 export const ProductForm = Form.object(fields)
@@ -258,10 +264,11 @@ popup is controlled (`Model.open`) so load-more doesn't close it.
 
 ### Cascading, sections, async validation, edit mode
 
-- **Cascade** — `dependsOn` on a child combo does everything from one declaration. As an
-  array (`['grupa']`) it resets + disables until the parent is set; as a map
-  (`{ grupaID: 'grupa' }`) it also feeds the chosen parent into the child's search as the
-  named criterion — no `Number()`/mapping code in the form.
+- **Cascade** — two clearly-named props on a child combo: `dependsOn` names the parent
+  field(s) (one name or an array — resets + disables until every parent is set + re-searches),
+  and `criteria` says how those values become the search criteria, e.g.
+  `criteria: deps => ({ grupaID: deps.grupa })` (criterion on the left, value on the right).
+  Depending on 2+ fields is just `dependsOn: ['grupa', 'magacin']`.
 - **Sections** — `Form.combine({ general, lot }, { rebind })` merges field-group maps over
   dotted paths (`general.warehouse`). Cross-section links use `rebind`
   (`{ field: 'lot.lot', dep: 'warehouse', to: 'general.warehouse' }`); dangling deps throw at
@@ -272,11 +279,35 @@ popup is controlled (`Model.open`) so load-more doesn't close it.
 - **Edit mode** — pass `resolve: id => Http.Request<SelectOption>` to a combo so a preselected
   id shows its label (hydration, no cascade); init the form with `spec.edit(record)`.
 
+### Create / update / delete
+
+The same shape as Magacin (`kreiranje` / `azuriranje` / `brisanje`), separate feature modules:
+
+- **Update** (`src/products/edit`) — `init(id)` loads via a *daj-info* route (`getProduct`),
+  then `spec.edit(toDraft(record))`; the feature owns the load-state (`Loading | Ready | Failed`)
+  and renders as a **dialog** (`Form.dialog`) hosted by the list. Its `update` returns an
+  `Outcome` (`Active | Saved | Cancelled`) the list folds (`Saved` → close + refetch).
+  The **create and update forms need not match** — the edit form is a smaller `Form.object`,
+  renders `category` read-only (create-only), and omits create-only fields.
+- **Payload → body** — `trySubmit` gives the validated `Payload<F>`, but the feature maps it to
+  the request body (`toCreateBody` / `toUpdateBody`): drop form-only fields, rename, and inject
+  attributes not on the form (e.g. `id` + `version` for optimistic concurrency). The form never
+  sends itself directly.
+- **Delete** (`src/products/delete`) — always a confirmation via `Form.confirmDialog`. Its
+  `update` returns an `Outcome` (`Active | Deleted | Cancelled`); the host (the list) folds it:
+  `Deleted` → close + refetch, `Cancelled` → close.
+
+### Two chromes: `Form.page` and `Form.dialog`
+
+The same form body (`layout` render-prop + error bar + actions) renders either as a full screen
+(`Form.page`) or as a modal (`Form.dialog`). `Form.dialog` also owns a `Loading | Ready | Failed`
+state so an edit dialog shows a spinner while its record loads.
+
 ### Adding a project-specific field type
 
 Add a schema in `common/domain` and a builder in `common/forms` (wrap a widget). Validation
 messages live on the schema, so wording is consistent and translatable in one place. Full
-working example: `src/products/create` (Form.object + combos + cascade, save at `/products/new`).
+working example: `src/products/create` (create), `src/products/edit` (update), `src/products/delete`.
 
 ## Git Conventions
 

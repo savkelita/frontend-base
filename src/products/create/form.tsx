@@ -1,5 +1,5 @@
 import { Form } from '../../common/forms'
-import type { FormModel, FormMsg, FieldRenderer } from '../../common/forms'
+import type { FormModel, FormMsg, FieldRenderer, Payload } from '../../common/forms'
 import * as Api from '../api'
 import { Category, Oznake } from '../category'
 
@@ -22,12 +22,13 @@ export const fields = {
   // multi-combo: several async-searched products.
   povezaniProizvodi: Form.multiCombo({ label: 'Povezani proizvodi', optional: true, source: Api.proizvodCombo }),
   grupa: Form.combo({ label: 'Grupa', optional: true, source: Api.grupaCombo }),
-  // podgrupa filters by the chosen grupa: reset + disable + criteria injection, all from dependsOn.
+  // podgrupa filters by the chosen grupa: `dependsOn` resets/disables, `criteria` feeds the search.
   podgrupa: Form.combo({
     label: 'Podgrupa',
     optional: true,
     source: Api.podgrupaCombo,
-    dependsOn: { grupaID: 'grupa' },
+    dependsOn: 'grupa',
+    criteria: deps => ({ grupaID: deps.grupa }),
   }),
   description: Form.desc({ label: 'Opis', optional: true }),
   published: Form.flag({ label: 'Objavljen' }),
@@ -38,6 +39,14 @@ export const ProductForm = Form.object(fields)
 export type FieldKey = keyof typeof fields
 export type ProductFormModel = FormModel<typeof fields>
 export type ProductFormMsg = FormMsg<typeof fields>
+
+// Map the validated form values to the request body. This is the seam the feature owns:
+// not every form field must be sent, and attributes not on the form (e.g. a parentId passed
+// via the feature model) are injected here.
+export const toCreateBody = (payload: Payload<typeof fields>): Api.CreateProductBody => ({
+  ...payload,
+  // e.g. injected extras: parentId: extra.parentId,
+})
 
 // -------------------------------------------------------------------------------------
 // Layout — full control over each field's width & position (plain CSS grid here).

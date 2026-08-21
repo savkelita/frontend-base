@@ -18,7 +18,7 @@ const popunjen: FormValue = {
   prezime: 'Peric',
   imeZaPrikaz: 'Pera Peric',
   email: 'pera@primer.rs',
-  telefon: '0631234567',
+  telefon: '38163123456',
   kategorije: [B],
 }
 

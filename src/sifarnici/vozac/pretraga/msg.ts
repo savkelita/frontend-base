@@ -2,6 +2,8 @@ import { Data as Tagged } from 'effect'
 import type { ApiError } from '../../../common/error'
 import type { Page, PretragaRequest, Sort } from '../../../common/pretraga'
 import type { Vozac, VozacCriteria, VozacOrder } from '../../api'
+import type * as Azuriranje from '../azuriranje'
+import type * as Brisanje from '../brisanje'
 import type * as Kreiranje from '../kreiranje'
 import type * as Filter from './filter'
 
@@ -17,6 +19,10 @@ export type Msg = Tagged.TaggedEnum<{
   FilterMsg: { readonly msg: Filter.Msg }
   StartKreiranje: {}
   KreiranjeMsg: { readonly msg: Kreiranje.Msg }
+  StartAzuriranje: { readonly id: number }
+  AzuriranjeMsg: { readonly msg: Azuriranje.Msg }
+  StartBrisanje: { readonly vozac: Vozac }
+  BrisanjeMsg: { readonly msg: Brisanje.Msg }
 }>
 
 export const Msg = Tagged.taggedEnum<Msg>()
@@ -38,3 +44,11 @@ export const filterMsg = (msg: Filter.Msg): Msg => Msg.FilterMsg({ msg })
 export const startKreiranje = (): Msg => Msg.StartKreiranje()
 
 export const kreiranjeMsg = (msg: Kreiranje.Msg): Msg => Msg.KreiranjeMsg({ msg })
+
+export const startAzuriranje = (id: number): Msg => Msg.StartAzuriranje({ id })
+
+export const azuriranjeMsg = (msg: Azuriranje.Msg): Msg => Msg.AzuriranjeMsg({ msg })
+
+export const startBrisanje = (vozac: Vozac): Msg => Msg.StartBrisanje({ vozac })
+
+export const brisanjeMsg = (msg: Brisanje.Msg): Msg => Msg.BrisanjeMsg({ msg })

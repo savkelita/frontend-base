@@ -13,7 +13,7 @@ import * as Form from '../../../common/form'
 import { FormDialog } from '../../../common/form/dialog'
 import * as Api from '../../api'
 import * as Kategorija from '../../domain/kategorija-vozaca'
-import { EMPTY, vForm, type FormValue, type Model, type Value } from './model'
+import { EMPTY, sameForm, vForm, type FormValue, type Model, type Value } from './model'
 import { Msg, changed, closed, kategorijeMsg, saveFailed, saved, submitted } from './msg'
 
 export * from './model'
@@ -144,6 +144,7 @@ const KreiranjeView = ({ model, dispatch }: { model: Model; dispatch: Platform.D
       title="Kreiranje vozaca"
       submitLabel="Sacuvaj"
       isSubmitting={model.isSubmitting}
+      dirty={!sameForm(EMPTY, model.value)}
       onSubmit={() => dispatch(submitted())}
       onClose={() => dispatch(closed())}
     >

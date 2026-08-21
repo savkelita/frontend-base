@@ -30,6 +30,34 @@ export const Vozac = Schema.Struct({
 
 export type Vozac = typeof Vozac.Type
 
+export const VozacInfo = Schema.Struct({
+  id: Schema.Number,
+  version: Schema.Number,
+  ime: Schema.String,
+  prezime: Schema.String,
+  imeZaPrikaz: Schema.String,
+  email: Schema.NullOr(Schema.String),
+  telefon: Schema.NullOr(Schema.String),
+  kategorije: Schema.Array(KategorijaVozacaInfo),
+  stanje: StanjeVozaca.ioValue,
+})
+
+export type VozacInfo = typeof VozacInfo.Type
+
+export const AzurirajVozacCmd = Schema.Struct({
+  id: Schema.Number,
+  version: Schema.Number,
+  prezime: Schema.String,
+  ime: Schema.String,
+  imeZaPrikaz: Schema.String,
+  email: Schema.NullOr(Schema.String),
+  telefon: Schema.NullOr(Schema.String),
+  stanje: StanjeVozaca.ioValue,
+  kategorije: Schema.Array(Schema.Number),
+})
+
+export type AzurirajVozacCmd = typeof AzurirajVozacCmd.Type
+
 export const KreirajVozacCmd = Schema.Struct({
   prezime: Schema.String,
   ime: Schema.String,

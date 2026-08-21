@@ -1,9 +1,17 @@
 import * as Http from 'tea-effect/Http'
 import type { Criteria as ComboCriteria } from '../../common/domain/combo'
 import { ObjekatIdentifikator } from '../../common/http/identifikator'
-import { get, post } from '../../common/http/request'
+import { expectNoContent, get, post } from '../../common/http/request'
 import { ioPretragaResponse, withQuery, type PretragaRequest, type PretragaResponse } from '../../common/pretraga'
-import { KategorijaVozackeDozvoleCombo, KreirajVozacCmd, Vozac, type VozacCriteria, type VozacOrder } from './types'
+import {
+  AzurirajVozacCmd,
+  KategorijaVozackeDozvoleCombo,
+  KreirajVozacCmd,
+  Vozac,
+  VozacInfo,
+  type VozacCriteria,
+  type VozacOrder,
+} from './types'
 
 export const pretraziVozac = (
   request: PretragaRequest<VozacCriteria, VozacOrder>,
@@ -12,6 +20,15 @@ export const pretraziVozac = (
 
 export const kreirajVozac = (cmd: KreirajVozacCmd): Http.Request<ObjekatIdentifikator> =>
   post('/api/sifarnik/kreirajVozac', Http.jsonBody(KreirajVozacCmd, cmd), Http.expectJson(ObjekatIdentifikator))
+
+export const dajVozac = (vozacID: number): Http.Request<VozacInfo> =>
+  get(`/api/sifarnik/dajVozac/${vozacID}`, Http.expectJson(VozacInfo))
+
+export const azurirajVozac = (cmd: AzurirajVozacCmd): Http.Request<void> =>
+  post('/api/sifarnik/azurirajVozac', Http.jsonBody(AzurirajVozacCmd, cmd), expectNoContent)
+
+export const obrisiVozac = (cmd: ObjekatIdentifikator): Http.Request<void> =>
+  post('/api/sifarnik/obrisiVozac', Http.jsonBody(ObjekatIdentifikator, cmd), expectNoContent)
 
 export const pretraziKategorijaVozackeDozvoleCombo = (
   request: PretragaRequest<ComboCriteria, never>,

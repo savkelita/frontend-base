@@ -1,4 +1,4 @@
-export const FUNKCIONALNOSTI = ['PretragaVozaca', 'KreiranjeVozaca'] as const
+export const FUNKCIONALNOSTI = ['PretragaVozaca', 'KreiranjeVozaca', 'AzuriranjeVozaca', 'BrisanjeVozaca'] as const
 
 export type Funkcionalnost = (typeof FUNKCIONALNOSTI)[number]
 

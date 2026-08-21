@@ -28,11 +28,15 @@ import { Table, type Column } from '../../../common/pretraga/table'
 import * as Api from '../../api'
 import type { Vozac, VozacCriteria, VozacOrder } from '../../api'
 import * as StanjeVozaca from '../../domain/stanje-vozaca'
+import * as Azuriranje from '../azuriranje'
+import * as Brisanje from '../brisanje'
 import * as Kreiranje from '../kreiranje'
 import * as Filter from './filter'
 import { LIMIT, type Model } from './model'
 import {
   Msg,
+  azuriranjeMsg,
+  brisanjeMsg,
   failed,
   filterMsg,
   kreiranjeMsg,
@@ -41,6 +45,8 @@ import {
   retry,
   selectionChanged,
   sorted,
+  startAzuriranje,
+  startBrisanje,
   startKreiranje,
 } from './msg'
 
@@ -107,6 +113,8 @@ export const init = (query: typeof RouteQuery.Type, state: unknown, previous?: M
     selected: [],
     filterModel,
     kreiranje: Option.none(),
+    azuriranje: Option.none(),
+    brisanje: Option.none(),
   }
   return [model, Cmd.batch([load(model), Cmd.map(filterMsg)(filterCmd)])]
 }
@@ -145,6 +153,32 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
       return [{ ...model, kreiranje: Option.some(kreiranje) }, Cmd.map(kreiranjeMsg)(cmd)]
     },
 
+    StartAzuriranje: ({ id }): [Model, Cmd.Cmd<Msg>] => {
+      const [azuriranje, cmd] = Azuriranje.init(id)
+      return [{ ...model, azuriranje: Option.some(azuriranje) }, Cmd.map(azuriranjeMsg)(cmd)]
+    },
+
+    AzuriranjeMsg: ({ msg: msgAzuriranje }): [Model, Cmd.Cmd<Msg>] => {
+      if (Option.isNone(model.azuriranje)) return [model, Cmd.none]
+      if (msgAzuriranje._tag === 'Closed') return [{ ...model, azuriranje: Option.none() }, Cmd.none]
+      if (msgAzuriranje._tag === 'Saved') return reload({ ...model, azuriranje: Option.none(), selected: [] })
+      const [azuriranje, cmd] = Azuriranje.update(msgAzuriranje, model.azuriranje.value)
+      return [{ ...model, azuriranje: Option.some(azuriranje) }, Cmd.map(azuriranjeMsg)(cmd)]
+    },
+
+    StartBrisanje: ({ vozac }): [Model, Cmd.Cmd<Msg>] => {
+      const [brisanje, cmd] = Brisanje.init(vozac)
+      return [{ ...model, brisanje: Option.some(brisanje) }, Cmd.map(brisanjeMsg)(cmd)]
+    },
+
+    BrisanjeMsg: ({ msg: msgBrisanje }): [Model, Cmd.Cmd<Msg>] => {
+      if (Option.isNone(model.brisanje)) return [model, Cmd.none]
+      if (msgBrisanje._tag === 'Closed') return [{ ...model, brisanje: Option.none() }, Cmd.none]
+      if (msgBrisanje._tag === 'Deleted') return reload({ ...model, brisanje: Option.none(), selected: [] })
+      const [brisanje, cmd] = Brisanje.update(msgBrisanje, model.brisanje.value)
+      return [{ ...model, brisanje: Option.some(brisanje) }, Cmd.map(brisanjeMsg)(cmd)]
+    },
+
     FilterMsg: ({ msg: msgFilter }): [Model, Cmd.Cmd<Msg>] => {
       const [filterModel, filterCmd] = Filter.update(msgFilter, model.filterModel)
       const cmd = Cmd.map(filterMsg)(filterCmd)
@@ -161,6 +195,9 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
   })
 
 const rowId = (vozac: Vozac): number => vozac.id
+
+const getSelectedRow = (model: Model): Vozac | undefined =>
+  model.selected.length === 1 ? model.selected[0] : undefined
 
 const dispatchers = memoize((dispatch: Platform.Dispatch<Msg>) => ({
   selectRow: (rows: ReadonlyArray<Vozac>) => dispatch(selectionChanged(rows)),
@@ -189,6 +226,7 @@ const PretragaVozacaView = ({
   dispatch: Platform.Dispatch<Msg>
 }) => {
   const { selectRow, retryLoad, changeSort, changeOffset } = dispatchers(dispatch)
+  const selectedRow = getSelectedRow(model)
 
   return (
     <>
@@ -197,6 +235,8 @@ const PretragaVozacaView = ({
         actions={
           <>
             {Kreiranje.button(config, startKreiranje())(dispatch)}
+            {Azuriranje.button(config, startAzuriranje, selectedRow?.id)(dispatch)}
+            {Brisanje.button(config, startBrisanje, selectedRow)(dispatch)}
             {Html.map(filterMsg)(Filter.button(model.filterModel))(dispatch)}
           </>
         }
@@ -216,6 +256,8 @@ const PretragaVozacaView = ({
         paging={<Paging data={model.data} offset={model.offset} limit={LIMIT} onOffset={changeOffset} />}
       />
       {Option.isSome(model.kreiranje) && Html.map(kreiranjeMsg)(Kreiranje.view(model.kreiranje.value))(dispatch)}
+      {Option.isSome(model.azuriranje) && Html.map(azuriranjeMsg)(Azuriranje.view(model.azuriranje.value))(dispatch)}
+      {Option.isSome(model.brisanje) && Html.map(brisanjeMsg)(Brisanje.view(model.brisanje.value))(dispatch)}
     </>
   )
 }

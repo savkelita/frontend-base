@@ -1,11 +1,13 @@
+import { Arbitrary, FastCheck, Option, Schema } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import { describe, expect, it } from 'vitest'
 import * as Combo from '../../../../../common/domain/combo'
-import { toQuery } from '../../../../../common/pretraga'
+import { ioStringOperator, toQuery } from '../../../../../common/pretraga'
 import {
   changed,
   cleared,
   init,
+  ioState,
   kategorijaMsg,
   submitted,
   toCriteria,
@@ -161,5 +163,58 @@ describe('kriterijum', () => {
 
   it('salje samo popunjena polja', () => {
     expect(query(form({ telefon: '060' }))).toBe('telefon=contains&telefon=060')
+  })
+})
+
+const kategorijaArb = FastCheck.record({ id: FastCheck.nat(), oznaka: FastCheck.string() })
+
+const stanje = FastCheck.oneof(
+  FastCheck.constant(undefined),
+  FastCheck.constant(null),
+  FastCheck.constant({ nesto: 'drugo' }),
+  FastCheck.constant({ kategorija: null }),
+  kategorijaArb.map(kategorija => ({ kategorija })),
+)
+
+describe('svojstva', () => {
+  // Zapamcena kategorija sa drugim id-em bi ispisala naziv sloga koji adresa ne trazi.
+  it('kategorija iz stanja se uzima samo kad joj se id poklapa sa adresom', () => {
+    FastCheck.assert(
+      FastCheck.property(FastCheck.nat(), stanje, (kategorijaID, state) => {
+        const izabrana = init({ kategorijaID }, state)[0].value.kategorija
+        expect(izabrana === null || izabrana.id === kategorijaID).toBe(true)
+      }),
+    )
+  })
+
+  it('bez kategorije u adresi nista se ne pamti', () => {
+    FastCheck.assert(
+      FastCheck.property(stanje, state => {
+        expect(init({}, state)[0].value.kategorija).toBeNull()
+      }),
+    )
+  })
+
+  it('stanje prezivi put kroz istoriju', () => {
+    FastCheck.assert(
+      FastCheck.property(FastCheck.option(kategorijaArb, { nil: null }), kategorija => {
+        const state = toState(form({ kategorija }))
+        const vraceno = Schema.decodeUnknownOption(ioState)(structuredClone(state))
+        expect(Option.isSome(vraceno)).toBe(true)
+        expect(Option.getOrNull(vraceno)).toStrictEqual(state)
+      }),
+    )
+  })
+
+  // Filter ume da napise samo `contains`, pa rucno upisan operator iz adrese ne prezivi
+  // ponovnu pretragu. Namerno je tako — ovde stoji da se ne bi otkrilo kao iznenadjenje.
+  it('operator iz adrese se pri ponovnoj pretrazi svodi na contains', () => {
+    FastCheck.assert(
+      FastCheck.property(Arbitrary.make(ioStringOperator), FastCheck.string({ minLength: 1 }), (operator, tekst) => {
+        const model = open({ ime: [operator, tekst] })
+        expect(model.value.ime).toBe(tekst)
+        expect(toCriteria(model.value).ime).toStrictEqual(['contains', tekst])
+      }),
+    )
   })
 })

@@ -1,3 +1,4 @@
+import { FastCheck } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { sameRequest, toQuery, withQuery, type Criteria, type PretragaRequest } from '../request'
 
@@ -111,5 +112,53 @@ describe('sameRequest', () => {
 
   it('nepopunjen kriterijum se ponasa kao da ga nema', () => {
     expect(sameRequest(request({ ime: undefined }), request({}))).toBe(true)
+  })
+})
+
+const POLJA = ['ime', 'prezime', 'email', 'stanje', 'kategorijaID'] as const
+
+const vrednost = FastCheck.oneof(
+  FastCheck.string(),
+  FastCheck.integer(),
+  FastCheck.array(FastCheck.oneof(FastCheck.string(), FastCheck.integer()), { minLength: 1, maxLength: 3 }),
+)
+
+const kriterijum = FastCheck.dictionary(FastCheck.constantFrom(...POLJA), vrednost, { maxKeys: POLJA.length })
+
+const zahtev = kriterijum.map(criteria => request(criteria as Criteria))
+
+const parovi = (query: string): ReadonlyArray<string> => (query === '' ? [] : query.split('&').toSorted())
+
+describe('svojstva', () => {
+  it('zahtev je isti sam sebi', () => {
+    FastCheck.assert(
+      FastCheck.property(zahtev, a => {
+        expect(sameRequest(a, a)).toBe(true)
+      }),
+    )
+  })
+
+  // Kriterijum iz adrese nema kljuc, a kriterijum iz filtera ga ima sa undefined.
+  // Ta dva oblika se sudaraju na svakoj pretrazi i moraju da znace isto.
+  it('odsutan kljuc i undefined su isti zahtev', () => {
+    FastCheck.assert(
+      FastCheck.property(zahtev, a => {
+        const prazni = Object.fromEntries(POLJA.filter(p => !(p in a.criteria)).map(p => [p, undefined]))
+        const b = request({ ...a.criteria, ...prazni })
+        expect(sameRequest(a, b)).toBe(true)
+        expect(toQuery(a)).toBe(toQuery(b))
+      }),
+    )
+  })
+
+  // toQuery ide redom upisa, pa niz nije isti string — ali jeste isti upit.
+  it('redosled kljuceva ne menja zahtev ni parametre', () => {
+    FastCheck.assert(
+      FastCheck.property(zahtev, a => {
+        const b = request(Object.fromEntries(Object.entries(a.criteria).toReversed()))
+        expect(sameRequest(a, b)).toBe(true)
+        expect(parovi(toQuery(a))).toStrictEqual(parovi(toQuery(b)))
+      }),
+    )
   })
 })

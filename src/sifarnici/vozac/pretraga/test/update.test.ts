@@ -6,6 +6,8 @@ import { ApiError } from '../../../../common/error'
 import { isLoading, rows, total, type Page, type PretragaRequest } from '../../../../common/pretraga'
 import { routes } from '../../../../router/route'
 import type { Vozac, VozacCriteria, VozacOrder } from '../../../api'
+import * as Azuriranje from '../../azuriranje'
+import * as Brisanje from '../../brisanje'
 import * as Kreiranje from '../../kreiranje'
 import * as Filter from '../filter'
 import { init, update } from '../index'
@@ -13,12 +15,16 @@ import { LIMIT, type Model } from '../model'
 import {
   failed,
   filterMsg,
+  azuriranjeMsg,
+  brisanjeMsg,
   kreiranjeMsg,
   loaded,
   pageChanged,
   retry,
   selectionChanged,
   sorted,
+  startAzuriranje,
+  startBrisanje,
   startKreiranje,
 } from '../msg'
 
@@ -314,6 +320,76 @@ describe('kreiranje', () => {
   it('poruka kreiranja bez otvorenog dijaloga otpada', () => {
     const model = ready()
     expect(update(kreiranjeMsg(Kreiranje.closed()), model)[0]).toBe(model)
+  })
+})
+
+describe('azuriranje', () => {
+  const saIzabranim = (): Model => update(selectionChanged([vozac(7, 'Jovic')]), ready())[0]
+
+  const otvoreno = (): Model => update(startAzuriranje(7), saIzabranim())[0]
+
+  it('dugme otvara dijalog i odmah trazi slog', () => {
+    const [model, cmd] = update(startAzuriranje(7), saIzabranim())
+    expect(Option.isSome(model.azuriranje)).toBe(true)
+    expect(cmd).not.toBe(Cmd.none)
+  })
+
+  it('odustajanje gasi dijalog i ne dira tabelu', () => {
+    const sDijalogom = otvoreno()
+    const [model, cmd] = update(azuriranjeMsg(Azuriranje.closed()), sDijalogom)
+    expect(Option.isNone(model.azuriranje)).toBe(true)
+    expect(model.data).toBe(sDijalogom.data)
+    expect(cmd).toBe(Cmd.none)
+  })
+
+  // Izmenjen red iz zatecene strane je zastareo, pa izbor pada zajedno sa dijalogom.
+  it('uspesna izmena gasi dijalog, ponistava izbor i ponovo trazi stranu', () => {
+    const [model, cmd] = update(azuriranjeMsg(Azuriranje.saved()), otvoreno())
+    expect(Option.isNone(model.azuriranje)).toBe(true)
+    expect(model.selected).toStrictEqual([])
+    expect(isLoading(model.data)).toBe(true)
+    expect(cmd).not.toBe(Cmd.none)
+  })
+
+  it('poruka azuriranja bez otvorenog dijaloga otpada', () => {
+    const model = saIzabranim()
+    expect(update(azuriranjeMsg(Azuriranje.closed()), model)[0]).toBe(model)
+  })
+})
+
+describe('brisanje', () => {
+  const row = vozac(7, 'Jovic')
+
+  const saIzabranim = (): Model => update(selectionChanged([row]), ready())[0]
+
+  const otvoreno = (): Model => update(startBrisanje(row), saIzabranim())[0]
+
+  // Za razliku od azuriranja, ovde nema sta da se ucita — red vec nosi id i version.
+  it('dugme otvara potvrdu bez poziva servera', () => {
+    const [model, cmd] = update(startBrisanje(row), saIzabranim())
+    expect(Option.isSome(model.brisanje)).toBe(true)
+    expect(cmd).toBe(Cmd.none)
+  })
+
+  it('odustajanje gasi dijalog i ne dira tabelu', () => {
+    const sDijalogom = otvoreno()
+    const [model, cmd] = update(brisanjeMsg(Brisanje.closed()), sDijalogom)
+    expect(Option.isNone(model.brisanje)).toBe(true)
+    expect(model.data).toBe(sDijalogom.data)
+    expect(cmd).toBe(Cmd.none)
+  })
+
+  it('obrisan red gasi dijalog, ponistava izbor i ponovo trazi stranu', () => {
+    const [model, cmd] = update(brisanjeMsg(Brisanje.deleted()), otvoreno())
+    expect(Option.isNone(model.brisanje)).toBe(true)
+    expect(model.selected).toStrictEqual([])
+    expect(isLoading(model.data)).toBe(true)
+    expect(cmd).not.toBe(Cmd.none)
+  })
+
+  it('poruka brisanja bez otvorenog dijaloga otpada', () => {
+    const model = saIzabranim()
+    expect(update(brisanjeMsg(Brisanje.closed()), model)[0]).toBe(model)
   })
 })
 

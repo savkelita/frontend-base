@@ -21,7 +21,7 @@ const useStyles = makeStyles({
   },
   content: {
     flex: 1,
-    padding: tokens.spacingHorizontalXXL,
+    minWidth: 0,
     overflowY: 'auto',
   },
 })

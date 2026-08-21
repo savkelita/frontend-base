@@ -1,111 +1,195 @@
-import {
-  Card,
-  CardHeader,
-  Title1,
-  Field,
-  Input,
-  Button,
-  MessageBar,
-  MessageBarBody,
-  tokens,
-} from '@fluentui/react-components'
+import { Button, Card, CardHeader, Spinner, Title1, makeStyles, tokens } from '@fluentui/react-components'
 import { Option } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Http from 'tea-effect/Http'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Api from '../auth/api'
-import type { Model } from './model'
-import { Msg, usernameChanged, passwordChanged, submit, loginSucceeded, loginFailed } from './msg'
+import type * as Uloga from '../auth/domain/uloga'
+import { fromLoginResponse } from '../auth/session'
+import { mapHttpError, reportError } from '../common/error'
+import { ErrorView } from '../common/error/view'
+import * as Form from '../common/form'
+import {
+  Step,
+  initial,
+  initialUloga,
+  vFormKorisnik,
+  vFormUloga,
+  type FormKorisnik,
+  type FormUloga,
+  type Model,
+} from './model'
+import {
+  Msg,
+  changeKorisnik,
+  changeUloga,
+  identified,
+  identifyFailed,
+  loginFailed,
+  loginSucceeded,
+  submitKorisnik,
+  submitUloga,
+} from './msg'
 
 export type { Model }
 export type { Msg }
 
-// -------------------------------------------------------------------------------------
-// Init
-// -------------------------------------------------------------------------------------
+export const init: [Model, Cmd.Cmd<Msg>] = [initial, Cmd.none]
 
-export const init: [Model, Cmd.Cmd<Msg>] = [
-  {
-    username: '',
-    password: '',
-    isSubmitting: false,
-    error: Option.none(),
-    result: Option.none(),
-  },
-  Cmd.none,
-]
+const identifikuj = (cmd: Api.IdentifikujCmd): Cmd.Cmd<Msg> =>
+  Http.send(Api.identifikuj(cmd), {
+    onSuccess: response => identified(response.uloge),
+    onError: error => identifyFailed(mapHttpError(error)),
+  })
 
-// -------------------------------------------------------------------------------------
-// Update
-// -------------------------------------------------------------------------------------
+const prijavi = (uloga: Uloga.Value): Cmd.Cmd<Msg> =>
+  Http.send(Api.login(uloga), {
+    onSuccess: response => loginSucceeded(fromLoginResponse(response, uloga)),
+    onError: error => loginFailed(mapHttpError(error)),
+  })
 
 export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
   Msg.$match(msg, {
-    UsernameChanged: ({ username }): [Model, Cmd.Cmd<Msg>] => [{ ...model, username, error: Option.none() }, Cmd.none],
-    PasswordChanged: ({ password }): [Model, Cmd.Cmd<Msg>] => [{ ...model, password, error: Option.none() }, Cmd.none],
-    Submit: (): [Model, Cmd.Cmd<Msg>] => [
-      { ...model, isSubmitting: true, error: Option.none() },
-      Http.send(Api.loginRequest({ username: model.username, password: model.password }), {
-        onSuccess: response => loginSucceeded(Api.toSession(response)),
-        onError: loginFailed,
-      }),
+    ChangeKorisnik: ({ value }): [Model, Cmd.Cmd<Msg>] => {
+      if (model.step._tag !== 'Korisnik') return [model, Cmd.none]
+      return [{ ...model, step: Step.Korisnik({ form: value }), error: Option.none() }, Cmd.none]
+    },
+
+    SubmitKorisnik: (): [Model, Cmd.Cmd<Msg>] => {
+      if (model.step._tag !== 'Korisnik') return [model, Cmd.none]
+      const result = Form.validate(vFormKorisnik, model.step.form)
+      if (!result.isValid) return [{ ...model, showErrors: true }, Cmd.none]
+      return [{ ...model, showErrors: true, isSubmitting: true, error: Option.none() }, identifikuj(result.value)]
+    },
+
+    Identified: ({ uloge }): [Model, Cmd.Cmd<Msg>] => {
+      const [value] = uloge
+      if (uloge.length === 1) return [model, prijavi(value)]
+      return [
+        {
+          ...model,
+          step: Step.Uloga({ form: initialUloga, uloge }),
+          showErrors: false,
+          isSubmitting: false,
+          error: Option.none(),
+        },
+        Cmd.none,
+      ]
+    },
+
+    IdentifyFailed: ({ error }): [Model, Cmd.Cmd<Msg>] => [
+      { ...model, isSubmitting: false, error: Option.some(error) },
+      Cmd.none,
     ],
+
+    ChangeUloga: ({ value }): [Model, Cmd.Cmd<Msg>] => {
+      if (model.step._tag !== 'Uloga') return [model, Cmd.none]
+      return [{ ...model, step: Step.Uloga({ ...model.step, form: value }), error: Option.none() }, Cmd.none]
+    },
+
+    SubmitUloga: (): [Model, Cmd.Cmd<Msg>] => {
+      if (model.step._tag !== 'Uloga') return [model, Cmd.none]
+      const result = Form.validate(vFormUloga(model.step.uloge), model.step.form)
+      if (!result.isValid) return [{ ...model, showErrors: true }, Cmd.none]
+      return [{ ...model, showErrors: true, isSubmitting: true, error: Option.none() }, prijavi(result.value.uloga)]
+    },
+
     LoginSucceeded: ({ session }): [Model, Cmd.Cmd<Msg>] => [
       { ...model, isSubmitting: false, result: Option.some(session) },
       Cmd.none,
     ],
+
     LoginFailed: ({ error }): [Model, Cmd.Cmd<Msg>] => [
       { ...model, isSubmitting: false, error: Option.some(error) },
       Cmd.none,
     ],
   })
 
-// -------------------------------------------------------------------------------------
-// View
-// -------------------------------------------------------------------------------------
+const useStyles = makeStyles({
+  screen: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+  },
+  card: {
+    width: '400px',
+    padding: tokens.spacingHorizontalXXL,
+  },
+  stack: {
+    display: 'flex',
+    flexDirection: 'column',
+    rowGap: tokens.spacingVerticalM,
+  },
+})
 
-export const view =
-  (model: Model): TeaReact.Html<Msg> =>
-  (dispatch: Platform.Dispatch<Msg>) => (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-      <Card style={{ width: 400, padding: tokens.spacingHorizontalXXL }}>
-        <CardHeader header={<Title1>Login</Title1>} />
+const korisnikOptions = (stack: string): Form.Options<FormKorisnik> => ({
+  template: locals => (
+    <div className={stack}>
+      {locals.inputs.korisnickoIme}
+      {locals.inputs.lozinka}
+    </div>
+  ),
+  fields: {
+    korisnickoIme: { label: 'Korisnicko ime', autoComplete: 'username', autoFocus: true },
+    lozinka: { label: 'Lozinka', type: 'password', autoComplete: 'current-password' },
+  },
+})
+
+const ulogaOptions: Form.Options<FormUloga> = {
+  template: locals => locals.inputs.uloga,
+  fields: {
+    uloga: { label: 'Uloga', placeholder: 'Izaberite ulogu' },
+  },
+}
+
+const LoginView = ({ model, dispatch }: { model: Model; dispatch: Platform.Dispatch<Msg> }) => {
+  const styles = useStyles()
+  const naslov = model.step._tag === 'Korisnik' ? 'Prijava' : 'Izbor uloge'
+
+  const form =
+    model.step._tag === 'Korisnik'
+      ? Form.render({
+          schema: vFormKorisnik(),
+          value: model.step.form,
+          onChange: value => dispatch(changeKorisnik(value)),
+          options: korisnikOptions(styles.stack),
+          issues: Form.visibleIssues(vFormKorisnik, model.step.form, model.showErrors),
+          ctx: { disabled: model.isSubmitting },
+        })
+      : Form.render({
+          schema: vFormUloga(model.step.uloge)(),
+          value: model.step.form,
+          onChange: value => dispatch(changeUloga(value)),
+          options: ulogaOptions,
+          issues: Form.visibleIssues(vFormUloga(model.step.uloge), model.step.form, model.showErrors),
+          ctx: { disabled: model.isSubmitting },
+        })
+
+  return (
+    <div className={styles.screen}>
+      <Card className={styles.card}>
+        <CardHeader header={<Title1>{naslov}</Title1>} />
         <form
+          noValidate
+          className={styles.stack}
           onSubmit={e => {
             e.preventDefault()
-            dispatch(submit())
+            dispatch(model.step._tag === 'Korisnik' ? submitKorisnik() : submitUloga())
           }}
-          style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}
         >
-          <Field label="Username">
-            <Input
-              value={model.username}
-              onChange={(_e, data) => dispatch(usernameChanged(data.value))}
-              disabled={model.isSubmitting}
-            />
-          </Field>
-          <Field label="Password">
-            <Input
-              type="password"
-              value={model.password}
-              onChange={(_e, data) => dispatch(passwordChanged(data.value))}
-              disabled={model.isSubmitting}
-            />
-          </Field>
-          {Option.isSome(model.error) && (
-            <MessageBar intent="error">
-              <MessageBarBody>Invalid username or password</MessageBarBody>
-            </MessageBar>
-          )}
-          <Button
-            appearance="primary"
-            type="submit"
-            disabled={model.isSubmitting || !model.username || !model.password}
-          >
-            {model.isSubmitting ? 'Signing in...' : 'Sign in'}
+          {form}
+          {Option.isSome(model.error) && <ErrorView report={reportError(model.error.value)} />}
+          <Button appearance="primary" type="submit" disabled={model.isSubmitting}>
+            {model.isSubmitting ? <Spinner size="extra-small" /> : 'Prijavi se'}
           </Button>
         </form>
       </Card>
     </div>
   )
+}
+
+export const view =
+  (model: Model): TeaReact.Html<Msg> =>
+  (dispatch: Platform.Dispatch<Msg>) => <LoginView model={model} dispatch={dispatch} />

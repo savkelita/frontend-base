@@ -2,9 +2,9 @@ import { Hamburger, Text, Button, makeStyles, tokens } from '@fluentui/react-com
 import { SignOutRegular } from '@fluentui/react-icons'
 import { memo } from 'react'
 import type * as Platform from 'tea-effect/Platform'
+import * as Nav from '../../navigation'
 import { navigation, logout } from '../msg'
 import type { Msg } from '../msg'
-import * as Nav from '../../navigation'
 
 const useStyles = makeStyles({
   actions: {

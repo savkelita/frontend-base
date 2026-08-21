@@ -1,16 +1,17 @@
 import * as Router from 'tea-effect/Router'
-import type { Permission } from '../auth/types'
+import type { Funkcionalnost } from '../auth/types'
+import * as VozaciPretraga from '../sifarnici/vozac/pretraga'
 
 export const routes = Router.routes({
   home: Router.path('/'),
-  products: Router.path('/products'),
+  vozaci: VozaciPretraga.route,
 })
 
 export type Route = Router.RouteType<typeof routes>
 
-const routePermissions: Record<string, ReadonlyArray<Permission>> = {
-  home: ['home.view'],
-  products: ['products.view'],
+const routeFunkcionalnosti: Record<string, ReadonlyArray<Funkcionalnost>> = {
+  vozaci: VozaciPretraga.FUNKCIONALNOSTI,
 }
 
-export const getRoutePermissions = (routeTag: string): ReadonlyArray<Permission> => routePermissions[routeTag] ?? []
+export const getRouteFunkcionalnosti = (routeTag: string): ReadonlyArray<Funkcionalnost> =>
+  routeFunkcionalnosti[routeTag] ?? []

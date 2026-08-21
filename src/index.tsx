@@ -1,10 +1,10 @@
 import { FluentProvider, webLightTheme } from '@fluentui/react-components'
-import { createRoot } from 'react-dom/client'
 import { Effect } from 'effect'
+import { createRoot } from 'react-dom/client'
 import * as Navigation from 'tea-effect/Navigation'
 import * as TeaReact from 'tea-effect/React'
-import * as App from './router'
 import { defaultGlobalStyles } from './common/theme'
+import * as App from './router'
 
 const container = document.getElementById('root')!
 const root = createRoot(container)

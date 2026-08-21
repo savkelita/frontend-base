@@ -1,9 +1,7 @@
-import { Data, Either, Option } from 'effect'
-import type * as Navigation from 'tea-effect/Navigation'
+import { Data, Option } from 'effect'
 import type * as LocalStorage from 'tea-effect/LocalStorage'
-import type { ApiError } from '../common/http'
+import type * as Navigation from 'tea-effect/Navigation'
 import type { Session } from '../auth/session'
-import type { RefreshResult } from '../auth/api'
 import type * as Login from '../login'
 import type * as Nav from '../navigation'
 import type { ScreenMsg } from './screen-msg'
@@ -17,8 +15,7 @@ export type Msg = Data.TaggedEnum<{
   SessionLoadError: { readonly error: LocalStorage.LocalStorageError }
   Login: { readonly loginMsg: Login.Msg }
   Logout: {}
-  RefreshTick: {}
-  RefreshCompleted: { readonly result: Either.Either<RefreshResult, ApiError> }
+  LogoutCompleted: {}
 }>
 
 export const Msg = Data.taggedEnum<Msg>()
@@ -31,6 +28,4 @@ export const sessionLoaded = (session: Option.Option<Session>): Msg => Msg.Sessi
 export const sessionLoadError = (error: LocalStorage.LocalStorageError): Msg => Msg.SessionLoadError({ error })
 export const login = (loginMsg: Login.Msg): Msg => Msg.Login({ loginMsg })
 export const logout = (): Msg => Msg.Logout()
-export const refreshTick = (): Msg => Msg.RefreshTick()
-export const refreshCompleted = (result: Either.Either<RefreshResult, ApiError>): Msg =>
-  Msg.RefreshCompleted({ result })
+export const logoutCompleted = (): Msg => Msg.LogoutCompleted()

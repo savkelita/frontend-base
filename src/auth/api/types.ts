@@ -1,48 +1,34 @@
 import { Schema } from 'effect'
+import * as Uloga from '../domain/uloga'
 
-// -------------------------------------------------------------------------------------
-// Domain Types
-// -------------------------------------------------------------------------------------
-
-export type Credentials = {
-  readonly username: string
-  readonly password: string
-}
-
-// -------------------------------------------------------------------------------------
-// Request Schemas
-// -------------------------------------------------------------------------------------
-
-export const LoginRequest = Schema.Struct({
-  username: Schema.String,
-  password: Schema.String,
-  expiresInMins: Schema.Number,
+export const IdentifikujCmd = Schema.Struct({
+  korisnickoIme: Schema.String,
+  lozinka: Schema.String,
 })
 
-export const RefreshRequest = Schema.Struct({
-  refreshToken: Schema.String,
-  expiresInMins: Schema.Number,
+export type IdentifikujCmd = typeof IdentifikujCmd.Type
+
+export const LoginCmd = Schema.Struct({
+  uloga: Uloga.ioValue,
 })
 
-// -------------------------------------------------------------------------------------
-// Response Schemas
-// -------------------------------------------------------------------------------------
+export const IdentifikujResponse = Schema.Struct({
+  uloge: Schema.NonEmptyArray(Uloga.ioValue),
+})
+
+export const Korisnik = Schema.Struct({
+  id: Schema.Number,
+  ime: Schema.String,
+  prezime: Schema.String,
+  korisnickoIme: Schema.String,
+  email: Schema.String,
+})
+
+export type Korisnik = typeof Korisnik.Type
 
 export const LoginResponse = Schema.Struct({
-  id: Schema.Number,
-  username: Schema.String,
-  email: Schema.String,
-  firstName: Schema.String,
-  lastName: Schema.String,
-  gender: Schema.String,
-  image: Schema.String,
-  accessToken: Schema.String,
-  refreshToken: Schema.String,
+  korisnik: Korisnik,
+  funkcionalnosti: Schema.Array(Schema.String),
 })
 
-export const RefreshResponse = Schema.Struct({
-  accessToken: Schema.String,
-  refreshToken: Schema.String,
-})
-
-export type RefreshResult = typeof RefreshResponse.Type
+export type LoginResponse = typeof LoginResponse.Type

@@ -5,5 +5,12 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Bez ovoga bi datumski testovi na UTC masini prolazili i sa pogresnom implementacijom.
+    env: { TZ: 'Europe/Belgrade' },
+    server: {
+      // effect-form/Fluent je ESM i named-importuje iz @fluentui, koji je CJS.
+      // Inline-ovanje pusta Vite da odradi interop, kao i za nas .tsx izvor.
+      deps: { inline: ['effect-form'] },
+    },
   },
 })

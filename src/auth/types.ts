@@ -1,13 +1,15 @@
-export type Permission = string
+export const FUNKCIONALNOSTI = ['PretragaVozaca', 'KreiranjeVozaca'] as const
+
+export type Funkcionalnost = (typeof FUNKCIONALNOSTI)[number]
 
 export type AuthorizationConfig = {
-  readonly permissions: ReadonlyArray<Permission>
+  readonly funkcionalnosti: ReadonlyArray<string>
 }
 
-export const emptyAuthorization: AuthorizationConfig = { permissions: [] }
+export const emptyAuthorization: AuthorizationConfig = { funkcionalnosti: [] }
 
-export const hasPermission = (config: AuthorizationConfig, permission: Permission): boolean =>
-  config.permissions.includes(permission)
+export const hasFunkcionalnost = (config: AuthorizationConfig, trazena: Funkcionalnost): boolean =>
+  config.funkcionalnosti.includes(trazena)
 
-export const hasAllPermissions = (config: AuthorizationConfig, required: ReadonlyArray<Permission>): boolean =>
-  required.length === 0 || required.every(p => hasPermission(config, p))
+export const hasAllFunkcionalnosti = (config: AuthorizationConfig, trazene: ReadonlyArray<Funkcionalnost>): boolean =>
+  trazene.length === 0 || trazene.every(f => hasFunkcionalnost(config, f))

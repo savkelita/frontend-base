@@ -1,26 +1,18 @@
 import * as Router from 'tea-effect/Router'
-import type { AuthorizationConfig } from '../auth/types'
-import { hasAllPermissions, emptyAuthorization } from '../auth/types'
+import type { AuthorizationConfig, Funkcionalnost } from '../auth/types'
+import { emptyAuthorization, hasAllFunkcionalnosti } from '../auth/types'
 import { routes } from '../router/route'
 import { NavigationEntry, navigationLink, navigationGroup } from './types'
 
-// -------------------------------------------------------------------------------------
-// Configuration: Declare all navigation items here
-// -------------------------------------------------------------------------------------
-
 const allEntries: ReadonlyArray<NavigationEntry> = [
-  navigationLink('home', 'Home', Router.format(routes.home, {}), { requiredPermissions: ['home.view'] }),
-  navigationLink('products', 'Products', Router.format(routes.products, {}), {
-    requiredPermissions: ['products.view'],
+  navigationLink('home', 'Home', Router.format(routes.home, {})),
+  navigationLink('vozaci', 'Vozaci', Router.format(routes.vozaci, {}), {
+    requiredFunkcionalnosti: ['PretragaVozaca'],
   }),
 ]
 
-// -------------------------------------------------------------------------------------
-// Authorization filtering
-// -------------------------------------------------------------------------------------
-
-const isPermitted = (config: AuthorizationConfig, permissions: ReadonlyArray<string>): boolean =>
-  permissions.length === 0 || hasAllPermissions(config, permissions)
+const isPermitted = (config: AuthorizationConfig, trazene: ReadonlyArray<Funkcionalnost>): boolean =>
+  hasAllFunkcionalnosti(config, trazene)
 
 const filterEntries = (
   config: AuthorizationConfig,
@@ -28,25 +20,21 @@ const filterEntries = (
 ): ReadonlyArray<NavigationEntry> =>
   entries.flatMap(entry =>
     NavigationEntry.$match(entry, {
-      NavigationLink: link => (isPermitted(config, link.requiredPermissions) ? [entry] : []),
+      NavigationLink: link => (isPermitted(config, link.requiredFunkcionalnosti) ? [entry] : []),
       NavigationGroup: group => {
-        if (!isPermitted(config, group.requiredPermissions)) return []
+        if (!isPermitted(config, group.requiredFunkcionalnosti)) return []
         const visibleChildren = filterEntries(config, group.children)
         return visibleChildren.length > 0
           ? [
               navigationGroup(group.key, group.label, visibleChildren, {
                 icon: group.icon,
-                requiredPermissions: [...group.requiredPermissions],
+                requiredFunkcionalnosti: [...group.requiredFunkcionalnosti],
               }),
             ]
           : []
       },
     }),
   )
-
-// -------------------------------------------------------------------------------------
-// Builders
-// -------------------------------------------------------------------------------------
 
 export const buildNavigation = (config: AuthorizationConfig): ReadonlyArray<NavigationEntry> =>
   filterEntries(config, allEntries)

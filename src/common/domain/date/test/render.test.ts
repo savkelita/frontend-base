@@ -2,7 +2,7 @@ import { Schema } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import * as Form from '../../../form'
-import { changed, format, parse } from '../../common/form/date-field'
+import { changed, format, parse } from '../../field/date-field'
 import * as DateDomain from '../index'
 
 type Value = { readonly x: DateDomain.Form }

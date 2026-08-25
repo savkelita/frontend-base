@@ -3,8 +3,8 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../error'
+import { Paging } from '../components/paging'
 import { Data, next, type Data as DataType } from '../data'
-import { Paging } from '../paging'
 
 const ready = (total: number): DataType<string> => Data.Ready({ page: { rows: ['a'], total } })
 

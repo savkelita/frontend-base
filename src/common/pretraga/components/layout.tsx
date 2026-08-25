@@ -27,11 +27,18 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     columnGap: tokens.spacingHorizontalM,
+    rowGap: tokens.spacingVerticalS,
   },
   actions: {
     display: 'flex',
+    flexWrap: 'wrap',
     columnGap: tokens.spacingHorizontalS,
+    rowGap: tokens.spacingVerticalS,
+    '& > *': {
+      flexShrink: 0,
+    },
   },
   table: {
     flexGrow: 1,

@@ -38,6 +38,12 @@ const vozac = (id: number, prezime: string): Vozac => ({
   telefon: null,
   kategorije: [{ id: 1, oznaka: 'B' }],
   stanje: 'AKTIVAN',
+  audit: {
+    korisnikKreirao: { ime: 'Petar', prezime: 'Petrovic' },
+    datumKreiranja: new Date(2026, 7, 12, 9, 14),
+    korisnikPromenio: null,
+    datumPromene: null,
+  },
 })
 
 const page = (rows: ReadonlyArray<Vozac>, total: number): Page<Vozac> => ({ rows, total })

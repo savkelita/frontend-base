@@ -8,7 +8,7 @@ import {
   makeStyles,
 } from '@fluentui/react-components'
 import { DismissRegular, EraserRegular, FilterRegular, SearchRegular } from '@fluentui/react-icons'
-import type { ReactNode } from 'react'
+import { useSyncExternalStore, type ReactNode } from 'react'
 
 export type FilterDrawerProps = {
   readonly open: boolean
@@ -21,17 +21,34 @@ export type FilterDrawerProps = {
 const useStyles = makeStyles({
   drawer: {
     width: '370px',
+    maxWidth: '100%',
     flexGrow: 0,
     flexShrink: 0,
   },
 })
 
+const NARROW = '(max-width: 900px)'
+
+const subscribe = (onChange: () => void): (() => void) => {
+  const query = window.matchMedia(NARROW)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+
+const useNarrow = (): boolean =>
+  useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(NARROW).matches,
+    () => false,
+  )
+
 export const FilterDrawer = ({ open, onClose, onSubmit, onClear, children }: FilterDrawerProps): ReactNode => {
   const styles = useStyles()
+  const narrow = useNarrow()
 
   return (
     <Drawer
-      type="inline"
+      type={narrow ? 'overlay' : 'inline'}
       position="end"
       separator
       open={open}

@@ -1,8 +1,8 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { FilterDrawer } from '../filter-drawer'
-import { PretragaLayout, type PretragaLayoutProps } from '../layout'
+import { FilterDrawer } from '../components/filter-drawer'
+import { PretragaLayout, type PretragaLayoutProps } from '../components/layout'
 
 const draw = (props: Partial<PretragaLayoutProps> = {}): string =>
   renderToStaticMarkup(

@@ -17,6 +17,12 @@ const vozac: Vozac = {
   telefon: null,
   kategorije: [{ id: 1, oznaka: 'B' }],
   stanje: 'AKTIVAN',
+  audit: {
+    korisnikKreirao: { ime: 'Petar', prezime: 'Petrovic' },
+    datumKreiranja: new Date(2026, 7, 12, 9, 14),
+    korisnikPromenio: null,
+    datumPromene: null,
+  },
 }
 
 const otvoreno = (): Model => init(vozac)[0]

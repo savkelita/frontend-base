@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import { Audit } from '../../common/audit'
 import type { EnumPredicate, StringPredicate } from '../../common/pretraga'
 import * as StanjeVozaca from '../domain/stanje-vozaca'
 
@@ -26,6 +27,7 @@ export const Vozac = Schema.Struct({
   telefon: Schema.NullOr(Schema.String),
   kategorije: Schema.Array(KategorijaVozacaInfo),
   stanje: StanjeVozaca.ioValue,
+  audit: Audit,
 })
 
 export type Vozac = typeof Vozac.Type

@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 import * as Annotation from 'effect-form/Annotation'
-import { dateField, type DateForm } from '../../common/form/date-field'
+import { dateField, type DateForm } from '../../field/date-field'
 
 export type Form = DateForm
 

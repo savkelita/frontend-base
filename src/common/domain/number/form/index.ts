@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 import * as Annotation from 'effect-form/Annotation'
-import { format, normalize, numberField, type NumberForm } from '../../common/form/number-field'
+import { format, normalize, numberField, type NumberForm } from '../../field/number-field'
 
 export type Form = NumberForm
 

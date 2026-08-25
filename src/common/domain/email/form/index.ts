@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 import * as Annotation from 'effect-form/Annotation'
-import { textField, type TextForm } from '../../common/form/text-field'
+import { textField, type TextForm } from '../../field/text-field'
 
 export const MAX_LENGTH = 80
 

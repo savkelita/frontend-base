@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 import * as Annotation from 'effect-form/Annotation'
-import { dropdownField, dropdownFieldMulti, type Choice } from '../../common/form/dropdown-field'
+import { dropdownField, dropdownFieldMulti, type Choice } from '../../field/dropdown-field'
 
 export type { Choice }
 

@@ -1,9 +1,9 @@
 import { Combobox, Field, Tag, TagGroup, makeStyles, tokens } from '@fluentui/react-components'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
-import { rows } from '../../../pretraga'
-import type { Model } from '../../combo/model'
-import { closed, opened, selected, typed, type Msg } from '../../combo/msg'
+import { rows } from '../../pretraga'
+import type { Model } from '../combo/model'
+import { closed, opened, selected, typed, type Msg } from '../combo/msg'
 import { ComboListbox, type Render } from './combo-field'
 
 export type MultiComboFieldOptions<A> = {

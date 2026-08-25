@@ -6,7 +6,7 @@ import {
   ChevronRightRegular,
 } from '@fluentui/react-icons'
 import { memo, type ReactElement, type ReactNode } from 'react'
-import { isLoading, total, type Data } from './data'
+import { isLoading, total, type Data } from '../data'
 
 export type PagingProps<A> = {
   readonly data: Data<A>
@@ -20,7 +20,9 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     columnGap: tokens.spacingHorizontalM,
+    rowGap: tokens.spacingVerticalXS,
     paddingLeft: tokens.spacingHorizontalXS,
     paddingRight: tokens.spacingHorizontalXS,
   },

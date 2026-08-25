@@ -20,10 +20,10 @@ import {
 } from '@fluentui/react-components'
 import { ArrowClockwiseRegular } from '@fluentui/react-icons'
 import { memo, useMemo, type ReactNode } from 'react'
-import { reportError } from '../error'
-import { ErrorView } from '../error/view'
-import { Data, isLoading, rows } from './data'
-import type { Direction, Sort } from './sort'
+import { reportError } from '../../error'
+import { ErrorView } from '../../error/view'
+import { Data, isLoading, rows } from '../data'
+import type { Direction, Sort } from '../sort'
 
 export type Column<R, O extends string = string> = {
   readonly id: string
@@ -31,6 +31,7 @@ export type Column<R, O extends string = string> = {
   readonly render: (row: R) => ReactNode
   readonly attribute?: O
   readonly width?: number
+  readonly truncate?: boolean
 }
 
 export type TableProps<R, O extends string = string> = {
@@ -118,7 +119,9 @@ const TableView = <R, O extends string = string>({
           columnId: column.id,
           ...(column.attribute === undefined ? {} : { compare: serverSorted }),
           renderHeaderCell: () => column.header,
-          renderCell: row => <TableCellLayout truncate>{column.render(row)}</TableCellLayout>,
+          renderCell: row => (
+            <TableCellLayout truncate={column.truncate !== false}>{column.render(row)}</TableCellLayout>
+          ),
         }),
       ),
     [columns],

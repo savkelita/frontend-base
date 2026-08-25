@@ -1,8 +1,8 @@
 import { Schema } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { render, type Options } from '../../../../form'
-import * as Name from '../../../name'
+import { render, type Options } from '../../../form'
+import * as Name from '../../name'
 import type { TextFieldOptions } from '../text-field'
 
 type Value = { readonly x: Name.Form }

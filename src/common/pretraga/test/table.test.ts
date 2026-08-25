@@ -2,8 +2,8 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../error'
+import { Table, type Column } from '../components/table'
 import { Data } from '../data'
-import { Table, type Column } from '../table'
 
 type Row = { readonly id: number; readonly naziv: string; readonly broj: number }
 

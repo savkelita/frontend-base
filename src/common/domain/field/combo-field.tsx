@@ -1,11 +1,11 @@
 import { Button, Combobox, Field, MessageBar, Option, Spinner, makeStyles, tokens } from '@fluentui/react-components'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
-import { reportError } from '../../../error'
-import { ErrorView } from '../../../error/view'
-import { Data, rows } from '../../../pretraga'
-import { LIMIT, type Model } from '../../combo/model'
-import { closed, more, opened, selected, typed, type Msg } from '../../combo/msg'
+import { reportError } from '../../error'
+import { ErrorView } from '../../error/view'
+import { Data, rows } from '../../pretraga'
+import { LIMIT, type Model } from '../combo/model'
+import { closed, more, opened, selected, typed, type Msg } from '../combo/msg'
 
 export type ComboFieldOptions<A> = {
   readonly model: Model<A>

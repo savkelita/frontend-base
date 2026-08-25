@@ -1,10 +1,10 @@
 import { Schema } from 'effect'
 import * as Annotation from 'effect-form/Annotation'
-import { comboField, type Render } from '../../common/form/combo-field'
-import { multiComboField } from '../../common/form/multi-combo-field'
+import { comboField, type Render } from '../../field/combo-field'
+import { multiComboField } from '../../field/multi-combo-field'
 
-export type { ComboFieldOptions as FieldOptions, Render } from '../../common/form/combo-field'
-export type { MultiComboFieldOptions as FieldOptionsMulti } from '../../common/form/multi-combo-field'
+export type { ComboFieldOptions as FieldOptions, Render } from '../../field/combo-field'
+export type { MultiComboFieldOptions as FieldOptionsMulti } from '../../field/multi-combo-field'
 
 export type Form<A> = A | null
 

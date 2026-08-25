@@ -7,6 +7,7 @@ import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Router from 'tea-effect/Router'
 import type { AuthorizationConfig, Funkcionalnost } from '../../../auth/types'
+import { AuditCell } from '../../../common/audit/view'
 import { mapHttpError } from '../../../common/error'
 import { memoize } from '../../../common/memo'
 import {
@@ -22,9 +23,9 @@ import {
   type PretragaRequest,
   type Sort,
 } from '../../../common/pretraga'
-import { PretragaLayout } from '../../../common/pretraga/layout'
-import { Paging } from '../../../common/pretraga/paging'
-import { Table, type Column } from '../../../common/pretraga/table'
+import { PretragaLayout } from '../../../common/pretraga/components/layout'
+import { Paging } from '../../../common/pretraga/components/paging'
+import { Table, type Column } from '../../../common/pretraga/components/table'
 import * as Api from '../../api'
 import type { Vozac, VozacCriteria, VozacOrder } from '../../api'
 import * as StanjeVozaca from '../../domain/stanje-vozaca'
@@ -207,6 +208,7 @@ const dispatchers = memoize((dispatch: Platform.Dispatch<Msg>) => ({
 }))
 
 const columns: ReadonlyArray<Column<Vozac, VozacOrder>> = [
+  { id: 'audit', header: '', width: 52, truncate: false, render: vozac => <AuditCell audit={vozac.audit} /> },
   { id: 'ime', header: 'Ime', attribute: 'ime', render: vozac => vozac.ime },
   { id: 'prezime', header: 'Prezime', attribute: 'prezime', render: vozac => vozac.prezime },
   { id: 'kategorije', header: 'Kategorije', render: vozac => vozac.kategorije.map(k => k.oznaka).join(', ') },

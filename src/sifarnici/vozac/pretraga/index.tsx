@@ -26,6 +26,7 @@ import {
 import { PretragaLayout } from '../../../common/pretraga/components/layout'
 import { Paging } from '../../../common/pretraga/components/paging'
 import { Table, type Column } from '../../../common/pretraga/components/table'
+import * as Toast from '../../../common/toast'
 import * as Api from '../../api'
 import type { Vozac, VozacCriteria, VozacOrder } from '../../api'
 import * as StanjeVozaca from '../../domain/stanje-vozaca'
@@ -149,7 +150,17 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     KreiranjeMsg: ({ msg: msgKreiranje }): [Model, Cmd.Cmd<Msg>] => {
       if (Option.isNone(model.kreiranje)) return [model, Cmd.none]
       if (msgKreiranje._tag === 'Closed') return [{ ...model, kreiranje: Option.none() }, Cmd.none]
-      if (msgKreiranje._tag === 'Saved') return reload({ ...model, kreiranje: Option.none() })
+      if (msgKreiranje._tag === 'Saved') {
+        const { id } = msgKreiranje.identifikator
+        const [next, cmd] = reload({ ...model, kreiranje: Option.none() })
+        return [
+          next,
+          Cmd.batch([
+            cmd,
+            Toast.success('Vozac je sacuvan.', { action: { label: 'Otvori', msg: () => startAzuriranje(id) } }),
+          ]),
+        ]
+      }
       const [kreiranje, cmd] = Kreiranje.update(msgKreiranje, model.kreiranje.value)
       return [{ ...model, kreiranje: Option.some(kreiranje) }, Cmd.map(kreiranjeMsg)(cmd)]
     },
@@ -162,7 +173,10 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     AzuriranjeMsg: ({ msg: msgAzuriranje }): [Model, Cmd.Cmd<Msg>] => {
       if (Option.isNone(model.azuriranje)) return [model, Cmd.none]
       if (msgAzuriranje._tag === 'Closed') return [{ ...model, azuriranje: Option.none() }, Cmd.none]
-      if (msgAzuriranje._tag === 'Saved') return reload({ ...model, azuriranje: Option.none(), selected: [] })
+      if (msgAzuriranje._tag === 'Saved') {
+        const [next, cmd] = reload({ ...model, azuriranje: Option.none(), selected: [] })
+        return [next, Cmd.batch([cmd, Toast.success('Izmene su sacuvane.')])]
+      }
       const [azuriranje, cmd] = Azuriranje.update(msgAzuriranje, model.azuriranje.value)
       return [{ ...model, azuriranje: Option.some(azuriranje) }, Cmd.map(azuriranjeMsg)(cmd)]
     },
@@ -175,7 +189,11 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     BrisanjeMsg: ({ msg: msgBrisanje }): [Model, Cmd.Cmd<Msg>] => {
       if (Option.isNone(model.brisanje)) return [model, Cmd.none]
       if (msgBrisanje._tag === 'Closed') return [{ ...model, brisanje: Option.none() }, Cmd.none]
-      if (msgBrisanje._tag === 'Deleted') return reload({ ...model, brisanje: Option.none(), selected: [] })
+      if (msgBrisanje._tag === 'Deleted') {
+        const ime = model.brisanje.value.vozac.imeZaPrikaz
+        const [next, cmd] = reload({ ...model, brisanje: Option.none(), selected: [] })
+        return [next, Cmd.batch([cmd, Toast.success(`Vozac ${ime} je obrisan.`)])]
+      }
       const [brisanje, cmd] = Brisanje.update(msgBrisanje, model.brisanje.value)
       return [{ ...model, brisanje: Option.some(brisanje) }, Cmd.map(brisanjeMsg)(cmd)]
     },

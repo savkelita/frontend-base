@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import * as Navigation from 'tea-effect/Navigation'
 import * as TeaReact from 'tea-effect/React'
 import { defaultGlobalStyles } from './common/theme'
+import { ToastHost } from './common/toast/view'
 import * as App from './router'
 
 const container = document.getElementById('root')!
@@ -14,6 +15,7 @@ const Element = ({ dom }: { dom: TeaReact.Dom }) => {
   return (
     <FluentProvider style={{ height: '100%' }} theme={webLightTheme}>
       {dom}
+      <ToastHost />
     </FluentProvider>
   )
 }

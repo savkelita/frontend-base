@@ -14,13 +14,23 @@ export const fromYmd = (text: string): Date | null => {
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null
 }
 
-export const ioValue = Schema.transformOrFail(Schema.String, Schema.ValidDateFromSelf, {
-  strict: true,
-  decode: (text, _options, ast) => {
-    const date = fromYmd(text)
-    return date === null
-      ? ParseResult.fail(new ParseResult.Type(ast, text, 'Ocekivan je datum u obliku YYYY-MM-DD'))
-      : ParseResult.succeed(date)
+export const format = (date: Date): string => `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`
+
+export const ioValue: Schema.Schema<Date> = Schema.declare(
+  [],
+  {
+    decode: () => (input, _options, ast) => {
+      if (input instanceof Date) return ParseResult.succeed(input)
+      if (typeof input !== 'string') return ParseResult.fail(new ParseResult.Type(ast, input, 'Ocekivan je datum'))
+      const date = fromYmd(input)
+      return date === null
+        ? ParseResult.fail(new ParseResult.Type(ast, input, 'Ocekivan je datum oblika YYYY-MM-DD'))
+        : ParseResult.succeed(date)
+    },
+    encode: () => (input, _options, ast) =>
+      input instanceof Date
+        ? ParseResult.succeed(input)
+        : ParseResult.fail(new ParseResult.Type(ast, input, 'Ocekivan je Date')),
   },
-  encode: date => ParseResult.succeed(toYmd(date)),
-})
+  { identifier: 'Date' },
+)

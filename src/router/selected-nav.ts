@@ -5,6 +5,7 @@ export const selectedNavValue = (screenModel: ScreenModel): string =>
   ScreenModel.$match(screenModel, {
     HomeScreen: () => 'home',
     VozaciScreen: () => 'vozaci',
+    VozilaScreen: () => 'vozila',
     NotFoundScreen: () => '',
     UnauthorizedScreen: () => '',
   })

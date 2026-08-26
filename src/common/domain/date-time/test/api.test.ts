@@ -68,11 +68,11 @@ describe('DateTime sa zice', () => {
 
   describe('format', () => {
     it('pise srpski zapis sa vremenom', () => {
-      expect(format(new Date(2026, 7, 21, 16, 2, 7))).toBe('21.08.2026. 16:02')
+      expect(format(new Date(2026, 7, 21, 16, 2, 7))).toBe('21.08.2026 16:02')
     })
 
     it('dopunjava nulama', () => {
-      expect(format(new Date(2026, 2, 7, 9, 5))).toBe('07.03.2026. 09:05')
+      expect(format(new Date(2026, 2, 7, 9, 5))).toBe('07.03.2026 09:05')
     })
   })
 })

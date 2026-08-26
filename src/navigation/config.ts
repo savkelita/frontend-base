@@ -9,6 +9,9 @@ const allEntries: ReadonlyArray<NavigationEntry> = [
   navigationLink('vozaci', 'Vozaci', Router.format(routes.vozaci, {}), {
     requiredFunkcionalnosti: ['PretragaVozaca'],
   }),
+  navigationLink('vozila', 'Vozila', Router.format(routes.vozila, {}), {
+    requiredFunkcionalnosti: ['PretragaVozila'],
+  }),
 ]
 
 const isPermitted = (config: AuthorizationConfig, trazene: ReadonlyArray<Funkcionalnost>): boolean =>

@@ -18,7 +18,7 @@ const vForm = () => Schema.Struct({ x: DateDomain.vForm })
 
 describe('date domain', () => {
   it('should show the selected date in the serbian format', () => {
-    expect(draw({ x: new Date(2026, 7, 6) })).toContain('06.08.2026.')
+    expect(draw({ x: new Date(2026, 7, 6) })).toContain('06.08.2026')
   })
 
   it('should show an empty field when nothing is picked', () => {

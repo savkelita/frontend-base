@@ -1,5 +1,6 @@
 import { Schema } from 'effect'
 import { Audit } from '../../common/audit'
+import type { Criteria as ComboCriteria } from '../../common/domain/combo'
 import type { EnumPredicate, StringPredicate } from '../../common/pretraga'
 import * as StanjeVozaca from '../domain/stanje-vozaca'
 
@@ -16,6 +17,52 @@ export const KategorijaVozackeDozvoleCombo = Schema.Struct({
 })
 
 export type KategorijaVozackeDozvoleCombo = typeof KategorijaVozackeDozvoleCombo.Type
+
+export const MarkaVozilaCombo = Schema.Struct({
+  marka: Schema.String,
+})
+
+export type MarkaVozilaCombo = typeof MarkaVozilaCombo.Type
+
+export const ModelVozilaCombo = Schema.Struct({
+  model: Schema.String,
+})
+
+export type ModelVozilaCombo = typeof ModelVozilaCombo.Type
+
+export type ModelVozilaComboCriteria = ComboCriteria & {
+  readonly marka: StringPredicate
+}
+
+export const VrstaGorivaCombo = Schema.Struct({
+  id: Schema.Number,
+  naziv: Schema.String,
+})
+
+export type VrstaGorivaCombo = typeof VrstaGorivaCombo.Type
+
+export const VrstaVozilaCombo = Schema.Struct({
+  id: Schema.Number,
+  naziv: Schema.String,
+})
+
+export type VrstaVozilaCombo = typeof VrstaVozilaCombo.Type
+
+export const KorisnikVozilaCombo = Schema.Struct({
+  id: Schema.Number,
+  naziv: Schema.String,
+})
+
+export type KorisnikVozilaCombo = typeof KorisnikVozilaCombo.Type
+
+export const VozacCombo = Schema.Struct({
+  id: Schema.Number,
+  ime: Schema.String,
+  prezime: Schema.String,
+  imeZaPrikaz: Schema.String,
+})
+
+export type VozacCombo = typeof VozacCombo.Type
 
 export const Vozac = Schema.Struct({
   id: Schema.Number,

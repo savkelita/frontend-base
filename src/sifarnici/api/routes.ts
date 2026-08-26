@@ -6,9 +6,16 @@ import { ioPretragaResponse, withQuery, type PretragaRequest, type PretragaRespo
 import {
   AzurirajVozacCmd,
   KategorijaVozackeDozvoleCombo,
+  KorisnikVozilaCombo,
   KreirajVozacCmd,
+  MarkaVozilaCombo,
+  ModelVozilaCombo,
   Vozac,
+  VozacCombo,
   VozacInfo,
+  VrstaGorivaCombo,
+  VrstaVozilaCombo,
+  type ModelVozilaComboCriteria,
   type VozacCriteria,
   type VozacOrder,
 } from './types'
@@ -37,3 +44,48 @@ export const pretraziKategorijaVozackeDozvoleCombo = (
     withQuery('/api/sifarnik/pretraziKategorijaVozackeDozvoleCombo', request),
     Http.expectJson(ioPretragaResponse(KategorijaVozackeDozvoleCombo)),
   )
+
+export const pretraziMarkaVozilaCombo = (
+  request: PretragaRequest<ComboCriteria, never>,
+): Http.Request<PretragaResponse<MarkaVozilaCombo>> =>
+  get(
+    withQuery('/api/sifarnik/pretraziMarkaVozilaCombo', request),
+    Http.expectJson(ioPretragaResponse(MarkaVozilaCombo)),
+  )
+
+export const pretraziModelVozilaCombo = (
+  request: PretragaRequest<ModelVozilaComboCriteria, never>,
+): Http.Request<PretragaResponse<ModelVozilaCombo>> =>
+  get(
+    withQuery('/api/sifarnik/pretraziModelVozilaCombo', request),
+    Http.expectJson(ioPretragaResponse(ModelVozilaCombo)),
+  )
+
+export const pretraziVrstaGorivaCombo = (
+  request: PretragaRequest<ComboCriteria, never>,
+): Http.Request<PretragaResponse<VrstaGorivaCombo>> =>
+  get(
+    withQuery('/api/sifarnik/pretraziVrstaGorivaCombo', request),
+    Http.expectJson(ioPretragaResponse(VrstaGorivaCombo)),
+  )
+
+export const pretraziVrstaVozilaCombo = (
+  request: PretragaRequest<ComboCriteria, never>,
+): Http.Request<PretragaResponse<VrstaVozilaCombo>> =>
+  get(
+    withQuery('/api/sifarnik/pretraziVrstaVozilaCombo', request),
+    Http.expectJson(ioPretragaResponse(VrstaVozilaCombo)),
+  )
+
+export const pretraziKorisnikVozilaCombo = (
+  request: PretragaRequest<ComboCriteria, never>,
+): Http.Request<PretragaResponse<KorisnikVozilaCombo>> =>
+  get(
+    withQuery('/api/sifarnik/pretraziKorisnikVozilaCombo', request),
+    Http.expectJson(ioPretragaResponse(KorisnikVozilaCombo)),
+  )
+
+export const pretraziVozacCombo = (
+  request: PretragaRequest<ComboCriteria, never>,
+): Http.Request<PretragaResponse<VozacCombo>> =>
+  get(withQuery('/api/sifarnik/pretraziVozacCombo', request), Http.expectJson(ioPretragaResponse(VozacCombo)))

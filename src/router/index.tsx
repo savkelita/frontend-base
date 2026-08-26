@@ -11,6 +11,7 @@ import * as Sub from 'tea-effect/Sub'
 import * as Api from '../auth/api'
 import { Session, SESSION_KEY, displayName, toAuthorizationConfig } from '../auth/session'
 import { hasAllFunkcionalnosti, type AuthorizationConfig } from '../auth/types'
+import * as VozilaPretraga from '../evidencija-vozila/vozilo/pretraga'
 import * as Home from '../home'
 import * as Login from '../login'
 import * as Nav from '../navigation'
@@ -35,8 +36,8 @@ import {
 } from './msg'
 import { routes, getRouteFunkcionalnosti } from './route'
 import type { Route } from './route'
-import { ScreenModel, homeScreen, notFoundScreen, unauthorizedScreen, vozaciScreen } from './screen-model'
-import { ScreenMsg, homeMsg, vozaciMsg } from './screen-msg'
+import { ScreenModel, homeScreen, notFoundScreen, unauthorizedScreen, vozaciScreen, vozilaScreen } from './screen-model'
+import { ScreenMsg, homeMsg, vozaciMsg, vozilaMsg } from './screen-msg'
 import { selectedNavValue, selectedCategoryValue } from './selected-nav'
 
 export type { Model }
@@ -59,6 +60,14 @@ const startScreen = (route: Route, state: unknown, previous?: ScreenModel): [Scr
         previous?._tag === 'VozaciScreen' ? previous.model : undefined,
       )
       return [vozaciScreen(model), Cmd.map(vozaciMsg)(cmd)]
+    }
+    case 'vozila': {
+      const [model, cmd] = VozilaPretraga.init(
+        route.query,
+        state,
+        previous?._tag === 'VozilaScreen' ? previous.model : undefined,
+      )
+      return [vozilaScreen(model), Cmd.map(vozilaMsg)(cmd)]
     }
   }
 }
@@ -90,6 +99,11 @@ const updateScreen = (msg: ScreenMsg, screenModel: ScreenModel): [ScreenModel, C
       const [model, cmd] = VozaciPretraga.update(vozaciMessage, screenModel.model)
       return [vozaciScreen(model), Cmd.map(vozaciMsg)(cmd)]
     },
+    VozilaMsg: ({ msg: vozilaMessage }): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
+      if (screenModel._tag !== 'VozilaScreen') return [screenModel, Cmd.none]
+      const [model, cmd] = VozilaPretraga.update(vozilaMessage, screenModel.model)
+      return [vozilaScreen(model), Cmd.map(vozilaMsg)(cmd)]
+    },
   })
 
 const screenView =
@@ -98,6 +112,7 @@ const screenView =
     ScreenModel.$match(screenModel, {
       HomeScreen: ({ model }) => Html.map(homeMsg)(Home.view(model))(dispatch),
       VozaciScreen: ({ model }) => Html.map(vozaciMsg)(VozaciPretraga.view(config, model))(dispatch),
+      VozilaScreen: ({ model }) => Html.map(vozilaMsg)(VozilaPretraga.view(model))(dispatch),
       NotFoundScreen: ({ path }) => <NotFoundView path={path} />,
       UnauthorizedScreen: ({ path }) => <UnauthorizedView path={path} />,
     })

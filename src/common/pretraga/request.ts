@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 import type { Order } from './sort'
 
-export type CriteriaValue = string | number | ReadonlyArray<string | number> | undefined
+export type CriteriaValue = string | number | boolean | ReadonlyArray<string | number> | undefined
 
 export type Criteria = Readonly<Record<string, CriteriaValue>>
 
@@ -26,8 +26,8 @@ export const ioPretragaResponse = <A>(item: Schema.Schema<A>) =>
     result: Schema.Array(item),
   })
 
-const values = (value: Exclude<CriteriaValue, undefined>): ReadonlyArray<string | number> =>
-  typeof value === 'string' || typeof value === 'number' ? [value] : value
+const values = (value: Exclude<CriteriaValue, undefined>): ReadonlyArray<string | number | boolean> =>
+  Array.isArray(value) ? value : [value as string | number | boolean]
 
 export const toQuery = <C extends Criteria, O extends string>(request: PretragaRequest<C, O>): string => {
   const params = new URLSearchParams()

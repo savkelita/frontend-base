@@ -2,6 +2,7 @@ import { Field } from '@fluentui/react-components'
 import { DatePicker } from '@fluentui/react-datepicker-compat'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
+import { format as formatDate } from '../date/api'
 
 export interface DateFieldOptions {
   readonly placeholder?: string
@@ -12,10 +13,7 @@ export interface DateFieldOptions {
 
 export type DateForm = Date | null
 
-const pad = (n: number): string => String(n).padStart(2, '0')
-
-export const format = (date?: Date): string =>
-  date === undefined ? '' : `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}.`
+export const format = (date?: Date): string => (date === undefined ? '' : formatDate(date))
 
 export const parse = (text: string): Date | null => {
   const m = text.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?$/)

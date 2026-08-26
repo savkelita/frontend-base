@@ -14,7 +14,7 @@ export type ComboFieldOptions<A> = {
 }
 
 export type Render<A> = {
-  readonly id: (value: A) => number
+  readonly id: (value: A) => number | string
   readonly render: (value: A) => string
 }
 

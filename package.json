@@ -76,9 +76,9 @@
     "webpack-merge": "^6.0.0"
   },
   "resolutions": {
-    "@fluentui/react-motion": "^9.16.1",
-    "@fluentui/react-utilities": "^9.26.5",
-    "@fluentui/react-shared-contexts": "^9.26.2"
+    "@fluentui/react-motion": "^9.16.3",
+    "@fluentui/react-utilities": "^9.26.6",
+    "@fluentui/react-shared-contexts": "^9.26.3"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [

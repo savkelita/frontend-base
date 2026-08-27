@@ -12,5 +12,20 @@ export default defineConfig({
       // Inline-ovanje pusta Vite da odradi interop, kao i za nas .tsx izvor.
       deps: { inline: ['effect-form'] },
     },
+    deps: {
+      optimizer: {
+        ssr: {
+          enabled: true,
+          include: [
+            '@fluentui/react-components',
+            '@fluentui/react-datepicker-compat',
+            '@fluentui/react-calendar-compat',
+            '@fluentui/react-icons',
+            '@fluentui/react-tabster',
+            'tabster',
+          ],
+        },
+      },
+    },
   },
 })

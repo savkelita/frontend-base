@@ -8,7 +8,7 @@ import type { ScreenModel } from './screen-model'
 
 export type Model = Data.TaggedEnum<{
   Initializing: { readonly location: Navigation.Location }
-  Anonymous: { readonly login: Login.Model }
+  Anonymous: { readonly location: Navigation.Location; readonly login: Login.Model }
   Authenticated: {
     readonly session: Session
     readonly location: Navigation.Location

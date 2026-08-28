@@ -160,6 +160,15 @@ const isAuthorized = (config: AuthorizationConfig): boolean => hasAllFunkcionaln
 Prijava ide u dva koraka: `identifikuj` vraca uloge korisnika, `login(uloga)` vraca sesiju. Uspesna
 prijava upisuje sesiju u `localStorage` i odmah prelazi u `Authenticated`.
 
+**`Anonymous` nosi adresu.** Neprijavljeni korisnik koji otvori poslat link ostaje na toj adresi —
+router ne radi `pushUrl`, samo crta prijavu — pa se posle prijave nastavlja tamo gde je posao, a ne
+na pocetnoj. Isto vazi posle odjave i posle isteka sesije. Adresa se prati i dok nema sesije
+(`UrlChanged` je azurira), da `Nazad` u pregledacu ne razidje zapamceni cilj sa onim sto pise u
+traci.
+
+Zapamcena adresa ne zaobilazi nista: prolazi kroz istu proveru prava, pa se link na ekran bez prava
+zavrsava na `UnauthorizedScreen`.
+
 Odjava brise `localStorage`, salje `logout` i vraca na `Anonymous` — tim redom, i ne ceka odgovor
 servera.
 

@@ -146,13 +146,13 @@ const initAuthenticated = (session: typeof Session.Type, location: Navigation.Lo
   ]
 }
 
-const initAnonymous = (): [Model, Cmd.Cmd<Msg>] => {
+const initAnonymous = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => {
   const [loginModel, loginCmd] = Login.init
-  return [Model.Anonymous({ login: loginModel }), Cmd.map(login)(loginCmd)]
+  return [Model.Anonymous({ location, login: loginModel }), Cmd.map(login)(loginCmd)]
 }
 
-const odjavi = (): [Model, Cmd.Cmd<Msg>] => {
-  const [anonModel, anonCmd] = initAnonymous()
+const odjavi = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => {
+  const [anonModel, anonCmd] = initAnonymous(location)
   return [
     anonModel,
     Cmd.batch([
@@ -173,14 +173,14 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     SessionLoaded: ({ session }): [Model, Cmd.Cmd<Msg>] => {
       if (model._tag !== 'Initializing') return [model, Cmd.none]
       return Option.match(session, {
-        onNone: () => initAnonymous(),
+        onNone: () => initAnonymous(model.location),
         onSome: s => initAuthenticated(s, model.location),
       })
     },
 
     SessionLoadError: (): [Model, Cmd.Cmd<Msg>] => {
       if (model._tag !== 'Initializing') return [model, Cmd.none]
-      return initAnonymous()
+      return initAnonymous(model.location)
     },
 
     Login: ({ loginMsg }): [Model, Cmd.Cmd<Msg>] => {
@@ -188,28 +188,23 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
       const [loginModel, loginCmd] = Login.update(loginMsg, model.login)
       if (Option.isSome(loginModel.result)) {
         const session = loginModel.result.value
-        const location: Navigation.Location = {
-          pathname: '/',
-          search: '',
-          hash: '',
-          href: '/',
-          origin: '',
-          state: null,
-        }
-        const [authModel, authCmd] = initAuthenticated(session, location)
+        const [authModel, authCmd] = initAuthenticated(session, model.location)
         return [authModel, Cmd.batch([authCmd, LocalStorage.setIgnoreErrors(SESSION_KEY, Session, session)])]
       }
-      return [Model.Anonymous({ login: loginModel }), Cmd.map(login)(loginCmd)]
+      return [Model.Anonymous({ ...model, login: loginModel }), Cmd.map(login)(loginCmd)]
     },
 
-    Logout: (): [Model, Cmd.Cmd<Msg>] => odjavi(),
+    Logout: (): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag !== 'Authenticated') return [model, Cmd.none]
+      return odjavi(model.location)
+    },
 
     IstekSesije: ({ istekMsg }): [Model, Cmd.Cmd<Msg>] => {
       if (model._tag !== 'Authenticated') return [model, Cmd.none]
-      if (istekMsg._tag === 'Odjava') return odjavi()
+      if (istekMsg._tag === 'Odjava') return odjavi(model.location)
       const [istek, istekCmd] = IstekSesije.update(istekMsg, model.istekSesije)
       if (IstekSesije.istekla(model.session, istek)) {
-        const [anonModel, anonCmd] = odjavi()
+        const [anonModel, anonCmd] = odjavi(model.location)
         return [anonModel, Cmd.batch([anonCmd, Toast.warning('Sesija je istekla. Prijavite se ponovo.')])]
       }
       return [Model.Authenticated({ ...model, istekSesije: istek }), Cmd.map(istekSesije)(istekCmd)]
@@ -228,6 +223,7 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     },
 
     UrlChanged: ({ location }): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag === 'Anonymous') return [Model.Anonymous({ ...model, location }), Cmd.none]
       if (model._tag !== 'Authenticated') return [model, Cmd.none]
       const config = toAuthorizationConfig(model.session)
       const route = parseRoute(location)

@@ -7,6 +7,7 @@ import {
   DrawerHeaderTitle,
   makeStyles,
   tokens,
+  useId,
 } from '@fluentui/react-components'
 import { DismissRegular, EraserRegular, FilterRegular, SearchRegular } from '@fluentui/react-icons'
 import { memo, useSyncExternalStore, type ReactNode } from 'react'
@@ -53,6 +54,7 @@ const useNarrow = (): boolean =>
 export const FilterDrawer = ({ open, onClose, onSubmit, onClear, children }: FilterDrawerProps): ReactNode => {
   const styles = useStyles()
   const narrow = useNarrow()
+  const formId = useId('filter-')
 
   return (
     <Drawer
@@ -71,13 +73,25 @@ export const FilterDrawer = ({ open, onClose, onSubmit, onClear, children }: Fil
         </DrawerHeaderTitle>
       </DrawerHeader>
 
-      <DrawerBody className={styles.fields}>{children}</DrawerBody>
+      <DrawerBody>
+        <form
+          id={formId}
+          noValidate
+          className={styles.fields}
+          onSubmit={event => {
+            event.preventDefault()
+            onSubmit()
+          }}
+        >
+          {children}
+        </form>
+      </DrawerBody>
 
       <DrawerFooter>
-        <Button appearance="primary" icon={<SearchRegular />} onClick={onSubmit}>
+        <Button appearance="primary" type="submit" form={formId} icon={<SearchRegular />}>
           Pretrazi
         </Button>
-        <Button appearance="secondary" icon={<EraserRegular />} onClick={onClear}>
+        <Button appearance="secondary" type="button" icon={<EraserRegular />} onClick={onClear}>
           Ponisti
         </Button>
       </DrawerFooter>

@@ -208,6 +208,11 @@ besmislen upit vraca prazan rezultat — sto je tacan odgovor, ne greska.
 `filterView` daje fioku, dugmad `Pretrazi` / `Ponisti` i memoizaciju. `fields`, `toggled`,
 `submitted` i `cleared` su konstante na nivou modula, pa poredjenje props-a staje na modelu filtera.
 
+Polja stoje u pravom `<form>`-u, a `Pretrazi` je njegovo `type="submit"` dugme, vezano preko
+`form={id}` jer stoji u podnozju fioke. Zato **Enter u polju pokrece pretragu** — to radi pregledac,
+nema naseg rukovaoca tastaturom. Fluent-ove liste i datum vec zovu `preventDefault` na Enter, pa tamo
+Enter bira stavku ili potvrdjuje datum i ne salje formu.
+
 ## Prikaz ekrana
 
 ```tsx

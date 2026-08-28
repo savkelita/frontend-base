@@ -84,9 +84,10 @@ describe('bez sesije nema ekrana', () => {
     expect(model._tag).toBe('Anonymous')
   })
 
-  it('poruka ekrana bez sesije ne radi nista', () => {
+  // Adresa se prati i bez sesije, ali ekran se ne otvara — o cilju prijave vidi prijava.test.ts.
+  it('promena adrese bez sesije ne otvara ekran', () => {
     const anoniman = update(sessionLoaded(Option.none()), Model.Initializing({ location: location('/') }))[0]
     const [model] = update(urlChanged(location('/sifarnici/vozaci')), anoniman)
-    expect(model).toBe(anoniman)
+    expect(model._tag).toBe('Anonymous')
   })
 })

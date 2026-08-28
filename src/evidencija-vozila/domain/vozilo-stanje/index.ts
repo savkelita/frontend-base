@@ -1,17 +1,16 @@
-import { Schema } from 'effect'
 import * as Enum from '../../../common/domain/enum'
 
-export const CHOICES = [
-  { value: 'AKTIVAN', text: 'Aktivan' },
-  { value: 'PASIVAN', text: 'Pasivan' },
-] as const
+const KEYS = {
+  AKTIVAN: 'Aktivan',
+  PASIVAN: 'Pasivan',
+}
 
-export type Value = (typeof CHOICES)[number]['value']
-
-export const ioValue = Schema.Literal(...CHOICES.map(c => c.value))
-
-export const text = (stanje: Value): string => CHOICES.find(c => c.value === stanje)?.text ?? stanje
+export type Value = keyof typeof KEYS
 
 export type Form = Enum.Form<Value>
 
-export const vForm = Enum.vForm(CHOICES)
+export const ioValue = Enum.ioValue(KEYS)
+
+export const vForm = Enum.vForm(KEYS)
+
+export const text = (stanje: Value): string => KEYS[stanje]

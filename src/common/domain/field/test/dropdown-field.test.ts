@@ -5,13 +5,13 @@ import { render, type Options } from '../../../form'
 import * as Enum from '../../enum'
 import { clearing } from '../dropdown-field'
 
-const CHOICES = [
-  { value: 'read', text: 'Read' },
-  { value: 'write', text: 'Write' },
-] as const
+const KEYS = {
+  read: 'Read',
+  write: 'Write',
+}
 
-const single = Enum.vForm(CHOICES)
-const multi = Enum.vFormMulti(CHOICES)
+const single = Enum.vForm(KEYS)
+const multi = Enum.vFormMulti(KEYS)
 
 const draw = <A, I, R>(schema: Schema.Schema<A, I, R>, x: unknown) => {
   const options: Options<{ readonly x: unknown }> = { template: l => l.inputs.x }

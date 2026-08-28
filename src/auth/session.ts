@@ -23,5 +23,4 @@ export const toAuthorizationConfig = (session: Session): AuthorizationConfig => 
   funkcionalnosti: session.funkcionalnosti,
 })
 
-export const displayName = (session: Session): string =>
-  `${session.korisnik.ime} ${session.korisnik.prezime}`.trim() || session.korisnik.korisnickoIme
+export const displayName = (session: Session): string => `${session.korisnik.ime} ${session.korisnik.prezime}`

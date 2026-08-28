@@ -18,7 +18,6 @@ export type FormDialogProps = {
   readonly submitLabel: string
   readonly isSubmitting: boolean
   readonly submitDisabled?: boolean
-  /** Nesacuvane izmene: zatvaranje trazi potvrdu, a osvezavanje strane upozorava. */
   readonly dirty?: boolean
   readonly onSubmit: () => void
   readonly onClose: () => void
@@ -58,7 +57,7 @@ export const ConfirmDialog = ({
 
   return (
     <Dialog open modalType="alert">
-      <DialogSurface>
+      <DialogSurface backdrop={{ appearance: 'dimmed' }}>
         <DialogBody>
           <DialogTitle>{title}</DialogTitle>
 
@@ -96,18 +95,18 @@ export const FormDialog = ({
   return (
     <>
       <UnloadGuard active={dirty} />
-      {potvrda && (
-        <ConfirmDialog
-          title="Odustajanje od izmena"
-          confirmLabel="Odustani"
-          onConfirm={onClose}
-          onCancel={() => setPotvrda(false)}
-        >
-          Uneli ste izmene koje nisu sacuvane. Ako odustanete, bice izgubljene.
-        </ConfirmDialog>
-      )}
       <Dialog open modalType="modal" onOpenChange={(_event, data) => !data.open && zatvori()}>
         <DialogSurface className={styles.surface}>
+          {potvrda && (
+            <ConfirmDialog
+              title="Odustajanje od izmena"
+              confirmLabel="Odustani"
+              onConfirm={onClose}
+              onCancel={() => setPotvrda(false)}
+            >
+              Uneli ste izmene koje nisu sacuvane. Ako odustanete, bice izgubljene.
+            </ConfirmDialog>
+          )}
           <form
             noValidate
             onSubmit={event => {

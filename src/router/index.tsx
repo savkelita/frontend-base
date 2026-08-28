@@ -38,7 +38,6 @@ import { routes, getRouteFunkcionalnosti } from './route'
 import type { Route } from './route'
 import { ScreenModel, homeScreen, notFoundScreen, unauthorizedScreen, vozaciScreen, vozilaScreen } from './screen-model'
 import { ScreenMsg, homeMsg, vozaciMsg, vozilaMsg } from './screen-msg'
-import { selectedNavValue, selectedCategoryValue } from './selected-nav'
 
 export type { Model }
 export type { Msg }
@@ -46,6 +45,15 @@ export type { Msg }
 const locationToPath = (location: Navigation.Location): string => location.pathname + location.search + location.hash
 
 const parseRoute = (location: Navigation.Location): Option.Option<Route> => Router.parse(routes, location)
+
+const selectedNavValue = (screenModel: ScreenModel): string =>
+  ScreenModel.$match(screenModel, {
+    HomeScreen: () => 'home',
+    VozaciScreen: () => 'vozaci',
+    VozilaScreen: () => 'vozila',
+    NotFoundScreen: () => '',
+    UnauthorizedScreen: () => '',
+  })
 
 const startScreen = (route: Route, state: unknown, previous?: ScreenModel): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
   switch (route._tag) {
@@ -228,14 +236,7 @@ export const view =
       Authenticated: m => (
         <Layout
           header={<AppHeader isOpen={m.navigation.isOpen} username={displayName(m.session)} dispatch={dispatch} />}
-          nav={
-            <AppNavigation
-              model={m.navigation}
-              selectedValue={selectedNavValue(m.screen)}
-              selectedCategoryValue={selectedCategoryValue(m.screen)}
-              dispatch={dispatch}
-            />
-          }
+          nav={<AppNavigation model={m.navigation} selectedValue={selectedNavValue(m.screen)} dispatch={dispatch} />}
         >
           {Html.map(screen)(screenView(toAuthorizationConfig(m.session), m.screen))(dispatch)}
         </Layout>

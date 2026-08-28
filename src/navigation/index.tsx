@@ -8,7 +8,6 @@ import {
   NavSubItem,
   NavItem,
 } from '@fluentui/react-components'
-import { Option } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
@@ -70,15 +69,11 @@ const renderEntry = (entry: NavigationEntry) =>
   })
 
 export const view =
-  (model: Model, selectedValue: string, selectedCategoryValue: Option.Option<string>): TeaReact.Html<Msg> =>
+  (model: Model, selectedValue: string): TeaReact.Html<Msg> =>
   (_dispatch: Platform.Dispatch<Msg>) => (
     <NavDrawer type="inline" open={model.isOpen}>
       <NavDrawerBody>
-        <Nav
-          selectedValue={selectedValue}
-          selectedCategoryValue={Option.getOrUndefined(selectedCategoryValue)}
-          openCategories={[...model.openCategories]}
-        >
+        <Nav selectedValue={selectedValue} openCategories={[...model.openCategories]}>
           {model.entries.map(renderEntry)}
         </Nav>
       </NavDrawerBody>

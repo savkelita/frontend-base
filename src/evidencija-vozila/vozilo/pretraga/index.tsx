@@ -13,6 +13,7 @@ import { mapHttpError } from '../../../common/error'
 import { memoize } from '../../../common/memo'
 import {
   Data,
+  fromRouteQuery,
   initial,
   ioDatePredicate,
   ioDirection,
@@ -22,6 +23,7 @@ import {
   next,
   sameRequest,
   toOrder,
+  toRouteQuery,
   type PretragaRequest,
   type Sort,
 } from '../../../common/pretraga'
@@ -87,24 +89,16 @@ const goTo = (
   sort: Sort<VoziloOrder> | null,
   criteria: VoziloCriteria,
   state: Filter.State,
-): Cmd.Cmd<Msg> =>
-  Navigation.pushUrl(
-    Router.format(route, {
-      ...criteria,
-      ...(offset === 0 ? {} : { offset }),
-      ...(sort === null ? {} : { order: sort.attribute, dir: sort.direction }),
-    }),
-    state,
-  )
+): Cmd.Cmd<Msg> => Navigation.pushUrl(Router.format(route, toRouteQuery(offset, sort, criteria)), state)
 
 export const init = (query: typeof RouteQuery.Type, state: unknown, previous?: Model): [Model, Cmd.Cmd<Msg>] => {
-  const { offset, order, dir, ...zadato } = query
   const prazna = Object.keys(query).length === 0
+  const { offset, sort, criteria: zadato } = fromRouteQuery(query)
   const criteria = prazna ? POCETNA_KRITERIJUM : zadato
   const [filterModel, filterCmd] = Filter.init(criteria, state, previous?.filterModel)
   const model: Model = {
-    offset: offset ?? 0,
-    sort: order === undefined ? (prazna ? POCETNI_SORT : null) : { attribute: order, direction: dir ?? 'ASC' },
+    offset,
+    sort: prazna ? POCETNI_SORT : sort,
     criteria,
     data: previous === undefined ? initial<Vozilo>() : next(previous.data),
     selected: [],

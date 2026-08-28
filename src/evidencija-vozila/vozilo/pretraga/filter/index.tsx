@@ -1,13 +1,11 @@
-import { makeStyles, tokens } from '@fluentui/react-components'
-import { Option, Schema } from 'effect'
-import { memo } from 'react'
+import { Schema } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Combo from '../../../../common/domain/combo'
 import * as Form from '../../../../common/form'
-import { contains, eq, predicateValue, range, rangeValue } from '../../../../common/pretraga'
-import { FilterButton, FilterDrawer } from '../../../../common/pretraga/components/filter-drawer'
+import { contains, eq, predicateValue, range, rangeValue, stateValue } from '../../../../common/pretraga'
+import { filterButton, filterView } from '../../../../common/pretraga/components/filter-drawer'
 import * as KorisnikVozila from '../../../../sifarnici/domain/korisnik-vozila'
 import * as MarkaVozila from '../../../../sifarnici/domain/marka-vozila'
 import * as ModelVozila from '../../../../sifarnici/domain/model-vozila'
@@ -64,47 +62,31 @@ export const toState = (value: FormValue): State => ({
   vozac: value.vozac,
 })
 
-const fromState = (state: unknown): State | undefined =>
-  Option.getOrUndefined(Schema.decodeUnknownOption(ioState)(state))
-
-const carried = <A extends { readonly id: number }>(
-  id: number | undefined,
-  candidates: ReadonlyArray<A | null>,
-): A | null => (id === undefined ? null : (candidates.find(candidate => candidate?.id === id) ?? null))
-
-const izabrano = <A,>(msg: Combo.Msg<A>, current: A | null): A | null =>
-  msg._tag === 'Selected' || msg._tag === 'Initialized' ? (msg.values[0] ?? null) : current
+const fromState = stateValue(ioState)
 
 export const init = (criteria: VoziloCriteria, state: unknown, previous?: Model): [Model, Cmd.Cmd<Msg>] => {
   const preneto = fromState(state)
 
-  const vrstaGoriva = carried(criteria.vrstaGorivaID, [
-    preneto?.vrstaGoriva ?? null,
-    previous?.value.vrstaGoriva ?? null,
-  ])
-  const vrstaVozila = carried(criteria.vrstaVozilaID, [
-    preneto?.vrstaVozila ?? null,
-    previous?.value.vrstaVozila ?? null,
-  ])
-  const korisnikVozila = carried(criteria.korisnikVozilaID, [
-    preneto?.korisnikVozila ?? null,
-    previous?.value.korisnikVozila ?? null,
-  ])
-  const vozac = carried(criteria.vozacID, [preneto?.vozac ?? null, previous?.value.vozac ?? null])
-
-  const [vrstaGorivaCombo, vrstaGorivaCmd] = Combo.init(
-    vrstaGoriva === null ? criteria.vrstaGorivaID : undefined,
+  const [vrstaGoriva, vrstaGorivaCombo, vrstaGorivaCmd] = Combo.init(
+    criteria.vrstaGorivaID,
+    [preneto?.vrstaGoriva, previous?.value.vrstaGoriva],
     VrstaGoriva.search,
   )
-  const [vrstaVozilaCombo, vrstaVozilaCmd] = Combo.init(
-    vrstaVozila === null ? criteria.vrstaVozilaID : undefined,
+  const [vrstaVozila, vrstaVozilaCombo, vrstaVozilaCmd] = Combo.init(
+    criteria.vrstaVozilaID,
+    [preneto?.vrstaVozila, previous?.value.vrstaVozila],
     VrstaVozila.search,
   )
-  const [korisnikVozilaCombo, korisnikVozilaCmd] = Combo.init(
-    korisnikVozila === null ? criteria.korisnikVozilaID : undefined,
+  const [korisnikVozila, korisnikVozilaCombo, korisnikVozilaCmd] = Combo.init(
+    criteria.korisnikVozilaID,
+    [preneto?.korisnikVozila, previous?.value.korisnikVozila],
     KorisnikVozila.search,
   )
-  const [vozacCombo, vozacCmd] = Combo.init(vozac === null ? criteria.vozacID : undefined, Vozac.search)
+  const [vozac, vozacCombo, vozacCmd] = Combo.init(
+    criteria.vozacID,
+    [preneto?.vozac, previous?.value.vozac],
+    Vozac.search,
+  )
 
   return [
     {
@@ -162,8 +144,12 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     Toggled: (): [Model, Cmd.Cmd<Msg>] => [{ ...model, isOpen: !model.isOpen }, Cmd.none],
 
     MarkaMsg: ({ msg: comboMessage }): [Model, Cmd.Cmd<Msg>] => {
-      const [markaCombo, comboCmd] = Combo.update(MarkaVozila.search, comboMessage, model.markaCombo)
-      const markaVozila = izabrano(comboMessage, model.value.markaVozila)
+      const [markaVozila, markaCombo, comboCmd] = Combo.step(
+        MarkaVozila.search,
+        comboMessage,
+        model.markaCombo,
+        model.value.markaVozila,
+      )
       const cmd = Cmd.map(markaMsg)(comboCmd)
       return markaVozila?.marka === model.value.markaVozila?.marka
         ? [{ ...model, markaCombo }, cmd]
@@ -179,34 +165,42 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     },
 
     ModelMsg: ({ msg: comboMessage }): [Model, Cmd.Cmd<Msg>] => {
-      const [modelCombo, comboCmd] = Combo.update(
+      const [modelVozila, modelCombo, comboCmd] = Combo.step(
         ModelVozila.search(model.value.markaVozila?.marka ?? ''),
         comboMessage,
         model.modelCombo,
+        model.value.modelVozila,
       )
-      const modelVozila = izabrano(comboMessage, model.value.modelVozila)
       return [{ ...model, modelCombo, value: { ...model.value, modelVozila } }, Cmd.map(modelMsg)(comboCmd)]
     },
 
     VrstaGorivaMsg: ({ msg: comboMessage }): [Model, Cmd.Cmd<Msg>] => {
-      const [vrstaGorivaCombo, comboCmd] = Combo.update(VrstaGoriva.search, comboMessage, model.vrstaGorivaCombo)
-      const vrstaGoriva = izabrano(comboMessage, model.value.vrstaGoriva)
+      const [vrstaGoriva, vrstaGorivaCombo, comboCmd] = Combo.step(
+        VrstaGoriva.search,
+        comboMessage,
+        model.vrstaGorivaCombo,
+        model.value.vrstaGoriva,
+      )
       return [{ ...model, vrstaGorivaCombo, value: { ...model.value, vrstaGoriva } }, Cmd.map(vrstaGorivaMsg)(comboCmd)]
     },
 
     VrstaVozilaMsg: ({ msg: comboMessage }): [Model, Cmd.Cmd<Msg>] => {
-      const [vrstaVozilaCombo, comboCmd] = Combo.update(VrstaVozila.search, comboMessage, model.vrstaVozilaCombo)
-      const vrstaVozila = izabrano(comboMessage, model.value.vrstaVozila)
+      const [vrstaVozila, vrstaVozilaCombo, comboCmd] = Combo.step(
+        VrstaVozila.search,
+        comboMessage,
+        model.vrstaVozilaCombo,
+        model.value.vrstaVozila,
+      )
       return [{ ...model, vrstaVozilaCombo, value: { ...model.value, vrstaVozila } }, Cmd.map(vrstaVozilaMsg)(comboCmd)]
     },
 
     KorisnikVozilaMsg: ({ msg: comboMessage }): [Model, Cmd.Cmd<Msg>] => {
-      const [korisnikVozilaCombo, comboCmd] = Combo.update(
+      const [korisnikVozila, korisnikVozilaCombo, comboCmd] = Combo.step(
         KorisnikVozila.search,
         comboMessage,
         model.korisnikVozilaCombo,
+        model.value.korisnikVozila,
       )
-      const korisnikVozila = izabrano(comboMessage, model.value.korisnikVozila)
       return [
         { ...model, korisnikVozilaCombo, value: { ...model.value, korisnikVozila } },
         Cmd.map(korisnikVozilaMsg)(comboCmd),
@@ -214,8 +208,7 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     },
 
     VozacMsg: ({ msg: comboMessage }): [Model, Cmd.Cmd<Msg>] => {
-      const [vozacCombo, comboCmd] = Combo.update(Vozac.search, comboMessage, model.vozacCombo)
-      const vozac = izabrano(comboMessage, model.value.vozac)
+      const [vozac, vozacCombo, comboCmd] = Combo.step(Vozac.search, comboMessage, model.vozacCombo, model.value.vozac)
       return [{ ...model, vozacCombo, value: { ...model.value, vozac } }, Cmd.map(vozacMsg)(comboCmd)]
     },
   })
@@ -235,17 +228,9 @@ export const toCriteria = (value: FormValue): VoziloCriteria => ({
   istekRegistracije: eq(value.istekRegistracije),
 })
 
-const useStyles = makeStyles({
-  fields: {
-    display: 'flex',
-    flexDirection: 'column',
-    rowGap: tokens.spacingVerticalM,
-  },
-})
-
-const options = (fields: string, model: Model, dispatch: Platform.Dispatch<Msg>): Form.Options<FormValue> => ({
+const options = (model: Model, dispatch: Platform.Dispatch<Msg>): Form.Options<FormValue> => ({
   template: locals => (
-    <div className={fields}>
+    <>
       {locals.inputs.registarskaOznaka}
       {locals.inputs.markaVozila}
       {locals.inputs.modelVozila}
@@ -258,7 +243,7 @@ const options = (fields: string, model: Model, dispatch: Platform.Dispatch<Msg>)
       {locals.inputs.istekRegistracije}
       {locals.inputs.datumPrveRegistracije}
       {locals.inputs.datumIsticanjaRegistracije}
-    </div>
+    </>
   ),
   fields: {
     registarskaOznaka: { label: 'Registarska oznaka' },
@@ -307,31 +292,15 @@ const options = (fields: string, model: Model, dispatch: Platform.Dispatch<Msg>)
   },
 })
 
-const FilterView = memo(({ model, dispatch }: { model: Model; dispatch: Platform.Dispatch<Msg> }) => {
-  const styles = useStyles()
+const fields = (model: Model, dispatch: Platform.Dispatch<Msg>) =>
+  Form.render({
+    schema: vForm(),
+    value: model.value,
+    onChange: value => dispatch(changed(value)),
+    options: options(model, dispatch),
+    issues: [],
+  })
 
-  return (
-    <FilterDrawer
-      open={model.isOpen}
-      onClose={() => dispatch(toggled())}
-      onSubmit={() => dispatch(submitted())}
-      onClear={() => dispatch(cleared())}
-    >
-      {Form.render({
-        schema: vForm(),
-        value: model.value,
-        onChange: value => dispatch(changed(value)),
-        options: options(styles.fields, model, dispatch),
-        issues: [],
-      })}
-    </FilterDrawer>
-  )
-})
+export const view = (model: Model): TeaReact.Html<Msg> => filterView(model, fields, toggled, submitted, cleared)
 
-export const view =
-  (model: Model): TeaReact.Html<Msg> =>
-  (dispatch: Platform.Dispatch<Msg>) => <FilterView model={model} dispatch={dispatch} />
-
-export const button =
-  (model: Model): TeaReact.Html<Msg> =>
-  (dispatch: Platform.Dispatch<Msg>) => <FilterButton open={model.isOpen} onToggle={() => dispatch(toggled())} />
+export const button = (model: Model): TeaReact.Html<Msg> => filterButton(model.isOpen, toggled)

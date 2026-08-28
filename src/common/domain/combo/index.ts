@@ -22,15 +22,32 @@ const load = <A>(search: Source<A>, request: Request): Cmd.Cmd<Msg<A>> =>
 
 const debounce = <A>(seq: number): Cmd.Cmd<Msg<A>> => Cmd.fromEffect(Effect.as(Effect.sleep(DEBOUNCE), applied<A>(seq)))
 
-export const init = <A>(id: number | undefined, search: Source<A>): [Model<A>, Cmd.Cmd<Msg<A>>] => {
-  if (id === undefined) return [empty<A>(), Cmd.none]
+export const init = <A extends { readonly id: number }>(
+  id: number | undefined,
+  known: ReadonlyArray<A | null | undefined>,
+  search: Source<A>,
+): [A | null, Model<A>, Cmd.Cmd<Msg<A>>] => {
+  const value = id === undefined ? null : (known.find(one => one?.id === id) ?? null)
+  if (id === undefined || value !== null) return [value, empty<A>(), Cmd.none]
   return [
+    null,
     empty<A>(),
     Http.send(search(toRequest(null, 0, id)), {
       onSuccess: response => initialized<A>(response.result),
       onError: () => initialized<A>([]),
     }),
   ]
+}
+
+export const step = <A>(
+  search: Source<A>,
+  msg: Msg<A>,
+  model: Model<A>,
+  current: A | null,
+): [A | null, Model<A>, Cmd.Cmd<Msg<A>>] => {
+  const [next, cmd] = update(search, msg, model)
+  const value = msg._tag === 'Selected' || msg._tag === 'Initialized' ? (msg.values[0] ?? null) : current
+  return [value, next, cmd]
 }
 
 export const update = <A>(search: Source<A>, msg: Msg<A>, model: Model<A>): [Model<A>, Cmd.Cmd<Msg<A>>] =>

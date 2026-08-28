@@ -107,16 +107,33 @@ describe('ucitaj jos', () => {
 })
 
 describe('inicijalizacija po id-u', () => {
+  const kategorija: KategorijaVozaca = { id: 3, oznaka: 'B' }
+
   it('bez id-a nema poziva', () => {
-    const [model, cmd] = init<KategorijaVozaca>(undefined, search)
+    const [value, model, cmd] = init<KategorijaVozaca>(undefined, [], search)
+    expect(value).toBeNull()
     expect(model).toStrictEqual(empty<KategorijaVozaca>())
     expect(cmd).toBe(Cmd.none)
   })
 
   // Lista se ne dira: ona se puni tek kad korisnik otvori padajuci deo.
   it('sa id-om trazi taj slog, ali listu ne popunjava', () => {
-    const [model, cmd] = init<KategorijaVozaca>(3, search)
+    const [value, model, cmd] = init<KategorijaVozaca>(3, [], search)
+    expect(value).toBeNull()
     expect(model.data).toBeNull()
+    expect(cmd).not.toBe(Cmd.none)
+  })
+
+  // Vec poznata vrednost stedi poziv; redosled kandidata je redosled prvenstva.
+  it('poznata vrednost sa tim id-em preskace poziv', () => {
+    const [value, , cmd] = init<KategorijaVozaca>(3, [null, kategorija], search)
+    expect(value).toStrictEqual(kategorija)
+    expect(cmd).toBe(Cmd.none)
+  })
+
+  it('poznata vrednost sa drugim id-em se ne uzima', () => {
+    const [value, , cmd] = init<KategorijaVozaca>(7, [kategorija], search)
+    expect(value).toBeNull()
     expect(cmd).not.toBe(Cmd.none)
   })
 

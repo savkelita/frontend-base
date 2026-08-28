@@ -12,6 +12,7 @@ import { mapHttpError } from '../../../common/error'
 import { memoize } from '../../../common/memo'
 import {
   Data,
+  fromRouteQuery,
   initial,
   ioDirection,
   ioEnumPredicate,
@@ -20,6 +21,7 @@ import {
   next,
   sameRequest,
   toOrder,
+  toRouteQuery,
   type PretragaRequest,
   type Sort,
 } from '../../../common/pretraga'
@@ -94,22 +96,14 @@ const goTo = (
   sort: Sort<VozacOrder> | null,
   criteria: VozacCriteria,
   state: Filter.State,
-): Cmd.Cmd<Msg> =>
-  Navigation.pushUrl(
-    Router.format(route, {
-      ...criteria,
-      ...(offset === 0 ? {} : { offset }),
-      ...(sort === null ? {} : { order: sort.attribute, dir: sort.direction }),
-    }),
-    state,
-  )
+): Cmd.Cmd<Msg> => Navigation.pushUrl(Router.format(route, toRouteQuery(offset, sort, criteria)), state)
 
 export const init = (query: typeof RouteQuery.Type, state: unknown, previous?: Model): [Model, Cmd.Cmd<Msg>] => {
-  const { offset, order, dir, ...criteria } = query
+  const { offset, sort, criteria } = fromRouteQuery(query)
   const [filterModel, filterCmd] = Filter.init(criteria, state, previous?.filterModel)
   const model: Model = {
-    offset: offset ?? 0,
-    sort: order === undefined ? null : { attribute: order, direction: dir ?? 'ASC' },
+    offset,
+    sort,
     criteria,
     data: previous === undefined ? initial<Vozac>() : next(previous.data),
     selected: [],

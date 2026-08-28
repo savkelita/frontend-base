@@ -20,11 +20,15 @@ export const routes = Router.routes({
   vozila: VozilaPretraga.route,
 })
 
-const routeFunkcionalnosti: Record<string, ReadonlyArray<Funkcionalnost>> = {
+const routeFunkcionalnosti: Record<Route['_tag'], ReadonlyArray<Funkcionalnost>> = {
+  home: [],
   vozaci: VozaciPretraga.FUNKCIONALNOSTI,
   vozila: VozilaPretraga.FUNKCIONALNOSTI,
 }
 ```
+
+Kljuc je `Route['_tag']`, ne `string`, i nema `?? []` na citanju. Ruta bez unosa pada na kompajleru
+umesto da tiho postane javna. Ruta koja stvarno ne trazi nista se to i kaze, praznim spiskom.
 
 ## Dodavanje rute
 
@@ -128,6 +132,10 @@ Provera na ruti je jedina obavezna — bez nje bi rucno ukucana adresa otvorila 
 su udobnost, ali se **ne dupliraju u `update`-u**. Vidi
 [01 Arhitektura](01-arhitektura.md#bez-odbrambenih-provera).
 
+Zato je `src/router/test/authorization.test.ts` obavezan pratilac svake nove rute: proverava da se
+sa pravom otvara ekran, da se bez prava dobija `UnauthorizedScreen`, i da pravo za jedan ekran ne
+otvara drugi.
+
 ### Dodavanje funkcionalnosti
 
 1. Dodaj naziv u `FUNKCIONALNOSTI` u `src/auth/types.ts` (mora se poklopiti sa backend-om).
@@ -156,3 +164,40 @@ Odjava brise `localStorage`, salje `logout` i vraca na `Anonymous` — tim redom
 servera.
 
 Kolacic i XSRF zaglavlje dodaje `common/http/request`, ne modul autentifikacije.
+
+### Istek sesije
+
+**401 ne znaci da je sesija istekla.** Isti status stize i kada je korisnik prijavljen ali nema pravo
+na taj poziv — server na to odgovara sa
+`{"type":"SYSTEM","code":"5501","message":"Nemate pravo na izvršenje funkcionalnosti."}`. Automatska
+odjava na svaki 401 izbacila bi korisnika zato sto je kliknuo nesto sto ne sme. Zato se iz 401 ne
+zakljucuje nista o sesiji, nego se prikaze poruka koju je server poslao.
+
+Sesija ima poznat rok, pa se istek racuna **iz sata**. `src/auth/istek-sesije/` to prati.
+
+`LoginResponse` nosi `issued` i `expiration` — dva serverska trenutka. Njihova razlika je trajanje i
+ne zavisi od toga koliko se satovi servera i pregledaca razilaze. Na klijentov sat prelazi tek kroz
+`clientIssued`, cas kada je odgovor stigao:
+
+```ts
+istek: clientIssued + (response.expiration.getTime() - response.issued.getTime())
+```
+
+`istek` je obican broj (milisekunde), ne `Date`. Kroz `localStorage` `Date` bi se vratio pomeren za
+vremensku zonu, jer ga `JSON` pise u UTC-u a nas `DateTime` kodek cita kao lokalno vreme.
+
+Sat je izvan aplikacije, pa ulazi kroz pretplatu — to je jedini `Sub` u projektu, i tece samo dok je
+neko prijavljen:
+
+```ts
+export const subscriptions = (model: Model): Sub.Sub<Msg> =>
+  model._tag === 'Authenticated' ? Sub.map(istekSesije)(IstekSesije.subscriptions()) : Sub.none
+```
+
+Modul javlja samo vreme; sta ono znaci odlucuje router: na pragu se prikazuje dijalog, na isteku se
+korisnik odjavljuje uz obavestenje. Pre prvog otkucaja `preostalo` je `Option.none()` — nista se jos
+nije izmerilo, pa se nista i ne tvrdi.
+
+Kada backend dobije produzetak, dodaje se `POST /api/administracija/extendSession` u
+`auth/api/routes.ts`, poruka `Produzi` u `istek-sesije/msg.ts`, dugme u dijalogu, i router na
+uspesan odgovor upisuje novi `istek`. Sve ostalo ostaje kako jeste.

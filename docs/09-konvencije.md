@@ -110,3 +110,4 @@ tri mesta: tip `Env`, `webpack/webpack.dev.js` i `webpack/webpack.prod.js`.
 | Tabela prikazuje stari rezultat | Nedostaje `sameRequest` provera |
 | Polje u dijalogu ne prima fokus | Dva modala kao braca umesto ugnjezdenih |
 | DatePicker guta ukucan datum | `minDate` uz `allowTextInput` tiho odbacuje vrednost van opsega |
+| Nova ruta se otvara bez prava | Nedostaje unos u `routeFunkcionalnosti` — od sada pada na kompajleru |

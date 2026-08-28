@@ -12,6 +12,7 @@ src/
 ├── auth/                   sesija, funkcionalnosti, uloge
 │   ├── api/
 │   ├── domain/uloga/
+│   ├── istek-sesije/       otkucaj, upozorenje pred kraj, odjava
 │   ├── session.ts
 │   └── types.ts
 ├── common/                 sve sto deli vise oblasti

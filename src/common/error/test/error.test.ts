@@ -47,12 +47,17 @@ describe('parseErrors', () => {
     expect(parseErrors(body([{ ...business, message: dugacka }]))).toHaveLength(1)
   })
 
+  // Validacija salje listu, a odbijeno ovlascenje jedan objekat; oba su ista stvar za prikaz.
+  it('cita i jedan objekat, ne samo listu', () => {
+    expect(parseErrors(body(business))).toStrictEqual([business])
+  })
+
   describe('telo koje se ne razume ne obara prikaz', () => {
     it.each([
       ['prazan tekst', ''],
       ['nije JSON', '<html>502</html>'],
-      ['JSON ali nije lista', body(business)],
       ['nepoznat `type`', body([{ type: 'NESTO', message: 'x' }])],
+      ['nepoznat `type`, van liste', body({ type: 'NESTO', message: 'x' })],
       ['fali obavezno polje', body([{ type: 'SYSTEM', code: 'SYS01' }])],
       ['nepoznat severity', body([{ ...business, severity: 'FATAL' }])],
     ])('%s', (_naziv, raw) => {
@@ -68,7 +73,23 @@ describe('mapHttpError', () => {
   })
 
   it('401 ostaje Unauthorized, bez izmisljene liste', () => {
-    expect(mapHttpError({ _tag: 'BadStatus', status: 401, body: '' })._tag).toBe('Unauthorized')
+    const error = mapHttpError({ _tag: 'BadStatus', status: 401, body: '' })
+    expect(error._tag === 'Unauthorized' && error.errors).toStrictEqual([])
+  })
+
+  // Server na 401 kaze da li je pogresna lozinka ili nedostaje pravo; ta poruka je bolja od nase.
+  it('401 zadrzava poruku servera', () => {
+    const odbijeno = {
+      type: 'BUSINESS',
+      code: 'AUTH01',
+      messageCode: 'ERR_LOZINKA',
+      message: 'Pogresno korisnicko ime ili lozinka',
+      severity: 'ERROR',
+    }
+    const error = mapHttpError({ _tag: 'BadStatus', status: 401, body: body(odbijeno) })
+    expect(error._tag === 'Unauthorized' && error.errors.map(e => e.message)).toStrictEqual([
+      'Pogresno korisnicko ime ili lozinka',
+    ])
   })
 
   it('mrezna greska ne pokusava da parsira telo', () => {

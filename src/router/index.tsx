@@ -9,8 +9,10 @@ import type * as TeaReact from 'tea-effect/React'
 import * as Router from 'tea-effect/Router'
 import * as Sub from 'tea-effect/Sub'
 import * as Api from '../auth/api'
+import * as IstekSesije from '../auth/istek-sesije'
 import { Session, SESSION_KEY, displayName, toAuthorizationConfig } from '../auth/session'
 import { hasAllFunkcionalnosti, type AuthorizationConfig } from '../auth/types'
+import * as Toast from '../common/toast'
 import * as VozilaPretraga from '../evidencija-vozila/vozilo/pretraga'
 import * as Home from '../home'
 import * as Login from '../login'
@@ -32,6 +34,7 @@ import {
   sessionLoaded,
   sessionLoadError,
   login,
+  istekSesije,
   logoutCompleted,
 } from './msg'
 import { routes, getRouteFunkcionalnosti } from './route'
@@ -130,15 +133,34 @@ const initAuthenticated = (session: typeof Session.Type, location: Navigation.Lo
   const route = parseRoute(location)
   const [screenModel, screenCmd] = startScreenWithAuth(route, location, config)
   const [navModel, navCmd] = Nav.init(config)
+  const [istekModel, istekCmd] = IstekSesije.init
   return [
-    Model.Authenticated({ session, location, screen: screenModel, navigation: navModel }),
-    Cmd.batch([Cmd.map(screen)(screenCmd), Cmd.map(navigation)(navCmd)]),
+    Model.Authenticated({
+      session,
+      location,
+      screen: screenModel,
+      navigation: navModel,
+      istekSesije: istekModel,
+    }),
+    Cmd.batch([Cmd.map(screen)(screenCmd), Cmd.map(navigation)(navCmd), Cmd.map(istekSesije)(istekCmd)]),
   ]
 }
 
 const initAnonymous = (): [Model, Cmd.Cmd<Msg>] => {
   const [loginModel, loginCmd] = Login.init
   return [Model.Anonymous({ login: loginModel }), Cmd.map(login)(loginCmd)]
+}
+
+const odjavi = (): [Model, Cmd.Cmd<Msg>] => {
+  const [anonModel, anonCmd] = initAnonymous()
+  return [
+    anonModel,
+    Cmd.batch([
+      anonCmd,
+      LocalStorage.removeIgnoreErrors(SESSION_KEY),
+      Http.send(Api.logout, { onSuccess: logoutCompleted, onError: logoutCompleted }),
+    ]),
+  ]
 }
 
 export const init = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => [
@@ -180,16 +202,17 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
       return [Model.Anonymous({ login: loginModel }), Cmd.map(login)(loginCmd)]
     },
 
-    Logout: (): [Model, Cmd.Cmd<Msg>] => {
-      const [anonModel, anonCmd] = initAnonymous()
-      return [
-        anonModel,
-        Cmd.batch([
-          anonCmd,
-          LocalStorage.removeIgnoreErrors(SESSION_KEY),
-          Http.send(Api.logout, { onSuccess: logoutCompleted, onError: logoutCompleted }),
-        ]),
-      ]
+    Logout: (): [Model, Cmd.Cmd<Msg>] => odjavi(),
+
+    IstekSesije: ({ istekMsg }): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag !== 'Authenticated') return [model, Cmd.none]
+      if (istekMsg._tag === 'Odjava') return odjavi()
+      const [istek, istekCmd] = IstekSesije.update(istekMsg, model.istekSesije)
+      if (IstekSesije.istekla(model.session, istek)) {
+        const [anonModel, anonCmd] = odjavi()
+        return [anonModel, Cmd.batch([anonCmd, Toast.warning('Sesija je istekla. Prijavite se ponovo.')])]
+      }
+      return [Model.Authenticated({ ...model, istekSesije: istek }), Cmd.map(istekSesije)(istekCmd)]
     },
 
     LogoutCompleted: (): [Model, Cmd.Cmd<Msg>] => [model, Cmd.none],
@@ -225,7 +248,8 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     },
   })
 
-export const subscriptions = (_model: Model): Sub.Sub<Msg> => Sub.none
+export const subscriptions = (model: Model): Sub.Sub<Msg> =>
+  model._tag === 'Authenticated' ? Sub.map(istekSesije)(IstekSesije.subscriptions()) : Sub.none
 
 export const view =
   (model: Model): TeaReact.Html<Msg> =>
@@ -234,12 +258,15 @@ export const view =
       Initializing: () => <LoadingView />,
       Anonymous: ({ login: loginModel }) => Html.map(login)(Login.view(loginModel))(dispatch),
       Authenticated: m => (
-        <Layout
-          header={<AppHeader isOpen={m.navigation.isOpen} username={displayName(m.session)} dispatch={dispatch} />}
-          nav={<AppNavigation model={m.navigation} selectedValue={selectedNavValue(m.screen)} dispatch={dispatch} />}
-        >
-          {Html.map(screen)(screenView(toAuthorizationConfig(m.session), m.screen))(dispatch)}
-        </Layout>
+        <>
+          <Layout
+            header={<AppHeader isOpen={m.navigation.isOpen} username={displayName(m.session)} dispatch={dispatch} />}
+            nav={<AppNavigation model={m.navigation} selectedValue={selectedNavValue(m.screen)} dispatch={dispatch} />}
+          >
+            {Html.map(screen)(screenView(toAuthorizationConfig(m.session), m.screen))(dispatch)}
+          </Layout>
+          {Html.map(istekSesije)(IstekSesije.view(m.session, m.istekSesije))(dispatch)}
+        </>
       ),
     })
 

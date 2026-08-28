@@ -147,7 +147,7 @@ Http.send(Api.obrisiVozac({ id: vozac.id, version: vozac.version }), { ... })
 Dva sloja, i ne mesaju se.
 
 **`ApiError`** (`common/error/error.ts`) je ono sto se dogodilo tehnicki. `mapHttpError` prevodi
-`Http.HttpError` u njega; status 400 nosi listu `ServerError`-a koje je backend poslao:
+`Http.HttpError` u njega; status 400 i 401 nose `ServerError`-e koje je backend poslao:
 
 ```ts
 BadRequest | Unauthorized | NotFound | ServerFailure | Unavailable
@@ -156,6 +156,21 @@ BadRequest | Unauthorized | NotFound | ServerFailure | Unavailable
 
 **`reportError`** (`common/error/report.ts`) prevodi `ApiError` u `ErrorReport` — poruke za korisnika
 i `severity`. Samo `BUSINESS` greske sa `severity: 'WARNING'` daju upozorenje; sve ostalo je greska.
+
+### 401 nosi telo
+
+Validaciona greska stize kao **lista**, a odbijeno ovlascenje kao **jedan objekat**; `parseErrors`
+prima oba oblika. Zato se poruka servera koristi kad postoji:
+
+```ts
+Unauthorized: ({ errors }) =>
+  errors.length === 0 ? message('Nemate ovlascenje za ovu funkciju ili je sesija prekinuta.') : fromServer(errors),
+```
+
+Nasa poruka je poslednje pribeziste jer 401 pokriva dva razlicita slucaja — pogresnu lozinku i
+nedostatak prava — a samo server zna koji je. Iz istog razloga se **iz 401 ne zakljucuje da je sesija
+istekla**; to se racuna iz sata, vidi
+[07 Rute i autorizacija](07-rute-i-autorizacija.md#istek-sesije).
 
 Pravilo: **serverska greska nikad ne postaje `Issue` forme.** Validacija i ishod zahteva su dva
 kanala. `401` nije "polje nije ispravno". U modelu stoje odvojeno:

@@ -39,7 +39,7 @@ describe('reportError', () => {
   })
 
   it.each([
-    ['Unauthorized', ApiError.Unauthorized()],
+    ['Unauthorized', ApiError.Unauthorized({ errors: [] })],
     ['NotFound', ApiError.NotFound()],
     ['ServerFailure', ApiError.ServerFailure()],
     ['Unavailable', ApiError.Unavailable()],
@@ -57,7 +57,7 @@ describe('reportError', () => {
 
   it('svaki slucaj daje razlicit tekst — nijedan se ne stapa sa drugim', () => {
     const svi = [
-      ApiError.Unauthorized(),
+      ApiError.Unauthorized({ errors: [] }),
       ApiError.NotFound(),
       ApiError.ServerFailure(),
       ApiError.Unavailable(),

@@ -21,7 +21,9 @@ describe('prava po ruti', () => {
     expect(getRouteFunkcionalnosti('home')).toStrictEqual([])
   })
 
-  it('nepoznata ruta ne trazi nista, pa je ne cuva ni prazan spisak', () => {
-    expect(getRouteFunkcionalnosti('nepostojeca')).toStrictEqual([])
+  // Nepostojeca ruta se ne testira jer je tip ne dozvoljava; propust se vidi na kompajleru.
+  it('svaka ruta ima svoj spisak', () => {
+    expect(getRouteFunkcionalnosti('vozaci')).toStrictEqual(['PretragaVozaca'])
+    expect(getRouteFunkcionalnosti('vozila')).toStrictEqual(['PretragaVozila'])
   })
 })

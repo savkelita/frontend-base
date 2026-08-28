@@ -1,5 +1,6 @@
 import { Data } from 'effect'
 import type * as Navigation from 'tea-effect/Navigation'
+import type * as IstekSesije from '../auth/istek-sesije'
 import type { Session } from '../auth/session'
 import type * as Login from '../login'
 import type * as Nav from '../navigation'
@@ -13,6 +14,7 @@ export type Model = Data.TaggedEnum<{
     readonly location: Navigation.Location
     readonly screen: ScreenModel
     readonly navigation: Nav.Model
+    readonly istekSesije: IstekSesije.Model
   }
 }>
 

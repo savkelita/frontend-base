@@ -97,6 +97,49 @@ Port (`Cmd` koji preko globalnog handler-a dodiruje spoljni svet, kao `common/to
 samo za stanje koje **zaista zivi izvan aplikacije** — DOM overlay, `localStorage`, naslov stranice.
 Sve sto moze da stane u `Model` ide u `Model`.
 
+Kada efekat treba da se sastavi sa drugim efektom, `Cmd.fromEffect` prima obican `Effect`, a
+`Http.toTask` daje zahtev kao `Effect`. Tako se npr. cita sat u istom potezu sa odgovorom, umesto da
+se `new Date()` provuce kroz mapper:
+
+```ts
+Cmd.fromEffect(
+  Effect.match(Effect.zip(Http.toTask(Api.login(uloga)), Effect.clockWith(clock => clock.currentTimeMillis)), {
+    onFailure: error => loginFailed(mapHttpError(error)),
+    onSuccess: ([response, clientIssued]) => loginSucceeded(fromLoginResponse(response, uloga, clientIssued)),
+  }),
+)
+```
+
+## Sta ide u `Sub`
+
+`Sub` je izvor poruka koji **traje**, za razliku od `Cmd` koji se javi jednom. Sat, `matchMedia`,
+`WebSocket`, dogadjaj prozora. `Sub` je `Stream`, pa se pise Effect-om kao i sve ostalo.
+
+Jedini `Sub` u projektu je otkucaj koji prati istek sesije:
+
+```ts
+Sub.withKey(
+  'istek-sesije',
+  Stream.repeatEffectWithSchedule(
+    Effect.clockWith(clock => Effect.map(clock.currentTimeMillis, otkucaj)),
+    Schedule.fixed('10 seconds'),
+  ),
+)
+```
+
+Dve stvari koje se lako promase:
+
+- **`Schedule.fixed`, ne `spaced`.** `fixed` emituje odmah pa drzi ritam; `spaced` ceka pun interval
+  pre prvog otkucaja i meri pauzu od kraja prethodnog posla, pa vremenom zanosi.
+- **Kljuc mora biti stabilan.** `subscriptions(model)` se poziva pri svakoj promeni modela i pravi
+  nov objekat toka. Runtime razlikuje pretplate po kljucu (`Sub.map` ga cuva kao `${kljuc}:map`); bez
+  kljuca bi svaku promenu video kao novu pretplatu i stalno gasio i palio izvor.
+
+Otkucaj se bira prema onome sto se **vidi**, ne prema onome sto se meri: tekst se menja najvise
+jednom u minutu, pa bi otkucaj u sekundi samo prolazio kroz ceo prikaz sezdeset puta uzalud.
+
+Posto vreme dolazi iz Effect-ovog `Clock`-a, test ritam proverava na `TestClock`-u, bez cekanja.
+
 ## Bez odbrambenih provera
 
 Ako prikaz odlucuje da li se poruka uopste moze poslati, `update` **ne proverava to ponovo**.

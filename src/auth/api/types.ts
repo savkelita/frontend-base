@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import * as DateTime from '../../common/domain/date-time'
 import * as Uloga from '../domain/uloga'
 
 export const IdentifikujCmd = Schema.Struct({
@@ -29,6 +30,8 @@ export type Korisnik = typeof Korisnik.Type
 export const LoginResponse = Schema.Struct({
   korisnik: Korisnik,
   funkcionalnosti: Schema.Array(Schema.String),
+  issued: DateTime.ioValue,
+  expiration: DateTime.ioValue,
 })
 
 export type LoginResponse = typeof LoginResponse.Type

@@ -18,7 +18,8 @@ export const reportError = (error: ApiError): ErrorReport =>
       errors.length === 0
         ? message('Server je poslao gresku u neocekivanom obliku. Obratite se administratoru.')
         : fromServer(errors),
-    Unauthorized: () => message('Nemate ovlascenje za ovu funkciju ili je sesija prekinuta.'),
+    Unauthorized: ({ errors }) =>
+      errors.length === 0 ? message('Nemate ovlascenje za ovu funkciju ili je sesija prekinuta.') : fromServer(errors),
     NotFound: () => message('Trazeni podatak ne postoji.'),
     ServerFailure: () => message('Doslo je do neocekivane greske na serveru. Obratite se administratoru.'),
     Unavailable: () => message('Server trenutno nije dostupan. Obratite se administratoru.'),

@@ -70,7 +70,8 @@ Sest koraka iz [07 Rute i autorizacija](07-rute-i-autorizacija.md#dodavanje-rute
 ### 5. Testovi
 
 `test/update.test.ts`, `test/route.test.ts`. Ako ekran ima dugmad koja zavise od autorizacije, i
-`test/view.test.ts`.
+`test/view.test.ts`. Uz to dopuni `src/router/test/authorization.test.ts` — nova ruta sa pravom i
+bez prava.
 
 ---
 

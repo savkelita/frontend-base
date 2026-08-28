@@ -1,6 +1,7 @@
 import { Data, Option } from 'effect'
 import type * as LocalStorage from 'tea-effect/LocalStorage'
 import type * as Navigation from 'tea-effect/Navigation'
+import type * as IstekSesije from '../auth/istek-sesije'
 import type { Session } from '../auth/session'
 import type * as Login from '../login'
 import type * as Nav from '../navigation'
@@ -14,6 +15,7 @@ export type Msg = Data.TaggedEnum<{
   SessionLoaded: { readonly session: Option.Option<Session> }
   SessionLoadError: { readonly error: LocalStorage.LocalStorageError }
   Login: { readonly loginMsg: Login.Msg }
+  IstekSesije: { readonly istekMsg: IstekSesije.Msg }
   Logout: {}
   LogoutCompleted: {}
 }>
@@ -27,5 +29,6 @@ export const navigation = (navMsg: Nav.Msg): Msg => Msg.Navigation({ navMsg })
 export const sessionLoaded = (session: Option.Option<Session>): Msg => Msg.SessionLoaded({ session })
 export const sessionLoadError = (error: LocalStorage.LocalStorageError): Msg => Msg.SessionLoadError({ error })
 export const login = (loginMsg: Login.Msg): Msg => Msg.Login({ loginMsg })
+export const istekSesije = (istekMsg: IstekSesije.Msg): Msg => Msg.IstekSesije({ istekMsg })
 export const logout = (): Msg => Msg.Logout()
 export const logoutCompleted = (): Msg => Msg.LogoutCompleted()

@@ -47,7 +47,7 @@ describe('prvi korak: korisnicko ime i lozinka', () => {
   it('kucanje brise gresku sa prethodnog pokusaja', () => {
     const failed: Model = {
       ...korisnikModel({ korisnickoIme: null, lozinka: null }),
-      error: Option.some(ApiError.Unauthorized()),
+      error: Option.some(ApiError.Unauthorized({ errors: [] })),
     }
     const [model] = update(changeKorisnik({ korisnickoIme: 'p', lozinka: null }), failed)
     expect(Option.isNone(model.error)).toBe(true)
@@ -85,7 +85,7 @@ describe('izmedju koraka', () => {
   })
 
   it('neuspela identifikacija gasi indikator i pamti gresku', () => {
-    const [model, cmd] = update(Msg.IdentifyFailed({ error: ApiError.Unauthorized() }), {
+    const [model, cmd] = update(Msg.IdentifyFailed({ error: ApiError.Unauthorized({ errors: [] }) }), {
       ...initial,
       isSubmitting: true,
     })
@@ -123,7 +123,10 @@ describe('drugi korak: izbor uloge', () => {
   })
 
   it('izbor uloge brise gresku', () => {
-    const failed: Model = { ...ulogaModel(['ADMINISTRATOR', 'REFERENT']), error: Option.some(ApiError.Unauthorized()) }
+    const failed: Model = {
+      ...ulogaModel(['ADMINISTRATOR', 'REFERENT']),
+      error: Option.some(ApiError.Unauthorized({ errors: [] })),
+    }
     const [model] = update(changeUloga({ uloga: 'REFERENT' }), failed)
     expect(Option.isNone(model.error)).toBe(true)
   })
@@ -143,6 +146,7 @@ describe('kraj prijave', () => {
     korisnik: { id: 1, ime: 'Pera', prezime: 'Peric', korisnickoIme: 'pera', email: 'p@p.rs' },
     uloga: 'REFERENT' as const,
     funkcionalnosti: ['PretragaVozaca'],
+    istek: 0,
   }
 
   it('uspeh nosi sesiju i gasi indikator', () => {
@@ -153,7 +157,10 @@ describe('kraj prijave', () => {
   })
 
   it('neuspeh ne otvara sesiju', () => {
-    const [model] = update(Msg.LoginFailed({ error: ApiError.Unauthorized() }), { ...initial, isSubmitting: true })
+    const [model] = update(Msg.LoginFailed({ error: ApiError.Unauthorized({ errors: [] }) }), {
+      ...initial,
+      isSubmitting: true,
+    })
     expect(Option.isNone(model.result)).toBe(true)
     expect(Option.isSome(model.error)).toBe(true)
   })

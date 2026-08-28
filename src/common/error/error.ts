@@ -28,14 +28,19 @@ export const ServerError = Schema.Union(BusinessError, SystemError, Precondition
 
 export type ServerError = typeof ServerError.Type
 
-const ServerErrors = Schema.parseJson(Schema.Array(ServerError))
+const decodeMany = Schema.decodeUnknownOption(Schema.parseJson(Schema.Array(ServerError)))
+
+const decodeOne = Schema.decodeUnknownOption(Schema.parseJson(ServerError))
 
 export const parseErrors = (body: string): ReadonlyArray<ServerError> =>
-  Option.getOrElse(Option.getRight(Schema.decodeUnknownEither(ServerErrors)(body)), () => [])
+  Option.getOrElse(
+    Option.orElse(decodeMany(body), () => Option.map(decodeOne(body), one => [one])),
+    (): ReadonlyArray<ServerError> => [],
+  )
 
 export type ApiError = Data.TaggedEnum<{
   BadRequest: { readonly errors: ReadonlyArray<ServerError> }
-  Unauthorized: {}
+  Unauthorized: { readonly errors: ReadonlyArray<ServerError> }
   NotFound: {}
   ServerFailure: {}
   Unavailable: {}
@@ -53,7 +58,7 @@ const fromStatus = (status: number, body: string): ApiError => {
     case 400:
       return ApiError.BadRequest({ errors: parseErrors(body) })
     case 401:
-      return ApiError.Unauthorized()
+      return ApiError.Unauthorized({ errors: parseErrors(body) })
     case 404:
       return ApiError.NotFound()
     case 500:

@@ -11,10 +11,11 @@ export const routes = Router.routes({
 
 export type Route = Router.RouteType<typeof routes>
 
-const routeFunkcionalnosti: Record<string, ReadonlyArray<Funkcionalnost>> = {
+const routeFunkcionalnosti: Record<Route['_tag'], ReadonlyArray<Funkcionalnost>> = {
+  home: [],
   vozaci: VozaciPretraga.FUNKCIONALNOSTI,
   vozila: VozilaPretraga.FUNKCIONALNOSTI,
 }
 
-export const getRouteFunkcionalnosti = (routeTag: string): ReadonlyArray<Funkcionalnost> =>
-  routeFunkcionalnosti[routeTag] ?? []
+export const getRouteFunkcionalnosti = (routeTag: Route['_tag']): ReadonlyArray<Funkcionalnost> =>
+  routeFunkcionalnosti[routeTag]

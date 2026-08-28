@@ -1,5 +1,5 @@
 import { Button, Card, CardHeader, Spinner, Title1, makeStyles, tokens } from '@fluentui/react-components'
-import { Option } from 'effect'
+import { Effect, Option } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Http from 'tea-effect/Http'
 import type * as Platform from 'tea-effect/Platform'
@@ -44,10 +44,18 @@ const identifikuj = (cmd: Api.IdentifikujCmd): Cmd.Cmd<Msg> =>
   })
 
 const prijavi = (uloga: Uloga.Value): Cmd.Cmd<Msg> =>
-  Http.send(Api.login(uloga), {
-    onSuccess: response => loginSucceeded(fromLoginResponse(response, uloga)),
-    onError: error => loginFailed(mapHttpError(error)),
-  })
+  Cmd.fromEffect(
+    Effect.match(
+      Effect.zip(
+        Http.toTask(Api.login(uloga)),
+        Effect.clockWith(clock => clock.currentTimeMillis),
+      ),
+      {
+        onFailure: error => loginFailed(mapHttpError(error)),
+        onSuccess: ([response, clientIssued]) => loginSucceeded(fromLoginResponse(response, uloga, clientIssued)),
+      },
+    ),
+  )
 
 export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
   Msg.$match(msg, {

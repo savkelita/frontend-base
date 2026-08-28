@@ -7,16 +7,18 @@ export const Session = Schema.Struct({
   korisnik: Korisnik,
   uloga: Uloga.ioValue,
   funkcionalnosti: Schema.Array(Schema.String),
+  istek: Schema.Number,
 })
 
 export type Session = typeof Session.Type
 
 export const SESSION_KEY = 'session'
 
-export const fromLoginResponse = (response: LoginResponse, uloga: Uloga.Value): Session => ({
+export const fromLoginResponse = (response: LoginResponse, uloga: Uloga.Value, clientIssued: number): Session => ({
   korisnik: response.korisnik,
   uloga,
   funkcionalnosti: response.funkcionalnosti,
+  istek: clientIssued + (response.expiration.getTime() - response.issued.getTime()),
 })
 
 export const toAuthorizationConfig = (session: Session): AuthorizationConfig => ({

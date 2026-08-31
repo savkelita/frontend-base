@@ -83,14 +83,77 @@ describe('form/combo update', () => {
     expect(model.options).toEqual([opt('9')])
   })
 
-  it('Closed while loading is ignored (keeps the list open for load-more)', () => {
-    const [loading] = Combo.update(cfg, Combo.Msg.QueryChanged({ query: 'ab' }), Combo.init)
-    const [stillOpen] = Combo.update(cfg, Combo.Msg.Closed(), loading)
+  it('Closed while loading MORE is ignored (the load-more row would otherwise close the list)', () => {
+    const page1 = { ...Combo.init, query: 'a', options: [opt('0'), opt('1')], total: 15, open: true }
+    const [loadingMore] = Combo.update(cfg, Combo.Msg.LoadMore(), page1)
+    const [stillOpen] = Combo.update(cfg, Combo.Msg.Closed(), loadingMore)
     expect(stillOpen.open).toBe(true)
 
-    const [idle] = Combo.update(cfg, Combo.Msg.Loaded({ seq: loading.seq, options: [], total: 0, offset: 0 }), loading)
+    const [idle] = Combo.update(
+      cfg,
+      Combo.Msg.Loaded({ seq: loadingMore.seq, options: [], total: 15, offset: 2 }),
+      loadingMore,
+    )
     const [closed] = Combo.update(cfg, Combo.Msg.Closed(), idle)
     expect(closed.open).toBe(false)
+  })
+
+  it('Closed puts the chosen label back in the input (typing without picking is discarded)', () => {
+    const [picked] = Combo.update(cfg, Combo.Msg.Picked({ option: { value: '7', label: 'Seven' } }), Combo.init)
+    // the user types over the selection but never picks anything
+    const [typing] = Combo.update(cfg, Combo.Msg.QueryChanged({ query: 'Eig' }), picked)
+    expect(typing.query).toBe('Eig')
+    expect(Combo.value(typing)).toBe('7') // the selection itself is untouched
+
+    const [closed] = Combo.update(cfg, Combo.Msg.Closed(), typing)
+    expect(closed.query).toBe('Seven') // input no longer disagrees with the value
+    expect(Combo.value(closed)).toBe('7')
+  })
+
+  it('typing while a page fetch is pending releases the close guard', () => {
+    const page1 = { ...Combo.init, query: 'a', options: [opt('0'), opt('1')], total: 15, open: true }
+    const [loadingMore] = Combo.update(cfg, Combo.Msg.LoadMore(), page1)
+    // the response for that page will now be dropped as stale, so it can never clear the flag
+    const [typing] = Combo.update(cfg, Combo.Msg.QueryChanged({ query: 'ab' }), loadingMore)
+    const [closed] = Combo.update(cfg, Combo.Msg.Closed(), typing)
+    expect(closed.open).toBe(false)
+  })
+
+  it('Closed with nothing chosen clears the leftover query', () => {
+    const [typing] = Combo.update(cfg, Combo.Msg.QueryChanged({ query: 'abc' }), Combo.init)
+    const [closed] = Combo.update(cfg, Combo.Msg.Closed(), typing)
+    expect(closed.query).toBe('')
+  })
+
+  it('a multi combo keeps its query on close (the input shows the chosen labels, not the query)', () => {
+    const multi: Combo.Config<ReadonlyArray<Item>> = { ...cfg, multiple: true }
+    const [typing] = Combo.update(multi, Combo.Msg.QueryChanged({ query: 'abc' }), Combo.init)
+    const [closed] = Combo.update(multi, Combo.Msg.Closed(), typing)
+    expect(closed.query).toBe('abc')
+  })
+
+  describe('debounce', () => {
+    it('QueryChanged does not search immediately — it schedules a Search for that seq', () => {
+      const [model, cmd] = Combo.update(cfg, Combo.Msg.QueryChanged({ query: 'ab' }), Combo.init)
+      expect(model.query).toBe('ab')
+      expect(model.loading).toBe(true)
+      expect(model.seq).toBe(1)
+      expect(cmd).not.toBe(Cmd.none)
+
+      const [searching, searchCmd] = Combo.update(cfg, Combo.Msg.Search({ seq: model.seq, query: 'ab' }), model)
+      expect(searchCmd).not.toBe(Cmd.none)
+      expect(searching.seq).toBe(1) // the search reuses the seq claimed by the keystroke
+    })
+
+    it('a Search from a superseded keystroke never reaches the network', () => {
+      const [first] = Combo.update(cfg, Combo.Msg.QueryChanged({ query: 'a' }), Combo.init)
+      const [second] = Combo.update(cfg, Combo.Msg.QueryChanged({ query: 'ab' }), first)
+      const [, staleCmd] = Combo.update(cfg, Combo.Msg.Search({ seq: first.seq, query: 'a' }), second)
+      expect(staleCmd).toBe(Cmd.none)
+
+      const [, freshCmd] = Combo.update(cfg, Combo.Msg.Search({ seq: second.seq, query: 'ab' }), second)
+      expect(freshCmd).not.toBe(Cmd.none)
+    })
   })
 
   it('drops a stale Loaded (seq from an older request)', () => {

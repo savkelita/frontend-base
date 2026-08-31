@@ -17,7 +17,7 @@ import {
 } from './widgets'
 import type { SelectOption, WidgetProps } from './widgets'
 import type { FieldDef } from './core/field'
-import { topMessage } from './core/types'
+import { topMessage, sameValue } from './core/types'
 
 // -------------------------------------------------------------------------------------
 // Field builders — thin: pair an existing domain schema with an existing widget
@@ -26,6 +26,9 @@ import { topMessage } from './core/types'
 type Opt = { readonly optional?: boolean }
 type NumOpt = Opt & { readonly min?: number; readonly max?: number }
 
+/** A plain (non-async) field: State = Value, Msg = the new Value. */
+type ValueField<E, A> = FieldDef<E, E, E, A>
+
 const valueField = <A, E>(cfg: {
   readonly label: string
   readonly schema: Schema.Schema<A, E>
@@ -33,7 +36,7 @@ const valueField = <A, E>(cfg: {
   readonly empty: E
   readonly widget: (props: WidgetProps<E>) => ReactElement
   readonly widgetConfig?: Record<string, unknown>
-}): FieldDef<E, E, E> => {
+}): ValueField<E, A> => {
   const W = cfg.widget
   return {
     schema: cfg.schema,
@@ -43,7 +46,9 @@ const valueField = <A, E>(cfg: {
     value: s => s,
     set: (_s, v) => v,
     update: (msg, _s) => [msg, Cmd.none],
-    changed: () => true,
+    // Only a real edit counts: retyping the same text must not reset dependent fields or
+    // re-run the form's effects.
+    changed: (msg, previous) => !sameValue(msg, previous),
     view: (state, ui) => dispatch => (
       <W
         label={cfg.label}
@@ -89,14 +94,25 @@ export const text = (cfg: Labeled<Opt>) =>
   })
 
 // --- number ---
-// int/decimal have overloads on `optional`; treat them uniformly here as string -> number|undefined
+// int/decimal have overloads on `optional`; the builders mirror them so a REQUIRED number
+// field yields `number` in the payload (not `number | undefined`).
 const intSchema = Domain.int as (o?: NumOpt) => Schema.Schema<number | undefined, string>
 const decimalSchema = Domain.decimal as (o?: NumOpt) => Schema.Schema<number | undefined, string>
 
-export const int = (cfg: Labeled<NumOpt>) =>
-  valueField({ label: cfg.label, schema: intSchema(cfg), required: !cfg.optional, empty: '', widget: NumberWidget })
-export const decimal = (cfg: Labeled<NumOpt>) =>
-  valueField({ label: cfg.label, schema: decimalSchema(cfg), required: !cfg.optional, empty: '', widget: NumberWidget })
+const numberField = (cfg: Labeled<NumOpt>, schema: Schema.Schema<number | undefined, string>) =>
+  valueField({ label: cfg.label, schema, required: !cfg.optional, empty: '', widget: NumberWidget })
+
+export function int(cfg: Labeled<NumOpt> & { readonly optional: true }): ValueField<string, number | undefined>
+export function int(cfg: Labeled<NumOpt>): ValueField<string, number>
+export function int(cfg: Labeled<NumOpt>): ValueField<string, any> {
+  return numberField(cfg, intSchema(cfg))
+}
+
+export function decimal(cfg: Labeled<NumOpt> & { readonly optional: true }): ValueField<string, number | undefined>
+export function decimal(cfg: Labeled<NumOpt>): ValueField<string, number>
+export function decimal(cfg: Labeled<NumOpt>): ValueField<string, any> {
+  return numberField(cfg, decimalSchema(cfg))
+}
 
 // --- date / time ---
 export const date = (cfg: Labeled<Opt & { validate?: (v: string) => string | undefined }>) =>
@@ -112,20 +128,23 @@ export const time = (cfg: Labeled<Opt & { seconds?: boolean }>) =>
   })
 
 // --- datetime (date + time; payload is a real Date, filled only when both are entered) ---
-const datetimeSchema = Domain.datetime as (
-  o?: Opt & { validate?: (v: Date) => string | undefined },
-) => Schema.Schema<Date | undefined, string>
-export const datetime = (cfg: Labeled<Opt & { validate?: (v: Date) => string | undefined }>) =>
-  valueField<Date | undefined, string>({
+type DateTimeOpt = Opt & { validate?: (v: Date) => string | undefined }
+const datetimeSchema = Domain.datetime as (o?: DateTimeOpt) => Schema.Schema<Date | undefined, string>
+
+export function datetime(cfg: Labeled<DateTimeOpt> & { readonly optional: true }): ValueField<string, Date | undefined>
+export function datetime(cfg: Labeled<DateTimeOpt>): ValueField<string, Date>
+export function datetime(cfg: Labeled<DateTimeOpt>): ValueField<string, any> {
+  return valueField<Date | undefined, string>({
     label: cfg.label,
     schema: datetimeSchema(cfg),
     required: !cfg.optional,
     empty: '',
     widget: DateTimeWidget,
   })
+}
 
 // --- flag ---
-export const flag = (cfg: { label: string }): FieldDef<boolean, boolean, boolean> =>
+export const flag = (cfg: { label: string }): ValueField<boolean, boolean> =>
   valueField<boolean, boolean>({
     label: cfg.label,
     schema: Domain.flag(),
@@ -175,16 +194,17 @@ const parentsOf = (dependsOn?: DependsOn): ReadonlyArray<string> | undefined =>
   dependsOn === undefined ? undefined : typeof dependsOn === 'string' ? [dependsOn] : dependsOn
 
 const comboConfig =
-  (source: ComboSource, criteria: Criteria) =>
+  (source: ComboSource, criteria: Criteria, multiple = false) =>
   (ctx: { deps: Record<string, unknown> }): Combo.Config<any> => ({
     search: (q, offset) => source.request(criteria(ctx.deps), q, offset),
     toOptions: source.toOptions,
     total: source.total,
+    multiple,
   })
 
 const noCriteria: Criteria = () => ({})
 
-export const combo = (cfg: {
+export type ComboConfig = {
   readonly label: string
   readonly placeholder?: string
   readonly optional?: boolean
@@ -198,7 +218,17 @@ export const combo = (cfg: {
   readonly numeric?: boolean
   /** Edit mode: resolve the label for a preselected id. */
   readonly resolve?: (id: string) => Http.Request<SelectOption>
-}): FieldDef<string, Combo.Model, Combo.Msg> => {
+}
+
+// The payload type follows the same two switches the schema below does, so `Payload<F>`
+// tells the truth about what a combo contributes to the request body.
+type ComboId<C extends ComboConfig> = C extends { readonly numeric: false }
+  ? string
+  : C extends { readonly optional: true }
+    ? number | undefined
+    : number
+
+export const combo = <const C extends ComboConfig>(cfg: C): FieldDef<string, Combo.Model, Combo.Msg, ComboId<C>> => {
   const parentFields = parentsOf(cfg.dependsOn)
   const config = comboConfig(cfg.source, cfg.criteria ?? noCriteria)
   // The draft is always the string id (the widget's value); the payload is a number by default.
@@ -211,7 +241,9 @@ export const combo = (cfg: {
         ? Schema.String
         : Schema.String.pipe(Schema.minLength(1, { message: () => 'Obavezno polje' }))
 
-  return {
+  // The schema is picked at runtime from the same two switches ComboId encodes at the type
+  // level; this cast is where those two meet.
+  const field: FieldDef<string, Combo.Model, Combo.Msg, any> = {
     schema,
     empty: '',
     required: !cfg.optional,
@@ -242,10 +274,11 @@ export const combo = (cfg: {
         errorMessage: topMessage(ui.issues),
       }),
   }
+  return field
 }
 
 // --- multi combo (async multi-select TEA unit; value is string[]) ---
-export const multiCombo = (cfg: {
+export type MultiComboConfig = {
   readonly label: string
   readonly placeholder?: string
   readonly optional?: boolean
@@ -258,9 +291,17 @@ export const multiCombo = (cfg: {
   readonly numeric?: boolean
   /** Edit mode: resolve labels for preselected ids. */
   readonly resolve?: (ids: ReadonlyArray<string>) => Http.Request<ReadonlyArray<SelectOption>>
-}): FieldDef<readonly string[], Combo.Model, Combo.Msg> => {
+}
+
+type ComboIds<C extends MultiComboConfig> = C extends { readonly numeric: false }
+  ? ReadonlyArray<string>
+  : ReadonlyArray<number>
+
+export const multiCombo = <const C extends MultiComboConfig>(
+  cfg: C,
+): FieldDef<readonly string[], Combo.Model, Combo.Msg, ComboIds<C>> => {
   const parentFields = parentsOf(cfg.dependsOn)
-  const config = comboConfig(cfg.source, cfg.criteria ?? noCriteria)
+  const config = comboConfig(cfg.source, cfg.criteria ?? noCriteria, true)
   const seed = (ids: readonly string[]) => Combo.withSelectedMany(ids.map(id => ({ value: id, label: id })))
   // Draft is the string ids; the payload is number[] by default (String[] when numeric: false).
   const element = (cfg.numeric ?? true) ? Schema.NumberFromString : Schema.String
@@ -268,7 +309,7 @@ export const multiCombo = (cfg: {
     ? Schema.Array(element)
     : Schema.Array(element).pipe(Schema.minItems(1, { message: () => 'Izaberite bar jednu vrednost' }))
 
-  return {
+  const field: FieldDef<readonly string[], Combo.Model, Combo.Msg, any> = {
     schema,
     empty: [],
     required: !cfg.optional,
@@ -300,4 +341,5 @@ export const multiCombo = (cfg: {
         multiple: true,
       }),
   }
+  return field
 }

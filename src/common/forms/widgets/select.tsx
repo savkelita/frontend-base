@@ -25,6 +25,9 @@ export const SelectWidget = ({
 }: WidgetProps<string>): ReactElement => {
   const options = (config?.options as ReadonlyArray<SelectOption> | undefined) ?? []
   const selected = options.find(o => o.value === value)
+  // A stored value with no matching option (a retired enum member on an old record) still
+  // has to be visible — showing an empty box would read as "no value".
+  const display = selected?.label ?? value ?? ''
 
   return (
     <Field
@@ -37,7 +40,7 @@ export const SelectWidget = ({
         disabled={disabled}
         placeholder={config?.placeholder as string | undefined}
         selectedOptions={value ? [value] : []}
-        value={selected?.label ?? ''}
+        value={display}
         onOptionSelect={(_e, data) => onChange(data.optionValue ?? '')}
         onBlur={onBlur}
       >

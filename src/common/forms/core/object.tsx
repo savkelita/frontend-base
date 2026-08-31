@@ -1,10 +1,11 @@
-import { Option, Schema } from 'effect'
+import { Either, Option, Schema } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Html from 'tea-effect/Html'
 import type * as TeaReact from 'tea-effect/React'
 import type { FieldDef, ValueOf, StateOf, MsgOf, DecodedOf } from './field'
 import { fieldIssues } from './field'
 import type { FieldUi, Issue, Mode } from './types'
+import { sameValue } from './types'
 
 // -------------------------------------------------------------------------------------
 // Form.object — composes FieldDefs into a form state machine
@@ -14,7 +15,7 @@ import type { FieldUi, Issue, Mode } from './types'
 // dependencies/effects. It does NOT own the save: the feature calls `trySubmit` and,
 // on a valid payload, fires its own Http command (so the save result stays a feature Msg).
 
-export type Fields = Record<string, FieldDef<any, any, any>>
+export type Fields = Record<string, FieldDef<any, any, any, any>>
 
 export type Draft<F extends Fields> = { readonly [K in keyof F]: ValueOf<F[K]> }
 export type Payload<F extends Fields> = { readonly [K in keyof F]: DecodedOf<F[K]> }
@@ -109,12 +110,22 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
     (msg: unknown): FormMsg<F> =>
       ({ _tag: 'Field', key, msg }) as FormMsg<F>
 
+  const ruleFor = (draft: Draft<F>, mode: Mode, key: keyof F): Partial<FieldRule> =>
+    config.rules?.(draft, { mode })?.[key] ?? {}
+
+  // A field the user cannot edit must not be able to block the form: legacy data that no
+  // longer satisfies the schema (an enum value retired since the record was created) would
+  // otherwise fail validation on a field that is disabled, leaving the user with no way out.
+  const isReadonly = (draft: Draft<F>, mode: Mode, key: keyof F): boolean =>
+    mode === 'View' || (ruleFor(draft, mode, key).readonly ?? false)
+
   const allIssues = (model: FormModel<F>): ReadonlyArray<Issue> => {
     const draft = draftOf(model)
-    const fromFields = keys.flatMap(k => [
-      ...fieldIssues(k as string, fields[k], at(draft, k)),
-      ...(fields[k].issues?.(model.states[k]) ?? []),
-    ])
+    const fromFields = keys.flatMap(k =>
+      isReadonly(draft, model.mode, k)
+        ? []
+        : [...fieldIssues(k as string, fields[k], at(draft, k)), ...(fields[k].issues?.(model.states[k]) ?? [])],
+    )
     return [...fromFields, ...(config.validate?.(draft) ?? []), ...model.serverIssues]
   }
 
@@ -122,19 +133,21 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
     const draft = draftOf(model)
     const field = fields[key]
     const depsOk = (field.dependsOn ?? []).every(d => !isEmpty(at(draft, d)))
-    const rule = config.rules?.(draft, { mode: model.mode })?.[key] ?? {}
+    const rule = ruleFor(draft, model.mode, key)
     const enabled = model.mode !== 'View' && model.status !== 'Submitting' && (rule.enabled ?? true) && depsOk
     const readonly = model.mode === 'View' || (rule.readonly ?? false)
     const touched = model.touched.has(key as string) || model.submitAttempted
-    const dirty = at(draft, key) !== at(model.original, key)
+    const dirty = !sameValue(at(draft, key), at(model.original, key))
     const validating = field.validating?.(model.states[key]) ?? false
-    const issues = touched
-      ? [
-          ...fieldIssues(key as string, field, at(draft, key)),
-          ...(field.issues?.(model.states[key]) ?? []),
-          ...model.serverIssues.filter(i => i.path[0] === key),
-        ]
-      : []
+    // Readonly fields are not validated (see isReadonly), so they show no issues either.
+    const issues =
+      touched && !readonly
+        ? [
+            ...fieldIssues(key as string, field, at(draft, key)),
+            ...(field.issues?.(model.states[key]) ?? []),
+            ...model.serverIssues.filter(i => i.path[0] === key),
+          ]
+        : []
     return { required: rule.required ?? field.required, enabled, readonly, touched, dirty, validating, issues }
   }
 
@@ -181,7 +194,7 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
     }
     const fieldCmd = Cmd.map(wrap(key))(cmd)
 
-    if (!field.changed(msg)) return [next, fieldCmd]
+    if (!field.changed(msg, model.states[key])) return [next, fieldCmd]
 
     for (const child of descendants(key)) next = resetField(next, child)
     const draft = draftOf(next)
@@ -193,7 +206,13 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
     if (allIssues(model).some(i => i.severity === 'error')) return [{ ...model, submitAttempted: true }, Option.none()]
     const draft = draftOf(model)
     const payload: Record<string, unknown> = {}
-    for (const k of keys) payload[k as string] = Schema.decodeUnknownSync(fields[k].schema)(at(draft, k))
+    for (const k of keys) {
+      const raw = at(draft, k)
+      // Validated fields always decode (allIssues just proved it). A readonly field is not
+      // validated, so a value the schema rejects is passed through as stored rather than
+      // thrown away — never let building the payload fail.
+      payload[k as string] = Either.getOrElse(Schema.decodeUnknownEither(fields[k].schema)(raw), () => raw)
+    }
     return [{ ...model, status: 'Submitting', submitAttempted: true }, Option.some(payload as Payload<F>)]
   }
 
@@ -227,7 +246,7 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
     render: (model, key) => Html.map(wrap(key))(fields[key].view(model.states[key], computeFieldUi(model, key))),
     isDirty: model => {
       const draft = draftOf(model)
-      return keys.some(k => at(draft, k) !== at(model.original, k))
+      return keys.some(k => !sameValue(at(draft, k), at(model.original, k)))
     },
     isValid: model => allIssues(model).every(i => i.severity !== 'error'),
     validate: allIssues,

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { Option, Schema } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Http from 'tea-effect/Http'
+import type { Payload } from '..'
 import * as Combo from '../combo'
 import { Form } from '..'
 
@@ -101,4 +102,91 @@ describe('Form.object', () => {
     expect(spec.fieldUi(model, 'title').enabled).toBe(false)
     expect(spec.fieldUi(model, 'title').readonly).toBe(true)
   })
+
+  it('retyping the same value is not a change (no cascade, no effects)', () => {
+    const withTextParent = Form.object({
+      code: Form.code30({ label: 'Šifra' }),
+      child: Form.combo({ label: 'Dete', dependsOn: 'code', source }),
+    })
+    let m = withTextParent.update({ _tag: 'Field', key: 'code', msg: 'AB' }, withTextParent.create()[0])[0]
+    m = withTextParent.update({ _tag: 'Field', key: 'child', msg: pick('11') }, m)[0]
+
+    const [same] = withTextParent.update({ _tag: 'Field', key: 'code', msg: 'AB' }, m)
+    expect(Combo.value(same.states.child)).toBe('11')
+
+    const [edited] = withTextParent.update({ _tag: 'Field', key: 'code', msg: 'ABC' }, m)
+    expect(Combo.value(edited.states.child)).toBe('')
+  })
+
+  it('a multi field is not dirty just because its value is read as a fresh array', () => {
+    const withMulti = Form.object({ items: Form.multiCombo({ label: 'Stavke', source, optional: true }) })
+    const [model] = withMulti.edit({ items: ['1', '2'] })
+    expect(withMulti.isDirty(model)).toBe(false)
+    expect(withMulti.fieldUi(model, 'items').dirty).toBe(false)
+  })
 })
+
+// -------------------------------------------------------------------------------------
+// Readonly fields
+// -------------------------------------------------------------------------------------
+
+describe('Form.object readonly fields', () => {
+  const fields = {
+    status: Form.enumField({ label: 'Status', options: [{ value: 'new', label: 'Novi' }] }),
+    title: Form.name({ label: 'Naziv' }),
+  }
+  // 'retired' is a value the schema no longer allows — an old record that predates the
+  // current option list.
+  const legacy = { status: 'retired', title: 'Hat' }
+
+  it('an editable field with a rejected value blocks the save (the user can fix it)', () => {
+    const editable = Form.object(fields)
+    const [, payload] = editable.trySubmit(editable.edit(legacy)[0])
+    expect(Option.isNone(payload)).toBe(true)
+  })
+
+  it('a readonly field with the same value does not block the save', () => {
+    const locked = Form.object(fields, { rules: () => ({ status: { readonly: true } }) })
+    const [model, payload] = locked.trySubmit(locked.edit(legacy)[0])
+    expect(Option.isSome(payload)).toBe(true)
+    // the value the user cannot change is passed through as stored
+    if (Option.isSome(payload)) expect(payload.value.status).toBe('retired')
+    expect(locked.fieldUi(model, 'status').issues).toEqual([])
+  })
+})
+
+// -------------------------------------------------------------------------------------
+// Payload typing (compile-time; `yarn checkts` type-checks the tests too)
+// -------------------------------------------------------------------------------------
+//
+// `Equals` is false for `any`, so these assignments stop compiling the moment a field
+// stops carrying its decoded type through to the payload.
+
+type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
+
+export const typed = {
+  title: Form.name({ label: 'Naziv' }),
+  price: Form.decimal({ label: 'Cena' }),
+  rabat: Form.decimal({ label: 'Rabat', optional: true }),
+  rok: Form.datetime({ label: 'Rok' }),
+  published: Form.flag({ label: 'Objavljen' }),
+  oznake: Form.multiEnum({ label: 'Oznake', options: [{ value: 'a', label: 'A' }], optional: true }),
+  grupa: Form.combo({ label: 'Grupa', source }),
+  podgrupa: Form.combo({ label: 'Podgrupa', source, optional: true }),
+  sifra: Form.combo({ label: 'Šifra', source, numeric: false }),
+  stavke: Form.multiCombo({ label: 'Stavke', source, optional: true }),
+}
+type P = Payload<typeof typed>
+
+export const payloadTypes: [
+  Equals<P['title'], string>,
+  Equals<P['price'], number>,
+  Equals<P['rabat'], number | undefined>,
+  Equals<P['rok'], Date>,
+  Equals<P['published'], boolean>,
+  Equals<P['oznake'], ReadonlyArray<string>>,
+  Equals<P['grupa'], number>,
+  Equals<P['podgrupa'], number | undefined>,
+  Equals<P['sifra'], string>,
+  Equals<P['stavke'], ReadonlyArray<number>>,
+] = [true, true, true, true, true, true, true, true, true, true]

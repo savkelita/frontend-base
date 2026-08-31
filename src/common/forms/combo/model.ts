@@ -17,6 +17,8 @@ export type Model = {
   /** Popup open state (controlled, so "load more" can keep the list open). */
   readonly open: boolean
   readonly loading: boolean
+  /** The in-flight request is a "load more" — closing is suppressed until it lands. */
+  readonly loadingMore: boolean
   readonly failed: boolean
   /** Chosen options: 0/1 for a single combo, N for a multi combo. */
   readonly selected: ReadonlyArray<SelectOption>
@@ -29,6 +31,7 @@ export const init: Model = {
   total: 0,
   open: false,
   loading: false,
+  loadingMore: false,
   failed: false,
   selected: [],
   seq: 0,
@@ -45,6 +48,9 @@ export const value = (model: Model): string => model.selected[0]?.value ?? ''
 
 /** The multi-select values (all chosen ids). */
 export const values = (model: Model): ReadonlyArray<string> => model.selected.map(o => o.value)
+
+/** The single-select label (what the input shows when the list is closed), or ''. */
+export const label = (model: Model): string => model.selected[0]?.label ?? ''
 
 export const hasSelection = (model: Model): boolean => model.selected.length > 0
 

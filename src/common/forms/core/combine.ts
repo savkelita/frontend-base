@@ -34,7 +34,10 @@ const pathExists = (sections: Record<string, Fields>, path: string): boolean => 
 
 // Wrap a field so its `dependsOn` become source paths, and ctx.deps (keyed by those paths)
 // are re-keyed to the local names the field's search expects.
-const wrapField = (field: FieldDef<any, any, any>, mapping: Record<string, string>): FieldDef<any, any, any> => ({
+const wrapField = (
+  field: FieldDef<any, any, any, any>,
+  mapping: Record<string, string>,
+): FieldDef<any, any, any, any> => ({
   ...field,
   dependsOn: Object.values(mapping),
   update: (msg, state, ctx) => {
@@ -46,7 +49,7 @@ const wrapField = (field: FieldDef<any, any, any>, mapping: Record<string, strin
 
 export const combine = (sections: Record<string, Fields>, config: CombineConfig = {}): FormSpec<Fields> => {
   const rebind = config.rebind ?? []
-  const flat: Record<string, FieldDef<any, any, any>> = {}
+  const flat: Record<string, FieldDef<any, any, any, any>> = {}
 
   for (const [section, fields] of Object.entries(sections)) {
     for (const [key, field] of Object.entries(fields)) {

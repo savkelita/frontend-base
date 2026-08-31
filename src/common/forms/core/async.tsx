@@ -28,10 +28,10 @@ type Msg<M> =
 
 const isEmpty = (v: unknown): boolean => v === '' || v == null || (Array.isArray(v) && v.length === 0)
 
-export const asyncValidated = <Value, S, M, A>(
-  field: FieldDef<Value, S, M>,
+export const asyncValidated = <Value, S, M, A, Decoded>(
+  field: FieldDef<Value, S, M, Decoded>,
   cfg: AsyncConfig<Value, A>,
-): FieldDef<Value, State<S>, Msg<M>> => {
+): FieldDef<Value, State<S>, Msg<M>, Decoded> => {
   const inner = (msg: M): Msg<M> => ({ _tag: 'Inner', msg })
 
   return {
@@ -54,7 +54,7 @@ export const asyncValidated = <Value, S, M, A>(
           const [innerState, cmd] = field.update(msg.msg, st.inner, ctx)
           const innerCmd = Cmd.map(inner)(cmd)
           const base: State<S> = { ...st, inner: innerState }
-          if (!field.changed(msg.msg)) return [base, innerCmd]
+          if (!field.changed(msg.msg, st.inner)) return [base, innerCmd]
 
           const value = field.value(innerState)
           const seq = st.seq + 1
@@ -86,7 +86,7 @@ export const asyncValidated = <Value, S, M, A>(
       }
     },
 
-    changed: msg => msg._tag === 'Inner' && field.changed(msg.msg),
+    changed: (msg, previous) => msg._tag === 'Inner' && field.changed(msg.msg, previous.inner),
     issues: st => (st.status._tag === 'Done' ? st.status.issues : []),
     validating: st => st.status._tag === 'Validating',
     view: (st, ui) => Html.map(inner)(field.view(st.inner, ui)),

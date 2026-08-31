@@ -5,6 +5,9 @@ export type Msg = Data.TaggedEnum<{
   Opened: {}
   Closed: {}
   QueryChanged: { readonly query: string }
+  // The debounced search for a typed query: issued `debounceMs` after the last keystroke,
+  // and dropped when a newer keystroke has since bumped `seq`.
+  Search: { readonly seq: number; readonly query: string }
   // Load the next page (append). Requested at row offset = number of rows loaded so far.
   LoadMore: {}
   // `offset` of the loaded page: 0 replaces the list (fresh query), > 0 appends (load more).

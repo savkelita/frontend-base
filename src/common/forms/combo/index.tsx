@@ -1,4 +1,5 @@
 import { Field, Combobox, Option as ComboOption } from '@fluentui/react-components'
+import { Duration, Effect } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Http from 'tea-effect/Http'
 import type * as Platform from 'tea-effect/Platform'
@@ -26,10 +27,25 @@ export type Config<A> = {
   readonly toOptions: (response: A) => ReadonlyArray<SelectOption>
   /** Total matching rows (defaults to the number of options when not provided). */
   readonly total?: (response: A) => number
+  /** Multi-select: several values may be chosen (no single-selection reconcile on close). */
+  readonly multiple?: boolean
+  /** How long to wait after the last keystroke before searching (default 300ms). */
+  readonly debounceMs?: number
 }
 
-// Issue a search at the given row offset. `offset` rides along to Loaded so the reducer knows
-// whether to replace the list (offset 0, a fresh query) or append to it (offset > 0, load more).
+// Fetch one page. `seq` tags the request so a response that arrives after a newer request
+// was issued can be dropped; `offset` rides along to Loaded so the reducer knows whether to
+// replace the list (offset 0, a fresh query) or append to it (offset > 0, load more).
+const fetchPage = <A,>(config: Config<A>, seq: number, query: string, offset: number): Cmd.Cmd<Msg> =>
+  Http.send(config.search(query, offset), {
+    onSuccess: (response): Msg => {
+      const options = config.toOptions(response)
+      return Msg.Loaded({ seq, options, total: config.total?.(response) ?? options.length, offset })
+    },
+    onError: (): Msg => Msg.Failed({ seq }),
+  })
+
+// Search immediately (opening the list, loading the next page).
 const load = <A,>(
   config: Config<A>,
   model: Model.Model,
@@ -37,16 +53,7 @@ const load = <A,>(
   offset: number,
 ): [Model.Model, Cmd.Cmd<Msg>] => {
   const seq = model.seq + 1
-  return [
-    { ...model, loading: true, failed: false, seq },
-    Http.send(config.search(query, offset), {
-      onSuccess: (response): Msg => {
-        const options = config.toOptions(response)
-        return Msg.Loaded({ seq, options, total: config.total?.(response) ?? options.length, offset })
-      },
-      onError: (): Msg => Msg.Failed({ seq }),
-    }),
-  ]
+  return [{ ...model, loading: true, loadingMore: false, failed: false, seq }, fetchPage(config, seq, query, offset)]
 }
 
 export const update = <A,>(config: Config<A>, msg: Msg, model: Model.Model): [Model.Model, Cmd.Cmd<Msg>] =>
@@ -56,15 +63,37 @@ export const update = <A,>(config: Config<A>, msg: Msg, model: Model.Model): [Mo
       const opened = { ...model, open: true }
       return opened.options.length > 0 || opened.loading ? [opened, Cmd.none] : load(config, opened, opened.query, 0)
     },
-    // Ignore a close request while a request is in flight, so selecting "load more" (which
-    // FluentUI treats as an option-select and would close) keeps the list open.
+    // Ignore a close request while "load more" is in flight, since FluentUI treats that row
+    // as an option-select and would close the list under the page being fetched.
+    // Otherwise reconcile: a single-select input shows `query`, so text typed without picking
+    // anything would linger next to a selection it does not describe. Closing restores the
+    // chosen option's label (or clears the text when nothing is chosen).
     Closed: (): [Model.Model, Cmd.Cmd<Msg>] =>
-      model.loading ? [model, Cmd.none] : [{ ...model, open: false }, Cmd.none],
-    // A new query always restarts from the first page.
-    QueryChanged: ({ query }): [Model.Model, Cmd.Cmd<Msg>] => load(config, { ...model, query, open: true }, query, 0),
+      model.loadingMore
+        ? [model, Cmd.none]
+        : [{ ...model, open: false, query: config.multiple ? model.query : Model.label(model) }, Cmd.none],
+    // A new query always restarts from the first page. The request itself is debounced: the
+    // seq is claimed now (so in-flight responses are dropped straight away) and the search
+    // runs only if no newer keystroke arrives first.
+    QueryChanged: ({ query }): [Model.Model, Cmd.Cmd<Msg>] => {
+      const seq = model.seq + 1
+      // Bumping seq supersedes any pending page fetch, so it is no longer holding the list open.
+      return [
+        { ...model, query, open: true, loading: true, loadingMore: false, failed: false, seq },
+        Cmd.fromEffect(
+          Effect.sleep(Duration.millis(config.debounceMs ?? 300)).pipe(Effect.as(Msg.Search({ seq, query }))),
+        ),
+      ]
+    },
+    // The debounced search fires only for the keystroke that is still the latest one.
+    Search: ({ seq, query }): [Model.Model, Cmd.Cmd<Msg>] =>
+      seq === model.seq ? [model, fetchPage(config, seq, query, 0)] : [model, Cmd.none],
     // Fetch the next page: offset = rows loaded so far. Guarded so a double-click can't skip a page.
-    LoadMore: (): [Model.Model, Cmd.Cmd<Msg>] =>
-      model.loading ? [model, Cmd.none] : load(config, model, model.query, model.options.length),
+    LoadMore: (): [Model.Model, Cmd.Cmd<Msg>] => {
+      if (model.loading) return [model, Cmd.none]
+      const [next, cmd] = load(config, model, model.query, model.options.length)
+      return [{ ...next, loadingMore: true }, cmd]
+    },
     // Drop stale responses (a newer request has since been issued). offset 0 replaces; > 0 appends.
     Loaded: ({ seq, options, total, offset }): [Model.Model, Cmd.Cmd<Msg>] =>
       seq === model.seq
@@ -74,6 +103,7 @@ export const update = <A,>(config: Config<A>, msg: Msg, model: Model.Model): [Mo
               options: offset > 0 ? [...model.options, ...options] : options,
               total,
               loading: false,
+              loadingMore: false,
               failed: false,
               open: true,
             },
@@ -82,7 +112,9 @@ export const update = <A,>(config: Config<A>, msg: Msg, model: Model.Model): [Mo
         : [model, Cmd.none],
     // Keep already-loaded pages on failure (a failed "load more" shouldn't wipe the list).
     Failed: ({ seq }): [Model.Model, Cmd.Cmd<Msg>] =>
-      seq === model.seq ? [{ ...model, loading: false, failed: true }, Cmd.none] : [model, Cmd.none],
+      seq === model.seq
+        ? [{ ...model, loading: false, loadingMore: false, failed: true }, Cmd.none]
+        : [model, Cmd.none],
     // Single-select: replace selection, show its label, close.
     Picked: ({ option }): [Model.Model, Cmd.Cmd<Msg>] => [
       { ...model, selected: [option], query: option.label, open: false },

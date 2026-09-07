@@ -1,17 +1,18 @@
-import { Schema } from 'effect'
+import * as S from 'effect/Schema'
+import type { BaseComboCriteria } from '../../common/pretraga'
 
 // -------------------------------------------------------------------------------------
 // Product
 // -------------------------------------------------------------------------------------
 
-export const Product = Schema.Struct({
-  id: Schema.Number,
-  title: Schema.String,
-  category: Schema.String,
-  price: Schema.Number,
-  rating: Schema.Number,
-  stock: Schema.Number,
-  thumbnail: Schema.String,
+export const Product = S.Struct({
+  id: S.Number,
+  title: S.String,
+  category: S.String,
+  price: S.Number,
+  rating: S.Number,
+  stock: S.Number,
+  thumbnail: S.String,
 })
 
 export type Product = typeof Product.Type
@@ -20,9 +21,109 @@ export type Product = typeof Product.Type
 // ProductsResponse
 // -------------------------------------------------------------------------------------
 
-export const ProductsResponse = Schema.Struct({
-  products: Schema.Array(Product),
-  total: Schema.Number,
+export const ProductsResponse = S.Struct({
+  products: S.Array(Product),
+  total: S.Number,
 })
 
 export type ProductsResponse = typeof ProductsResponse.Type
+
+// -------------------------------------------------------------------------------------
+// Create Product
+// -------------------------------------------------------------------------------------
+
+// Request body sent to the API. The product form decodes its draft into exactly this
+// shape (see products/create/form.ts).
+export const CreateProductBody = S.Struct({
+  title: S.String,
+  category: S.String,
+  price: S.Number,
+  stock: S.Number,
+  datumNabavke: S.String,
+  vremeIsporuke: S.optional(S.String),
+  // terminIsporuke: a real Date (the form yields a Date once both date + time are entered).
+  terminIsporuke: S.Date,
+  // combo ids go to the backend as numbers.
+  povezaniProizvod: S.optional(S.Number),
+  povezaniProizvodi: S.Array(S.Number),
+  // multi-enum values stay strings (they are codes, not ids).
+  oznake: S.Array(S.String),
+  grupa: S.optional(S.Number),
+  podgrupa: S.optional(S.Number),
+  description: S.optional(S.String),
+  published: S.Boolean,
+})
+
+export type CreateProductBody = typeof CreateProductBody.Type
+
+// The API echoes back the created product; we only need enough to confirm success.
+export const CreatedProduct = S.Struct({
+  id: S.Number,
+  title: S.String,
+})
+
+export type CreatedProduct = typeof CreatedProduct.Type
+
+// -------------------------------------------------------------------------------------
+// Edit / delete (Magacin shape: daj-info -> record, azuriraj(cmd) with id+version, obriši)
+// -------------------------------------------------------------------------------------
+
+/** Object identity for update/delete (optimistic concurrency, like Magacin). */
+export const ObjekatIdentifikator = S.Struct({ id: S.Number, version: S.Number })
+export type ObjekatIdentifikator = typeof ObjekatIdentifikator.Type
+
+// What `getProduct` (daj-info) returns — the currently-stored, editable attributes.
+export const EditProductRecord = S.Struct({
+  id: S.Number,
+  title: S.String,
+  category: S.String,
+  price: S.Number,
+  stock: S.Number,
+  description: S.optional(S.String),
+})
+export type EditProductRecord = typeof EditProductRecord.Type
+
+// Update command. NOTE (create != update): `category` is set at creation and cannot be
+// changed here, so it is intentionally absent; `id` + `version` are injected by the feature.
+export const UpdateProductBody = S.Struct({
+  id: S.Number,
+  version: S.Number,
+  title: S.String,
+  price: S.Number,
+  stock: S.Number,
+  description: S.optional(S.String),
+})
+export type UpdateProductBody = typeof UpdateProductBody.Type
+
+// Delete echoes the removed product; we only confirm the id.
+export const DeletedProduct = S.Struct({ id: S.Number })
+export type DeletedProduct = typeof DeletedProduct.Type
+
+// -------------------------------------------------------------------------------------
+// Proizvod combo — criteria & result (search source for a product combo)
+// -------------------------------------------------------------------------------------
+//
+// Analogous to Magacin: the combo's criteria and result types live next to the route,
+// on the shared pretraga contract (see common/pretraga).
+
+// Proizvod has no `sifra`, so its combo shows just `naziv` (the label fallback).
+export const ProizvodComboResult = S.Struct({
+  id: S.Number,
+  naziv: S.String,
+})
+export type ProizvodComboResult = typeof ProizvodComboResult.Type
+export type ProizvodComboCriteria = BaseComboCriteria
+
+// -------------------------------------------------------------------------------------
+// Cascading combos: Grupa -> Podgrupa (podgrupa is filtered by the chosen grupa)
+// -------------------------------------------------------------------------------------
+//
+// Grupa/Podgrupa carry `sifra`, so their combos show `sifra - naziv` (the default label).
+
+export const GrupaComboResult = S.Struct({ id: S.Number, sifra: S.String, naziv: S.String })
+export type GrupaComboResult = typeof GrupaComboResult.Type
+export type GrupaComboCriteria = BaseComboCriteria
+
+export const PodgrupaComboResult = S.Struct({ id: S.Number, sifra: S.String, naziv: S.String })
+export type PodgrupaComboResult = typeof PodgrupaComboResult.Type
+export type PodgrupaComboCriteria = BaseComboCriteria & { readonly grupaID?: string }

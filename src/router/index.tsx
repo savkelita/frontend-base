@@ -13,6 +13,8 @@ import * as Api from '../auth/api'
 import { Session, SESSION_KEY, toAuthorizationConfig } from '../auth/session'
 import * as Home from '../home'
 import * as Products from '../products'
+import * as ProductCreate from '../products/create'
+import * as OtpremnicaStavke from '../otpremnica/stavke'
 import * as Login from '../login'
 import * as Nav from '../navigation'
 import { routes, getRoutePermissions } from './route'
@@ -30,8 +32,16 @@ import {
   refreshTick,
   refreshCompleted,
 } from './msg'
-import { ScreenModel, homeScreen, productsScreen, notFoundScreen, unauthorizedScreen } from './screen-model'
-import { ScreenMsg, homeMsg, productsMsg } from './screen-msg'
+import {
+  ScreenModel,
+  homeScreen,
+  productsScreen,
+  productCreateScreen,
+  otpremnicaStavkeScreen,
+  notFoundScreen,
+  unauthorizedScreen,
+} from './screen-model'
+import { ScreenMsg, homeMsg, productsMsg, productCreateMsg, otpremnicaStavkeMsg } from './screen-msg'
 import { selectedNavValue, selectedCategoryValue } from './selected-nav'
 import { Layout } from './components/layout'
 import { NotFoundView } from './components/not-found-view'
@@ -60,6 +70,20 @@ const startScreen = (route: Route): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
     case 'products': {
       const [model, cmd] = Products.init
       return [productsScreen(model), Cmd.map(productsMsg)(cmd)]
+    }
+    case 'productsNew': {
+      const [model, cmd] = ProductCreate.init
+      return [productCreateScreen(model), Cmd.map(productCreateMsg)(cmd)]
+    }
+    case 'otpremnicaStavke': {
+      // Magacin i porudžbenica iza otpremnice inače dolaze sa same otpremnice; dok taj ekran
+      // ne postoji, ovde su fiksirani.
+      const [model, cmd] = OtpremnicaStavke.init({
+        otpremnicaID: route.params.otpremnicaID,
+        magacinID: 1,
+        porudzbenicaID: 42,
+      })
+      return [otpremnicaStavkeScreen(model), Cmd.map(otpremnicaStavkeMsg)(cmd)]
     }
   }
 }
@@ -90,12 +114,24 @@ const updateScreen = (msg: ScreenMsg, screenModel: ScreenModel): [ScreenModel, C
       const [model, cmd] = Products.update(productsMessage, screenModel.model)
       return [productsScreen(model), Cmd.map(productsMsg)(cmd)]
     },
+    ProductCreateMsg: ({ msg: productCreateMessage }): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
+      if (screenModel._tag !== 'ProductCreateScreen') return [screenModel, Cmd.none]
+      const [model, cmd] = ProductCreate.update(productCreateMessage, screenModel.model)
+      return [productCreateScreen(model), Cmd.map(productCreateMsg)(cmd)]
+    },
+    OtpremnicaStavkeMsg: ({ msg: stavkeMessage }): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
+      if (screenModel._tag !== 'OtpremnicaStavkeScreen') return [screenModel, Cmd.none]
+      const [model, cmd] = OtpremnicaStavke.update(stavkeMessage, screenModel.model)
+      return [otpremnicaStavkeScreen(model), Cmd.map(otpremnicaStavkeMsg)(cmd)]
+    },
   })
 
 const screenView = (screenModel: ScreenModel): TeaReact.Html<ScreenMsg> =>
   ScreenModel.$match(screenModel, {
     HomeScreen: ({ model }) => Html.map(homeMsg)(Home.view(model)),
     ProductsScreen: ({ model }) => Html.map(productsMsg)(Products.view(model)),
+    ProductCreateScreen: ({ model }) => Html.map(productCreateMsg)(ProductCreate.view(model)),
+    OtpremnicaStavkeScreen: ({ model }) => Html.map(otpremnicaStavkeMsg)(OtpremnicaStavke.view(model)),
     NotFoundScreen:
       ({ path }) =>
       (_dispatch: Platform.Dispatch<ScreenMsg>) => <NotFoundView path={path} />,

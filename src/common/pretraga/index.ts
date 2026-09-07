@@ -102,10 +102,12 @@ export const comboRequest = <Result>(
 // only names the source (and, for cascades, how a parent value maps to a criterion) —
 // the `unetaVrednost` criterion and result->option mapping live here, not in the form.
 
-export type ComboSource = {
+// `Result` je red koji pretraga vraća. Putuje uz svaku opciju, i forma ga kroz taj tip čita
+// nazad — što je ono što izvedenu vrednost drži bez kastova.
+export type ComboSource<Result = unknown> = {
   /** `offset` is a row offset for paging (0, then 10, 20, … as pages are loaded). */
   readonly request: (extra: Record<string, unknown>, query: string, offset: number) => Http.Request<any>
-  readonly toOptions: (response: any) => ReadonlyArray<SelectOption>
+  readonly toOptions: (response: any) => ReadonlyArray<SelectOption<Result>>
   /** How many rows match in total (drives the "load more" affordance while more remain). */
   readonly total?: (response: any) => number
 }
@@ -124,19 +126,22 @@ const defaultToOption = (item: ComboItem): SelectOption => ({
 export function pretragaCombo<Result extends ComboItem, C extends BaseComboCriteria>(
   route: (criteria: C, offset?: number) => Http.Request<PretragaResponse<Result>>,
   toOption?: (item: Result) => SelectOption,
-): ComboSource
+): ComboSource<Result>
 export function pretragaCombo<Result, C extends BaseComboCriteria>(
   route: (criteria: C, offset?: number) => Http.Request<PretragaResponse<Result>>,
   toOption: (item: Result) => SelectOption,
-): ComboSource
+): ComboSource<Result>
 export function pretragaCombo<Result, C extends BaseComboCriteria>(
   route: (criteria: C, offset?: number) => Http.Request<PretragaResponse<Result>>,
   toOption?: (item: Result) => SelectOption,
-): ComboSource {
+): ComboSource<Result> {
   const map = toOption ?? (defaultToOption as (item: Result) => SelectOption)
+  // Svaka opcija nosi red iz koga je nastala, pa forma može da pročita ostale atribute
+  // izabranog reda (faktor konverzije, jedinicu mere) bez drugog zahteva.
+  const toOption_ = (item: Result): SelectOption<Result> => ({ ...map(item), data: item })
   return {
     request: (extra, query, offset) => route({ ...extra, unetaVrednost: contains(query) } as C, offset),
-    toOptions: response => (response as PretragaResponse<Result>).result.map(map),
+    toOptions: response => (response as PretragaResponse<Result>).result.map(toOption_),
     total: response => (response as PretragaResponse<Result>).total_,
   }
 }

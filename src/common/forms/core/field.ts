@@ -1,21 +1,21 @@
 import { Either, ParseResult, Schema } from 'effect'
 import type * as Cmd from 'tea-effect/Cmd'
 import type * as TeaReact from 'tea-effect/React'
-import type { FieldCtx, FieldUi, Issue } from './types'
+import type { FieldCtx, FieldUi, Issue, SelectOption } from './types'
 
 // -------------------------------------------------------------------------------------
 // FieldDef — a field is a small TEA unit that yields an (encoded) Value
 // -------------------------------------------------------------------------------------
 //
 // `Value` is the encoded/draft value (string, boolean, ...). `schema` decodes it to the
-// `Decoded` domain type (the one that ends up in the payload) and provides validation.
-// Value fields have State = Value; async fields (combo) carry a rich State + Msg. This
-// unifies both under one interface.
+// `Decoded` domenski tip (onaj koji završi u payload-u) i nosi validaciju.
+// Value polja imaju State = Value; async polja (combo) nose bogatiji State + Msg. Ovaj
+// interfejs objedinjuje oba.
 //
-// `Decoded` is a real type parameter, not `Schema.Schema<any, Value>`: it is what makes
-// `Payload<F>` precise, so a feature's draft -> request-body mapper is type-checked.
+// `Decoded` je pravi tipski parametar, a ne `Schema.Schema<any, Value>`: on je razlog zašto
+// je `Payload<F>` precizan, pa je mapiranje draft -> telo zahteva tipski provereno.
 
-export interface FieldDef<Value, State, Msg, Decoded = any> {
+export interface FieldDef<Value, State, Msg, Decoded = any, Choice = unknown> {
   readonly schema: Schema.Schema<Decoded, Value>
   readonly empty: Value
   readonly required: boolean
@@ -26,9 +26,9 @@ export interface FieldDef<Value, State, Msg, Decoded = any> {
   set(state: State, value: Value): State
   update(msg: Msg, state: State, ctx: FieldCtx): [State, Cmd.Cmd<Msg>]
   /**
-   * Did this message change the field's value? (dependency/effect trigger)
-   * `previous` is the state the message was applied to, so a value field can tell a real
-   * edit from a keystroke that retypes the same text.
+   * Da li je ova poruka promenila vrednost polja? (okidač za zavisnosti i efekte)
+   * `previous` je stanje na koje je poruka primenjena, pa value polje ume da razlikuje pravu
+   * izmenu od pritiska tastera koji ponovo otkuca isti tekst.
    */
   changed(msg: Msg, previous: State): boolean
   view(state: State, ui: FieldUi): TeaReact.Html<Msg>
@@ -36,18 +36,34 @@ export interface FieldDef<Value, State, Msg, Decoded = any> {
   issues?(state: State): ReadonlyArray<Issue>
   /** Whether an async validation is in flight. */
   validating?(state: State): boolean
+  /**
+   * Izabrana opcija (ili više njih), za polje čija je vrednost izbor (combo, select).
+   * Omogućava formi da izvede vrednost iz onoga što je korisnik izabrao, a ne samo iz id-a.
+   */
+  selected?(state: State): ReadonlyArray<SelectOption<Choice>>
+  /**
+   * Postavi vrednost celim opcijama umesto golim id-evima, da programsko popunjavanje sačuva
+   * labele. Obična Set poruka nosi samo id, koji bi combo onda prikazao sirov.
+   */
+  setSelected?(state: State, options: ReadonlyArray<SelectOption<Choice>>): State
 }
 
-export type ValueOf<Fd> = Fd extends FieldDef<infer V, any, any, any> ? V : never
-export type StateOf<Fd> = Fd extends FieldDef<any, infer S, any, any> ? S : never
-export type MsgOf<Fd> = Fd extends FieldDef<any, any, infer M, any> ? M : never
-export type DecodedOf<Fd> = Fd extends FieldDef<any, any, any, infer D> ? D : never
+export type ValueOf<Fd> = Fd extends FieldDef<infer V, any, any, any, any> ? V : never
+export type StateOf<Fd> = Fd extends FieldDef<any, infer S, any, any, any> ? S : never
+export type MsgOf<Fd> = Fd extends FieldDef<any, any, infer M, any, any> ? M : never
+export type DecodedOf<Fd> = Fd extends FieldDef<any, any, any, infer D, any> ? D : never
+/** Tip reda iza polja sa izborom, da forma čita izabranu opciju bez kasta. */
+export type ChoiceOf<Fd> = Fd extends FieldDef<any, any, any, any, infer C> ? C : never
 
 // -------------------------------------------------------------------------------------
 // Per-field validation (sync, from the field's schema)
 // -------------------------------------------------------------------------------------
 
-export const fieldIssues = (key: string, field: FieldDef<any, any, any, any>, value: unknown): ReadonlyArray<Issue> =>
+export const fieldIssues = (
+  key: string,
+  field: FieldDef<any, any, any, any, any>,
+  value: unknown,
+): ReadonlyArray<Issue> =>
   Either.match(Schema.decodeUnknownEither(field.schema, { errors: 'all' })(value), {
     onRight: () => [],
     onLeft: error =>

@@ -2,9 +2,9 @@ import { Either, Option, Schema } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Html from 'tea-effect/Html'
 import type * as TeaReact from 'tea-effect/React'
-import type { FieldDef, ValueOf, StateOf, MsgOf, DecodedOf } from './field'
+import type { FieldDef, ValueOf, StateOf, MsgOf, DecodedOf, ChoiceOf } from './field'
 import { fieldIssues } from './field'
-import type { FieldUi, Issue, Mode } from './types'
+import type { FieldUi, Issue, Mode, SelectOption } from './types'
 import { sameValue } from './types'
 
 // -------------------------------------------------------------------------------------
@@ -15,7 +15,7 @@ import { sameValue } from './types'
 // dependencies/effects. It does NOT own the save: the feature calls `trySubmit` and,
 // on a valid payload, fires its own Http command (so the save result stays a feature Msg).
 
-export type Fields = Record<string, FieldDef<any, any, any, any>>
+export type Fields = Record<string, FieldDef<any, any, any, any, any>>
 
 export type Draft<F extends Fields> = { readonly [K in keyof F]: ValueOf<F[K]> }
 export type Payload<F extends Fields> = { readonly [K in keyof F]: DecodedOf<F[K]> }
@@ -37,11 +37,35 @@ type FieldMsg<F extends Fields> = {
 export type FormMsg<F extends Fields> =
   | FieldMsg<F>
   | { readonly _tag: 'Set'; readonly key: keyof F; readonly value: unknown }
+  // Popuni polje sa izborom celim opcijama, da labela preživi (vidi FieldDef.setSelected).
+  | { readonly _tag: 'SetOption'; readonly key: keyof F; readonly options: ReadonlyArray<SelectOption> }
 
 export type FieldRule = { enabled: boolean; visible: boolean; readonly: boolean; required: boolean }
 
+/**
+ * Šta efekat može da pročita pored drafta: draft drži id-eve, ovo drži redove iz kojih su ti
+ * id-evi izabrani — dovoljno da se vrednost izvede iz izabrane opcije.
+ */
+export type FormCtx<F extends Fields> = {
+  readonly selected: <K extends keyof F>(key: K) => ReadonlyArray<SelectOption<ChoiceOf<F[K]>>>
+  /** Jedan izabrani red, za uobičajen slučaj comboa sa jednim izborom. */
+  readonly chosen: <K extends keyof F>(key: K) => ChoiceOf<F[K]> | undefined
+}
+
 export type Config<F extends Fields> = {
-  readonly effects?: ReadonlyArray<{ readonly when: keyof F; readonly run: (draft: Draft<F>) => Cmd.Cmd<FormMsg<F>> }>
+  /**
+   * Vrednosti koje su funkcija drugih vrednosti, izrečene jednom kao invarijanta umesto da se
+   * računaju sa svakog mesta koje ih može poremetiti. Izvršava se sinhrono posle svake promene
+   * (Field, Set, SetOption) i upisuje ono što vrati.
+   *
+   * Namerno se NE izvršava pri kreiranju ili učitavanju forme: u tom trenutku combo zna svoj
+   * id ali još ne i red iza njega, pa bi izvođenje obrisalo vrednost koju zapis već ima.
+   */
+  readonly derive?: (draft: Draft<F>, ctx: FormCtx<F>) => Partial<Draft<F>>
+  readonly effects?: ReadonlyArray<{
+    readonly when: keyof F
+    readonly run: (draft: Draft<F>, ctx: FormCtx<F>) => Cmd.Cmd<FormMsg<F>>
+  }>
   readonly rules?: (draft: Draft<F>, ctx: { readonly mode: Mode }) => Partial<Record<keyof F, Partial<FieldRule>>>
   readonly validate?: (draft: Draft<F>) => ReadonlyArray<Issue>
 }
@@ -55,6 +79,14 @@ export interface FormSpec<F extends Fields> {
   /** Validate + decode. `Some(payload)` only when valid; marks the form as submitting. */
   trySubmit(model: FormModel<F>): [FormModel<F>, Option.Option<Payload<F>>]
   toEditing(model: FormModel<F>): FormModel<F>
+  /** Izabrana opcija u polju sa izborom — red iza vrednosti, a ne samo njen id. */
+  selected<K extends keyof F>(model: FormModel<F>, key: K): ReadonlyArray<SelectOption<ChoiceOf<F[K]>>>
+  /**
+   * Upiši više polja odjednom, sinhrono — bez odlaska kroz poruku. Za trenutke kada feature
+   * mora sam da prepiše deo forme (brisanje onoga o čemu odlučuje promenjeni roditelj).
+   * Izvedene vrednosti se preračunavaju posle toga.
+   */
+  setValues(model: FormModel<F>, values: Partial<Draft<F>>): FormModel<F>
   withServerIssues(model: FormModel<F>, issues: ReadonlyArray<Issue>): FormModel<F>
   fieldUi(model: FormModel<F>, key: keyof F): FieldUi
   render(model: FormModel<F>, key: keyof F): TeaReact.Html<FormMsg<F>>
@@ -113,9 +145,9 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
   const ruleFor = (draft: Draft<F>, mode: Mode, key: keyof F): Partial<FieldRule> =>
     config.rules?.(draft, { mode })?.[key] ?? {}
 
-  // A field the user cannot edit must not be able to block the form: legacy data that no
-  // longer satisfies the schema (an enum value retired since the record was created) would
-  // otherwise fail validation on a field that is disabled, leaving the user with no way out.
+  // Polje koje korisnik ne može da menja ne sme da blokira formu: zatečeni podatak koji više
+  // ne zadovoljava šemu (enum vrednost povučena posle nastanka zapisa) inače pada na validaciji
+  // polja koje je onemogućeno, pa korisnik ostaje bez izlaza.
   const isReadonly = (draft: Draft<F>, mode: Mode, key: keyof F): boolean =>
     mode === 'View' || (ruleFor(draft, mode, key).readonly ?? false)
 
@@ -139,7 +171,7 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
     const touched = model.touched.has(key as string) || model.submitAttempted
     const dirty = !sameValue(at(draft, key), at(model.original, key))
     const validating = field.validating?.(model.states[key]) ?? false
-    // Readonly fields are not validated (see isReadonly), so they show no issues either.
+    // Readonly polja se ne validiraju (vidi isReadonly), pa ni greške ne prikazuju.
     const issues =
       touched && !readonly
         ? [
@@ -194,12 +226,46 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
     }
     const fieldCmd = Cmd.map(wrap(key))(cmd)
 
-    if (!field.changed(msg, model.states[key])) return [next, fieldCmd]
+    // I poruka koja nije pomerila vrednost može nešto da donese (razrešena labela comboa nosi
+    // i red uz sebe), pa se invarijante obnavljaju u oba slučaja.
+    if (!field.changed(msg, model.states[key])) return [applyDerive(next), fieldCmd]
 
     for (const child of descendants(key)) next = resetField(next, child)
-    const draft = draftOf(next)
-    const effectCmds = (config.effects ?? []).filter(e => e.when === key).map(e => e.run(draft))
+    next = applyDerive(next)
+    const effectCmds = (config.effects ?? []).filter(e => e.when === key).map(e => e.run(draftOf(next), ctxOf(next)))
     return [next, Cmd.batch([fieldCmd, ...effectCmds])]
+  }
+
+  const chosenOptions = <K extends keyof F>(model: FormModel<F>, key: K) =>
+    (fields[key].selected?.(model.states[key]) ?? []) as ReadonlyArray<SelectOption<ChoiceOf<F[K]>>>
+
+  const ctxOf = (model: FormModel<F>): FormCtx<F> => ({
+    selected: key => chosenOptions(model, key),
+    chosen: key => chosenOptions(model, key)[0]?.data,
+  })
+
+  // Upisuje vrednosti pravo u stanja polja. Bez poruka, bez touched: ovo forma prepravlja
+  // samu sebe, nije korisnik taj koji menja.
+  const writeValues = (model: FormModel<F>, values: Partial<Draft<F>>): FormModel<F> => {
+    const entries = (Object.keys(values) as Array<keyof F>).filter(k => at(values, k) !== undefined)
+    if (entries.length === 0) return model
+    const states: Record<string, unknown> = { ...model.states }
+    for (const k of entries) states[k as string] = fields[k].set(model.states[k], at(values, k) as never)
+    return { ...model, states: states as FormModel<F>['states'] }
+  }
+
+  // Obnavlja invarijante posle svake promene. Izvedena polja su forma koja govori sama sebi,
+  // pa vrednost koju upiše nikada ne računamo kao dodirnutu.
+  const applyDerive = (model: FormModel<F>): FormModel<F> =>
+    config.derive ? writeValues(model, config.derive(draftOf(model), ctxOf(model))) : model
+
+  // Polje koje razume opcije zadržava njihove labele; sve ostalo pada na gole vrednosti, a to
+  // je i jedino što polje bez izbora ume da drži.
+  const setSelected = (key: keyof F, options: ReadonlyArray<SelectOption>, state: StateOf<F[keyof F]>) => {
+    const field = fields[key]
+    if (field.setSelected) return field.setSelected(state, options)
+    const values = options.map(o => o.value)
+    return field.set(state, (Array.isArray(field.empty) ? values : (values[0] ?? field.empty)) as never)
   }
 
   const trySubmit = (model: FormModel<F>): [FormModel<F>, Option.Option<Payload<F>>] => {
@@ -208,9 +274,9 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
     const payload: Record<string, unknown> = {}
     for (const k of keys) {
       const raw = at(draft, k)
-      // Validated fields always decode (allIssues just proved it). A readonly field is not
-      // validated, so a value the schema rejects is passed through as stored rather than
-      // thrown away — never let building the payload fail.
+      // Validirana polja se uvek dekoduju (allIssues je to upravo dokazao). Readonly polje se
+      // ne validira, pa vrednost koju šema odbija prolazi onakva kakva je sačuvana umesto da
+      // se odbaci — građenje payload-a ne sme da pukne.
       payload[k as string] = Either.getOrElse(Schema.decodeUnknownEither(fields[k].schema)(raw), () => raw)
     }
     return [{ ...model, status: 'Submitting', submitAttempted: true }, Option.some(payload as Payload<F>)]
@@ -228,11 +294,20 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
           return updateField(msg.key, msg.msg, model)
         case 'Set':
           return [
-            {
+            applyDerive({
               ...model,
               states: { ...model.states, [msg.key]: fields[msg.key].set(model.states[msg.key], msg.value as never) },
               touched: addKey(model.touched, msg.key as string),
-            },
+            }),
+            Cmd.none,
+          ]
+        case 'SetOption':
+          return [
+            applyDerive({
+              ...model,
+              states: { ...model.states, [msg.key]: setSelected(msg.key, msg.options, model.states[msg.key]) },
+              touched: addKey(model.touched, msg.key as string),
+            }),
             Cmd.none,
           ]
       }
@@ -240,6 +315,8 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
 
     trySubmit,
     toEditing: model => ({ ...model, status: 'Editing' }),
+    selected: chosenOptions,
+    setValues: (model, values) => applyDerive(writeValues(model, values)),
     withServerIssues: (model, issues) => ({ ...model, status: 'Editing', serverIssues: issues }),
 
     fieldUi: computeFieldUi,

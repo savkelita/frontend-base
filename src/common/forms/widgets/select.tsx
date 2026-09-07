@@ -1,5 +1,6 @@
 import { Field, Dropdown, Option as DropdownOption } from '@fluentui/react-components'
 import type { ReactElement } from 'react'
+import type { SelectOption } from '../core/types'
 import type { WidgetProps } from './registry'
 
 // -------------------------------------------------------------------------------------
@@ -11,7 +12,8 @@ import type { WidgetProps } from './registry'
 //   - options: ReadonlyArray<{ value: string; label: string }>
 //   - placeholder?: string
 
-export type SelectOption = { readonly value: string; readonly label: string }
+// Definisan u core/types, da jezgro forme može da govori o izborima bez uvoza vidžeta.
+export type { SelectOption } from '../core/types'
 
 export const SelectWidget = ({
   label,
@@ -25,8 +27,8 @@ export const SelectWidget = ({
 }: WidgetProps<string>): ReactElement => {
   const options = (config?.options as ReadonlyArray<SelectOption> | undefined) ?? []
   const selected = options.find(o => o.value === value)
-  // A stored value with no matching option (a retired enum member on an old record) still
-  // has to be visible — showing an empty box would read as "no value".
+  // Sačuvana vrednost bez odgovarajuće opcije (povučena enum vrednost na starom zapisu) mora
+  // ipak da bude vidljiva — prazno polje bi delovalo kao da vrednosti nema.
   const display = selected?.label ?? value ?? ''
 
   return (

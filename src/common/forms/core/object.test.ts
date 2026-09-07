@@ -127,7 +127,7 @@ describe('Form.object', () => {
 })
 
 // -------------------------------------------------------------------------------------
-// Readonly fields
+// Readonly polja
 // -------------------------------------------------------------------------------------
 
 describe('Form.object readonly fields', () => {
@@ -135,8 +135,8 @@ describe('Form.object readonly fields', () => {
     status: Form.enumField({ label: 'Status', options: [{ value: 'new', label: 'Novi' }] }),
     title: Form.name({ label: 'Naziv' }),
   }
-  // 'retired' is a value the schema no longer allows — an old record that predates the
-  // current option list.
+  // 'retired' je vrednost koju šema više ne dozvoljava — star zapis koji prethodi sadašnjem
+  // spisku opcija.
   const legacy = { status: 'retired', title: 'Hat' }
 
   it('an editable field with a rejected value blocks the save (the user can fix it)', () => {
@@ -149,18 +149,18 @@ describe('Form.object readonly fields', () => {
     const locked = Form.object(fields, { rules: () => ({ status: { readonly: true } }) })
     const [model, payload] = locked.trySubmit(locked.edit(legacy)[0])
     expect(Option.isSome(payload)).toBe(true)
-    // the value the user cannot change is passed through as stored
+    // vrednost koju korisnik ne može da promeni prolazi onakva kakva je sačuvana
     if (Option.isSome(payload)) expect(payload.value.status).toBe('retired')
     expect(locked.fieldUi(model, 'status').issues).toEqual([])
   })
 })
 
 // -------------------------------------------------------------------------------------
-// Payload typing (compile-time; `yarn checkts` type-checks the tests too)
+// Tipiziranost payload-a (provera pri kompajliranju; `yarn checkts` proverava i testove)
 // -------------------------------------------------------------------------------------
 //
-// `Equals` is false for `any`, so these assignments stop compiling the moment a field
-// stops carrying its decoded type through to the payload.
+// `Equals` je false za `any`, pa ove dodele prestaju da se kompajliraju čim neko polje
+// prestane da provuče svoj dekodovani tip do payload-a.
 
 type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 

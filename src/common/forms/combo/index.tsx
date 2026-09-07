@@ -27,15 +27,15 @@ export type Config<A> = {
   readonly toOptions: (response: A) => ReadonlyArray<SelectOption>
   /** Total matching rows (defaults to the number of options when not provided). */
   readonly total?: (response: A) => number
-  /** Multi-select: several values may be chosen (no single-selection reconcile on close). */
+  /** Višestruki izbor: može se izabrati više vrednosti (bez usklađivanja unosa pri zatvaranju). */
   readonly multiple?: boolean
-  /** How long to wait after the last keystroke before searching (default 300ms). */
+  /** Koliko se čeka posle poslednjeg pritiska tastera pre pretrage (podrazumevano 300ms). */
   readonly debounceMs?: number
 }
 
-// Fetch one page. `seq` tags the request so a response that arrives after a newer request
-// was issued can be dropped; `offset` rides along to Loaded so the reducer knows whether to
-// replace the list (offset 0, a fresh query) or append to it (offset > 0, load more).
+// Dovuci jednu stranu. `seq` obeležava zahtev da bi odgovor koji stigne posle novijeg zahteva
+// mogao da se odbaci; `offset` putuje do Loaded da reducer zna da li da zameni listu
+// (offset 0, nov upit) ili da je nadoveže (offset > 0, učitaj još).
 const fetchPage = <A,>(config: Config<A>, seq: number, query: string, offset: number): Cmd.Cmd<Msg> =>
   Http.send(config.search(query, offset), {
     onSuccess: (response): Msg => {
@@ -45,7 +45,7 @@ const fetchPage = <A,>(config: Config<A>, seq: number, query: string, offset: nu
     onError: (): Msg => Msg.Failed({ seq }),
   })
 
-// Search immediately (opening the list, loading the next page).
+// Pretraži odmah (otvaranje liste, učitavanje sledeće strane).
 const load = <A,>(
   config: Config<A>,
   model: Model.Model,
@@ -63,21 +63,21 @@ export const update = <A,>(config: Config<A>, msg: Msg, model: Model.Model): [Mo
       const opened = { ...model, open: true }
       return opened.options.length > 0 || opened.loading ? [opened, Cmd.none] : load(config, opened, opened.query, 0)
     },
-    // Ignore a close request while "load more" is in flight, since FluentUI treats that row
-    // as an option-select and would close the list under the page being fetched.
-    // Otherwise reconcile: a single-select input shows `query`, so text typed without picking
-    // anything would linger next to a selection it does not describe. Closing restores the
-    // chosen option's label (or clears the text when nothing is chosen).
+    // Ignoriši zahtev za zatvaranje dok je "učitaj još" u letu, jer FluentUI taj red tretira
+    // kao izbor opcije i zatvorio bi listu ispod strane koja se dovlači.
+    // Inače uskladi: polje sa jednim izborom prikazuje `query`, pa bi otkucan tekst bez izbora
+    // ostao pored vrednosti koju ne opisuje. Zatvaranje vraća labelu izabrane opcije (ili
+    // briše tekst kad ništa nije izabrano).
     Closed: (): [Model.Model, Cmd.Cmd<Msg>] =>
       model.loadingMore
         ? [model, Cmd.none]
         : [{ ...model, open: false, query: config.multiple ? model.query : Model.label(model) }, Cmd.none],
-    // A new query always restarts from the first page. The request itself is debounced: the
-    // seq is claimed now (so in-flight responses are dropped straight away) and the search
-    // runs only if no newer keystroke arrives first.
+    // Nov upit uvek kreće od prve strane. Sam zahtev je odložen: seq se rezerviše odmah (pa se
+    // odgovori u letu istog trena odbacuju), a pretraga kreće samo ako u međuvremenu ne stigne
+    // noviji pritisak tastera.
     QueryChanged: ({ query }): [Model.Model, Cmd.Cmd<Msg>] => {
       const seq = model.seq + 1
-      // Bumping seq supersedes any pending page fetch, so it is no longer holding the list open.
+      // Podizanje seq-a poništava svako dovlačenje strane u toku, pa ono više ne drži listu otvorenom.
       return [
         { ...model, query, open: true, loading: true, loadingMore: false, failed: false, seq },
         Cmd.fromEffect(
@@ -85,7 +85,7 @@ export const update = <A,>(config: Config<A>, msg: Msg, model: Model.Model): [Mo
         ),
       ]
     },
-    // The debounced search fires only for the keystroke that is still the latest one.
+    // Odložena pretraga se pali samo za pritisak tastera koji je i dalje poslednji.
     Search: ({ seq, query }): [Model.Model, Cmd.Cmd<Msg>] =>
       seq === model.seq ? [model, fetchPage(config, seq, query, 0)] : [model, Cmd.none],
     // Fetch the next page: offset = rows loaded so far. Guarded so a double-click can't skip a page.

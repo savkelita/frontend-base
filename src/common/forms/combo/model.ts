@@ -17,7 +17,7 @@ export type Model = {
   /** Popup open state (controlled, so "load more" can keep the list open). */
   readonly open: boolean
   readonly loading: boolean
-  /** The in-flight request is a "load more" — closing is suppressed until it lands. */
+  /** Zahtev u letu je "učitaj još" — zatvaranje se odlaže dok ne stigne. */
   readonly loadingMore: boolean
   readonly failed: boolean
   /** Chosen options: 0/1 for a single combo, N for a multi combo. */
@@ -49,7 +49,10 @@ export const value = (model: Model): string => model.selected[0]?.value ?? ''
 /** The multi-select values (all chosen ids). */
 export const values = (model: Model): ReadonlyArray<string> => model.selected.map(o => o.value)
 
-/** The single-select label (what the input shows when the list is closed), or ''. */
+/** Same izabrane opcije, da forma može da pročita red iza vrednosti. */
+export const selectedOptions = (model: Model): ReadonlyArray<SelectOption> => model.selected
+
+/** Labela jednostrukog izbora (ono što polje prikazuje kad je lista zatvorena), ili ''. */
 export const label = (model: Model): string => model.selected[0]?.label ?? ''
 
 export const hasSelection = (model: Model): boolean => model.selected.length > 0

@@ -6,6 +6,7 @@ export const selectedNavValue = (screenModel: ScreenModel): string =>
     HomeScreen: () => 'home',
     ProductsScreen: () => 'products',
     ProductCreateScreen: () => 'products',
+    OtpremnicaStavkeScreen: () => 'products',
     NotFoundScreen: () => '',
     UnauthorizedScreen: () => '',
   })

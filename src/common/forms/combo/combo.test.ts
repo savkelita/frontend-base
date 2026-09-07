@@ -100,20 +100,20 @@ describe('form/combo update', () => {
 
   it('Closed puts the chosen label back in the input (typing without picking is discarded)', () => {
     const [picked] = Combo.update(cfg, Combo.Msg.Picked({ option: { value: '7', label: 'Seven' } }), Combo.init)
-    // the user types over the selection but never picks anything
+    // korisnik kuca preko izbora ali nikada ništa ne izabere
     const [typing] = Combo.update(cfg, Combo.Msg.QueryChanged({ query: 'Eig' }), picked)
     expect(typing.query).toBe('Eig')
-    expect(Combo.value(typing)).toBe('7') // the selection itself is untouched
+    expect(Combo.value(typing)).toBe('7') // sam izbor je netaknut
 
     const [closed] = Combo.update(cfg, Combo.Msg.Closed(), typing)
-    expect(closed.query).toBe('Seven') // input no longer disagrees with the value
+    expect(closed.query).toBe('Seven') // unos se više ne razilazi sa vrednošću
     expect(Combo.value(closed)).toBe('7')
   })
 
   it('typing while a page fetch is pending releases the close guard', () => {
     const page1 = { ...Combo.init, query: 'a', options: [opt('0'), opt('1')], total: 15, open: true }
     const [loadingMore] = Combo.update(cfg, Combo.Msg.LoadMore(), page1)
-    // the response for that page will now be dropped as stale, so it can never clear the flag
+    // odgovor za tu stranu sada se odbacuje kao zastareo, pa nikada ne bi obrisao zastavicu
     const [typing] = Combo.update(cfg, Combo.Msg.QueryChanged({ query: 'ab' }), loadingMore)
     const [closed] = Combo.update(cfg, Combo.Msg.Closed(), typing)
     expect(closed.open).toBe(false)
@@ -142,7 +142,7 @@ describe('form/combo update', () => {
 
       const [searching, searchCmd] = Combo.update(cfg, Combo.Msg.Search({ seq: model.seq, query: 'ab' }), model)
       expect(searchCmd).not.toBe(Cmd.none)
-      expect(searching.seq).toBe(1) // the search reuses the seq claimed by the keystroke
+      expect(searching.seq).toBe(1) // pretraga koristi seq koji je rezervisao pritisak tastera
     })
 
     it('a Search from a superseded keystroke never reaches the network', () => {

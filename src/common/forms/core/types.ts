@@ -12,6 +12,18 @@ export type Issue = {
 
 export type Mode = 'Create' | 'Edit' | 'View' | 'Copy'
 
+/**
+ * Jedna ponuđena vrednost u select ili combo polju.
+ *
+ * `data` nosi red iz koga je opcija nastala, pa forma može da izvede vrednost iz izabrane
+ * opcije — faktor konverzije, oznaku jedinice mere — bez ponovnog dovlačenja.
+ */
+export type SelectOption<Data = unknown> = {
+  readonly value: string
+  readonly label: string
+  readonly data?: Data
+}
+
 /** Async (server) validation status held inside a field's state. */
 export type Async =
   | { readonly _tag: 'Idle' }
@@ -39,9 +51,9 @@ export const topMessage = (issues: ReadonlyArray<Issue>): string | undefined =>
   (issues.find(i => i.severity === 'error') ?? issues[0])?.message
 
 /**
- * Value equality for field values. Multi-value fields (multi enum/combo) hand out a NEW
- * array on every read, so reference equality would report them as permanently changed —
- * compare those element-wise instead.
+ * Poređenje vrednosti polja. Višeznačna polja (multi enum/combo) vraćaju NOV niz pri svakom
+ * čitanju, pa bi poređenje po referenci značilo da su trajno izmenjena — njih poredimo
+ * element po element.
  */
 export const sameValue = (a: unknown, b: unknown): boolean =>
   a === b ||

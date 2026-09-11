@@ -1,0 +1,75 @@
+# -------------------------------------------------------------------------------------
+# Један origin, два backend-а
+# -------------------------------------------------------------------------------------
+#
+# Колачић сесије важи по origin-у. Да би иста сесија радила и према Java и према .NET
+# страни, обе морају да стоје иза истог хоста — иначе је реч о два колачића и две пријаве.
+# Зато овде постоје две гране: `/api/` иде Java-и, `/net/` иде .NET-у. Који сегмент модул
+# користи одлучује његов `makeApi`, а nginx само гледа први сегмент после префикса.
+#
+# __BASE_PATH__ уписује entrypoint.sh из променљиве ENVIRONMENT.
+
+upstream java_backend {
+    server __JAVA_UPSTREAM__;
+}
+
+upstream dotnet_backend {
+    server __DOTNET_UPSTREAM__;
+}
+
+server {
+    listen 80;
+    server_name localhost;
+
+    location = / {
+        return 302 __BASE_PATH__/;
+    }
+
+    location = __BASE_PATH__ {
+        return 301 __BASE_PATH__/;
+    }
+
+    # Java грана. Регуларни израз стоји испред префиксне локације испод, па не треба ^~.
+    location ~ ^__BASE_PATH__/api/ {
+        rewrite ^__BASE_PATH__/(.*)$ /$1 break;
+        proxy_pass http://java_backend;
+        include /etc/nginx/proxy-common.conf;
+    }
+
+    # .NET грана. Сегмент `net` је наш, не iDEA-ин — скида се пре прослеђивања.
+    location ~ ^__BASE_PATH__/net/ {
+        rewrite ^__BASE_PATH__/net/(.*)$ /$1 break;
+        proxy_pass http://dotnet_backend;
+        include /etc/nginx/proxy-common.conf;
+    }
+
+    # Статички део апликације.
+    location __BASE_PATH__/ {
+        alias /usr/share/nginx/html/frontend/;
+        try_files $uri $uri/ __BASE_PATH__/index.html;
+        index index.html;
+    }
+
+    # Конфигурација се никад не кешира: она је једино што разликује две инстанце.
+    location = __BASE_PATH__/config.json {
+        alias /usr/share/nginx/html/frontend/config.json;
+        add_header Cache-Control "no-store";
+    }
+
+    # Bundle носи contenthash у имену, па сме заувек.
+    location __BASE_PATH__/scripts/ {
+        alias /usr/share/nginx/html/frontend/scripts/;
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location /health {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "healthy\n";
+    }
+
+    location / {
+        return 404;
+    }
+}

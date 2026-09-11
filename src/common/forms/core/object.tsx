@@ -2,9 +2,9 @@ import { Either, Option, Schema } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Html from 'tea-effect/Html'
 import type * as TeaReact from 'tea-effect/React'
-import type { FieldDef, ValueOf, StateOf, MsgOf, DecodedOf, ChoiceOf } from './field'
+import type { FieldDef, ValueOf, StateOf, MsgOf, DecodedOf } from './field'
 import { fieldIssues } from './field'
-import type { FieldUi, Issue, Mode, SelectOption } from './types'
+import type { FieldUi, Issue, Mode } from './types'
 import { sameValue } from './types'
 
 // -------------------------------------------------------------------------------------
@@ -15,10 +15,18 @@ import { sameValue } from './types'
 // dependencies/effects. It does NOT own the save: the feature calls `trySubmit` and,
 // on a valid payload, fires its own Http command (so the save result stays a feature Msg).
 
-export type Fields = Record<string, FieldDef<any, any, any, any, any>>
+export type Fields = Record<string, FieldDef<any, any, any, any>>
 
 export type Draft<F extends Fields> = { readonly [K in keyof F]: ValueOf<F[K]> }
 export type Payload<F extends Fields> = { readonly [K in keyof F]: DecodedOf<F[K]> }
+
+/**
+ * Запис како стиже из API-ја. Где нацрт носи текст, прима се и број — идентификатори и
+ * количине стижу као бројеви, а превод у текст ради форма, не свако `initialForm`.
+ */
+export type RecordInput<F extends Fields> = {
+  readonly [K in keyof F]: ValueOf<F[K]> extends string ? string | number : ValueOf<F[K]>
+}
 
 export type FormModel<F extends Fields> = {
   readonly states: { readonly [K in keyof F]: StateOf<F[K]> }
@@ -37,19 +45,15 @@ type FieldMsg<F extends Fields> = {
 export type FormMsg<F extends Fields> =
   | FieldMsg<F>
   | { readonly _tag: 'Set'; readonly key: keyof F; readonly value: unknown }
-  // Popuni polje sa izborom celim opcijama, da labela preživi (vidi FieldDef.setSelected).
-  | { readonly _tag: 'SetOption'; readonly key: keyof F; readonly options: ReadonlyArray<SelectOption> }
 
 export type FieldRule = { enabled: boolean; visible: boolean; readonly: boolean; required: boolean }
 
 /**
- * Šta efekat može da pročita pored drafta: draft drži id-eve, ovo drži redove iz kojih su ti
- * id-evi izabrani — dovoljno da se vrednost izvede iz izabrane opcije.
+ * Шта ефекат може да прочита поред нацрта. Нацрт combo поља већ носи цео изабрани ред
+ * (ComboValue.row), па овде више нема шта да стоји — остаје само режим форме.
  */
-export type FormCtx<F extends Fields> = {
-  readonly selected: <K extends keyof F>(key: K) => ReadonlyArray<SelectOption<ChoiceOf<F[K]>>>
-  /** Jedan izabrani red, za uobičajen slučaj comboa sa jednim izborom. */
-  readonly chosen: <K extends keyof F>(key: K) => ChoiceOf<F[K]> | undefined
+export type FormCtx = {
+  readonly mode: Mode
 }
 
 export type Config<F extends Fields> = {
@@ -61,10 +65,10 @@ export type Config<F extends Fields> = {
    * Namerno se NE izvršava pri kreiranju ili učitavanju forme: u tom trenutku combo zna svoj
    * id ali još ne i red iza njega, pa bi izvođenje obrisalo vrednost koju zapis već ima.
    */
-  readonly derive?: (draft: Draft<F>, ctx: FormCtx<F>) => Partial<Draft<F>>
+  readonly derive?: (draft: Draft<F>, ctx: FormCtx) => Partial<Draft<F>>
   readonly effects?: ReadonlyArray<{
     readonly when: keyof F
-    readonly run: (draft: Draft<F>, ctx: FormCtx<F>) => Cmd.Cmd<FormMsg<F>>
+    readonly run: (draft: Draft<F>, ctx: FormCtx) => Cmd.Cmd<FormMsg<F>>
   }>
   readonly rules?: (draft: Draft<F>, ctx: { readonly mode: Mode }) => Partial<Record<keyof F, Partial<FieldRule>>>
   readonly validate?: (draft: Draft<F>) => ReadonlyArray<Issue>
@@ -72,15 +76,15 @@ export type Config<F extends Fields> = {
 
 export interface FormSpec<F extends Fields> {
   create(): [FormModel<F>, Cmd.Cmd<FormMsg<F>>]
-  edit(record: Draft<F>): [FormModel<F>, Cmd.Cmd<FormMsg<F>>]
-  copy(record: Draft<F>): [FormModel<F>, Cmd.Cmd<FormMsg<F>>]
-  view(record: Draft<F>): [FormModel<F>, Cmd.Cmd<FormMsg<F>>]
+  edit(record: RecordInput<F>): [FormModel<F>, Cmd.Cmd<FormMsg<F>>]
+  copy(record: RecordInput<F>): [FormModel<F>, Cmd.Cmd<FormMsg<F>>]
+  view(record: RecordInput<F>): [FormModel<F>, Cmd.Cmd<FormMsg<F>>]
   update(msg: FormMsg<F>, model: FormModel<F>): [FormModel<F>, Cmd.Cmd<FormMsg<F>>]
   /** Validate + decode. `Some(payload)` only when valid; marks the form as submitting. */
   trySubmit(model: FormModel<F>): [FormModel<F>, Option.Option<Payload<F>>]
   toEditing(model: FormModel<F>): FormModel<F>
-  /** Izabrana opcija u polju sa izborom — red iza vrednosti, a ne samo njen id. */
-  selected<K extends keyof F>(model: FormModel<F>, key: K): ReadonlyArray<SelectOption<ChoiceOf<F[K]>>>
+  /** Текући нацрт — combo поља носе и изабрани ред. */
+  draft(model: FormModel<F>): Draft<F>
   /**
    * Upiši više polja odjednom, sinhrono — bez odlaska kroz poruku. Za trenutke kada feature
    * mora sam da prepiše deo forme (brisanje onoga o čemu odlučuje promenjeni roditelj).
@@ -128,6 +132,24 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
   const draftOf = (model: FormModel<F>): Draft<F> => {
     const d: Record<string, unknown> = {}
     for (const k of keys) d[k as string] = fields[k].value(model.states[k])
+    return d as Draft<F>
+  }
+
+  /**
+   * Запис из API-ја у нацрт форме. Нацрт је оно што виџет држи, а виџет за број и за combo
+   * држи **текст** — да корисник може да укуца „1," или да поље буде празно, што број не уме
+   * да представи. Зато се број овде преводи у текст, једном, уместо да свако `initialForm`
+   * посипа `String(...)` по себи.
+   *
+   * Затечени стек то решава другачије: тамо је нацрт `number | string | null`, па конверзије
+   * нема — али онда свако читање нацрта мора да рачуна на три облика.
+   */
+  const uNacrt = (ulaz: RecordInput<F>): Draft<F> => {
+    const d: Record<string, unknown> = {}
+    for (const k of keys) {
+      const v = (ulaz as Record<string, unknown>)[k as string]
+      d[k as string] = typeof v === 'number' && typeof fields[k].empty === 'string' ? String(v) : v
+    }
     return d as Draft<F>
   }
 
@@ -190,7 +212,8 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
     serverIssues: model.serverIssues.filter(i => i.path[0] !== key),
   })
 
-  const start = (mode: Mode, record: Draft<F>, baseline: Draft<F>): [FormModel<F>, Cmd.Cmd<FormMsg<F>>] => {
+  const start = (mode: Mode, ulaz: RecordInput<F>, baseline: RecordInput<F>): [FormModel<F>, Cmd.Cmd<FormMsg<F>>] => {
+    const record = uNacrt(ulaz)
     const states: Record<string, unknown> = {}
     const cmds: Array<Cmd.Cmd<FormMsg<F>>> = []
     for (const k of keys) {
@@ -201,7 +224,7 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
     return [
       {
         states: states as FormModel<F>['states'],
-        original: baseline,
+        original: uNacrt(baseline),
         touched: new Set(),
         submitAttempted: false,
         status: 'Editing',
@@ -236,18 +259,12 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
     return [next, Cmd.batch([fieldCmd, ...effectCmds])]
   }
 
-  const chosenOptions = <K extends keyof F>(model: FormModel<F>, key: K) =>
-    (fields[key].selected?.(model.states[key]) ?? []) as ReadonlyArray<SelectOption<ChoiceOf<F[K]>>>
-
-  const ctxOf = (model: FormModel<F>): FormCtx<F> => ({
-    selected: key => chosenOptions(model, key),
-    chosen: key => chosenOptions(model, key)[0]?.data,
-  })
+  const ctxOf = (model: FormModel<F>): FormCtx => ({ mode: model.mode })
 
   // Upisuje vrednosti pravo u stanja polja. Bez poruka, bez touched: ovo forma prepravlja
   // samu sebe, nije korisnik taj koji menja.
   const writeValues = (model: FormModel<F>, values: Partial<Draft<F>>): FormModel<F> => {
-    const entries = (Object.keys(values) as Array<keyof F>).filter(k => at(values, k) !== undefined)
+    const entries = Object.keys(values) as Array<keyof F>
     if (entries.length === 0) return model
     const states: Record<string, unknown> = { ...model.states }
     for (const k of entries) states[k as string] = fields[k].set(model.states[k], at(values, k) as never)
@@ -258,15 +275,6 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
   // pa vrednost koju upiše nikada ne računamo kao dodirnutu.
   const applyDerive = (model: FormModel<F>): FormModel<F> =>
     config.derive ? writeValues(model, config.derive(draftOf(model), ctxOf(model))) : model
-
-  // Polje koje razume opcije zadržava njihove labele; sve ostalo pada na gole vrednosti, a to
-  // je i jedino što polje bez izbora ume da drži.
-  const setSelected = (key: keyof F, options: ReadonlyArray<SelectOption>, state: StateOf<F[keyof F]>) => {
-    const field = fields[key]
-    if (field.setSelected) return field.setSelected(state, options)
-    const values = options.map(o => o.value)
-    return field.set(state, (Array.isArray(field.empty) ? values : (values[0] ?? field.empty)) as never)
-  }
 
   const trySubmit = (model: FormModel<F>): [FormModel<F>, Option.Option<Payload<F>>] => {
     if (allIssues(model).some(i => i.severity === 'error')) return [{ ...model, submitAttempted: true }, Option.none()]
@@ -301,21 +309,12 @@ export const object = <F extends Fields>(fields: F, config: Config<F> = {}): For
             }),
             Cmd.none,
           ]
-        case 'SetOption':
-          return [
-            applyDerive({
-              ...model,
-              states: { ...model.states, [msg.key]: setSelected(msg.key, msg.options, model.states[msg.key]) },
-              touched: addKey(model.touched, msg.key as string),
-            }),
-            Cmd.none,
-          ]
       }
     },
 
     trySubmit,
     toEditing: model => ({ ...model, status: 'Editing' }),
-    selected: chosenOptions,
+    draft: draftOf,
     setValues: (model, values) => applyDerive(writeValues(model, values)),
     withServerIssues: (model, issues) => ({ ...model, status: 'Editing', serverIssues: issues }),
 

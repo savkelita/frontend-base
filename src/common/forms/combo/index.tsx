@@ -6,6 +6,7 @@ import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import type { ChangeEvent } from 'react'
 import type { SelectOption } from '../widgets/select'
+import { S, t } from '../../strings'
 import { Msg } from './msg'
 import * as Model from './model'
 
@@ -192,18 +193,18 @@ export const view =
           }}
         >
           {model.loading && (
-            <ComboOption key="__loading" value="__loading" text="Učitavanje…" disabled>
-              Učitavanje…
+            <ComboOption key="__loading" value="__loading" text={t(S.combo.ucitavanje)} disabled>
+              {t(S.combo.ucitavanje)}
             </ComboOption>
           )}
           {model.failed && (
-            <ComboOption key="__failed" value="__failed" text="Greška pri učitavanju" disabled>
-              Greška pri učitavanju
+            <ComboOption key="__failed" value="__failed" text={t(S.combo.greska)} disabled>
+              {t(S.combo.greska)}
             </ComboOption>
           )}
           {!model.loading && !model.failed && model.options.length === 0 && (
-            <ComboOption key="__empty" value="__empty" text="Nema rezultata" disabled>
-              Nema rezultata
+            <ComboOption key="__empty" value="__empty" text={t(S.combo.nemaRezultata)} disabled>
+              {t(S.combo.nemaRezultata)}
             </ComboOption>
           )}
           {!model.loading &&
@@ -213,8 +214,8 @@ export const view =
               </ComboOption>
             ))}
           {!model.loading && !model.failed && model.total > model.options.length && (
-            <ComboOption key="__more" value="__more" text="Učitaj još">
-              Učitaj još ({model.options.length} od {model.total})
+            <ComboOption key="__more" value="__more" text={t(S.combo.ucitajJos)}>
+              {t(S.combo.ucitajJos)} ({model.options.length} {t(S.combo.od)} {model.total})
             </ComboOption>
           )}
         </Combobox>

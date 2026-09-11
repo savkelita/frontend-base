@@ -20,16 +20,23 @@ const spec = Form.object(
 const pick = (value: string) => Combo.Msg.Picked({ option: { value, label: value } })
 
 describe('combo id decoding', () => {
+  // Nacrt je ceo izbor; u telo zahteva odlazi samo id.
   it('a combo sends the selected id as a number by default (string with numeric: false)', () => {
     const asNumber = Form.combo({ label: 'Grupa', source })
-    expect(Schema.decodeUnknownSync(asNumber.schema)('5')).toBe(5)
+    expect(Schema.decodeUnknownSync(asNumber.schema)({ id: 5, label: 'Pet' })).toBe(5)
     const asString = Form.combo({ label: 'Grupa', source, numeric: false })
-    expect(Schema.decodeUnknownSync(asString.schema)('5')).toBe('5')
+    expect(Schema.decodeUnknownSync(asString.schema)({ id: 5, label: 'Pet' })).toBe('5')
+  })
+
+  it('a required combo without a selection does not pass validation', () => {
+    const obavezan = Form.combo({ label: 'Grupa', source })
+    expect(() => Schema.decodeUnknownSync(obavezan.schema)(undefined)).toThrow()
   })
 
   it('a multi combo decodes the selected ids to numbers', () => {
     const multi = Form.multiCombo({ label: 'Proizvodi', source, optional: true })
-    expect(Schema.decodeUnknownSync(multi.schema)(['1', '2', '3'])).toEqual([1, 2, 3])
+    const izbor = [1, 2, 3].map(id => ({ id, label: String(id) }))
+    expect(Schema.decodeUnknownSync(multi.schema)(izbor)).toEqual([1, 2, 3])
   })
 })
 
@@ -77,7 +84,7 @@ describe('Form.object', () => {
 
   it('Set writes a value programmatically (autofill), silently', () => {
     const [m0] = spec.create()
-    const [m1] = spec.update({ _tag: 'Set', key: 'grupa', value: '7' }, m0)
+    const [m1] = spec.update({ _tag: 'Set', key: 'grupa', value: { id: 7, label: 'Sedam' } }, m0)
     expect(Combo.value(m1.states.grupa)).toBe('7')
   })
 
@@ -98,7 +105,11 @@ describe('Form.object', () => {
   })
 
   it('View mode disables everything', () => {
-    const [model] = spec.view({ title: 'Hat', grupa: '1', podgrupa: '11' })
+    const [model] = spec.view({
+      title: 'Hat',
+      grupa: { id: 1, label: 'Grupa 1' },
+      podgrupa: { id: 11, label: 'Podgrupa 11' },
+    })
     expect(spec.fieldUi(model, 'title').enabled).toBe(false)
     expect(spec.fieldUi(model, 'title').readonly).toBe(true)
   })
@@ -120,7 +131,12 @@ describe('Form.object', () => {
 
   it('a multi field is not dirty just because its value is read as a fresh array', () => {
     const withMulti = Form.object({ items: Form.multiCombo({ label: 'Stavke', source, optional: true }) })
-    const [model] = withMulti.edit({ items: ['1', '2'] })
+    const [model] = withMulti.edit({
+      items: [
+        { id: 1, label: 'Jedan' },
+        { id: 2, label: 'Dva' },
+      ],
+    })
     expect(withMulti.isDirty(model)).toBe(false)
     expect(withMulti.fieldUi(model, 'items').dirty).toBe(false)
   })

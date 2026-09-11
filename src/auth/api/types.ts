@@ -1,48 +1,28 @@
-import { Schema } from 'effect'
+import * as S from 'effect/Schema'
 
 // -------------------------------------------------------------------------------------
-// Domain Types
+// Аутентикација
 // -------------------------------------------------------------------------------------
+//
+// Сесија стоји у колачићу — апликација токен не држи и не види. Одговор носи само оно што
+// је потребно за мени и заштиту рута, плус колико још траје.
 
-export type Credentials = {
-  readonly username: string
-  readonly password: string
-}
-
-// -------------------------------------------------------------------------------------
-// Request Schemas
-// -------------------------------------------------------------------------------------
-
-export const LoginRequest = Schema.Struct({
-  username: Schema.String,
-  password: Schema.String,
-  expiresInMins: Schema.Number,
+export const sPrijava = S.Struct({
+  korisnickoIme: S.String,
+  lozinka: S.String,
 })
+export type Prijava = typeof sPrijava.Type
 
-export const RefreshRequest = Schema.Struct({
-  refreshToken: Schema.String,
-  expiresInMins: Schema.Number,
+export const sPravo = S.Struct({ name: S.String })
+export type Pravo = typeof sPravo.Type
+
+/**
+ * `istekZaSekundi` је релативно, не апсолутно време. Разлика у сату између клијента и
+ * сервера тако не помера тренутак истека.
+ */
+export const sSesijaOdgovor = S.Struct({
+  korisnickoIme: S.String,
+  authorizations: S.Array(sPravo),
+  istekZaSekundi: S.Number,
 })
-
-// -------------------------------------------------------------------------------------
-// Response Schemas
-// -------------------------------------------------------------------------------------
-
-export const LoginResponse = Schema.Struct({
-  id: Schema.Number,
-  username: Schema.String,
-  email: Schema.String,
-  firstName: Schema.String,
-  lastName: Schema.String,
-  gender: Schema.String,
-  image: Schema.String,
-  accessToken: Schema.String,
-  refreshToken: Schema.String,
-})
-
-export const RefreshResponse = Schema.Struct({
-  accessToken: Schema.String,
-  refreshToken: Schema.String,
-})
-
-export type RefreshResult = typeof RefreshResponse.Type
+export type SesijaOdgovor = typeof sSesijaOdgovor.Type

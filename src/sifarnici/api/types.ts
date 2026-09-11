@@ -1,11 +1,11 @@
 import * as S from 'effect/Schema'
-import type { BaseComboCriteria } from '../../common/pretraga'
+import { sComboCriteria } from '../../common/platform'
 
 // -------------------------------------------------------------------------------------
-// Artikal combo
+// Артикал combo
 // -------------------------------------------------------------------------------------
 
-export const ArtikalComboResult = S.Struct({
+export const sArtikalComboResult = S.Struct({
   id: S.Number,
   sifra: S.String,
   naziv: S.String,
@@ -15,11 +15,12 @@ export const ArtikalComboResult = S.Struct({
   eanKod: S.NullOr(S.String),
   podgrupaArtiklaID: S.Number,
 })
-export type ArtikalComboResult = typeof ArtikalComboResult.Type
+export type ArtikalComboResult = typeof sArtikalComboResult.Type
 
-export type ArtikalComboCriteria = BaseComboCriteria & {
-  readonly jeOsnovni?: string
-  readonly podgrupaArtiklaID?: string
-  readonly ukljuciNeaktivne?: string
-  readonly magacinID?: string
-}
+export const sArtikalComboCriteria = sComboCriteria({
+  jeOsnovni: S.optional(S.String),
+  podgrupaArtiklaID: S.optional(S.String),
+  ukljuciNeaktivne: S.optional(S.String),
+  magacinID: S.optional(S.String),
+})
+export type ArtikalComboCriteria = typeof sArtikalComboCriteria.Type

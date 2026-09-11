@@ -59,6 +59,9 @@ export default tseslint.config(
       'react/jsx-uses-react': 'off',
       'react/react-in-jsx-scope': 'off',
       'react/display-name': 'off',
+      // Слободан текст у JSX-у иде кроз t() из common/strings, да избор писма важи свуда.
+      // Напомена: правило не види текст у пропсовима (label, placeholder) — то остаје на прегледу.
+      'react/jsx-no-literals': ['error', { noStrings: true, ignoreProps: true, allowedStrings: ['(', ')', ':', '—', '·', '/'] }],
 
       'import-x/order': [
         'error',

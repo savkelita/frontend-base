@@ -70,8 +70,9 @@ const apply = (model: StavkaFormModel, msg: StavkaFormMsg): StavkaFormModel => S
 const start = (): StavkaFormModel => StavkaForm.create()[0]
 const valueOf = (model: StavkaFormModel, key: 'kolicina' | 'osnovnaKolicina' | 'redniBroj') =>
   model.states[key] as string
+// Nacrt sada nosi ceo izbor (id + labela + red), pa se čita direktno iz njega.
 const chosen = (model: StavkaFormModel, key: 'artikal' | 'artikalPakovanje' | 'stavkaPorudzbenice') =>
-  StavkaForm.selected(model, key)[0]
+  StavkaForm.draft(model)[key]
 
 // -------------------------------------------------------------------------------------
 // Forma sama za sebe — ono što ./form deklariše, bez učešća feature-a
@@ -153,7 +154,7 @@ describe('stavka otpremnice form', () => {
 
   it('fillFromPakovanje fills both combos with labels, not bare ids', () => {
     const m = fillFromPakovanje(start(), pakovanje)
-    expect(chosen(m, 'artikal')).toEqual({ value: '100', label: 'ART-1 - Mleko 1l' })
+    expect(chosen(m, 'artikal')).toMatchObject({ id: '100', label: 'ART-1 - Mleko 1l' })
     expect(chosen(m, 'artikalPakovanje')?.label).toBe('Kutija 12/1')
   })
 
@@ -187,7 +188,7 @@ describe('stavka otpremnice form', () => {
 const opened = (): Model => update(ctx, Msg.Loaded({ predlozeniRedniBroj: 4 }), init(ctx)[0])[0]
 
 const loadedOf = (model: Model) => {
-  if (model._tag !== 'Ready') throw new Error('expected Ready, got ' + model._tag)
+  if (model._tag !== 'Loaded') throw new Error('expected Loaded, got ' + model._tag)
   return model.loaded
 }
 
@@ -199,7 +200,7 @@ const filled = (model: Model): Model =>
     type('kolicina', '2'),
   ].reduce<Model>((m, fm) => {
     const loaded = loadedOf(m)
-    return { _tag: 'Ready', loaded: { ...loaded, form: apply(loaded.form, fm) } }
+    return { _tag: 'Loaded', loaded: { ...loaded, form: apply(loaded.form, fm) } }
   }, model)
 
 describe('kreiranje stavke otpremnice', () => {
@@ -261,9 +262,9 @@ describe('kreiranje stavke otpremnice', () => {
     expect(cmd).toBe(Cmd.none)
   })
 
-  it('one Failed handler covers every request on the save path', () => {
+  it('one SaveFailed handler covers every request on the save path', () => {
     const checking = update(ctx, Msg.Provera(), filled(opened()))[0]
-    const [model] = update(ctx, Msg.Failed({ error: { _tag: 'NetworkError', error: 'x' } }), checking)
+    const [model] = update(ctx, Msg.SaveFailed({ error: { _tag: 'NetworkError', error: 'x' } }), checking)
     expect(loadedOf(model).saving._tag).toBe('Idle')
     expect(loadedOf(model).form.status).toBe('Editing')
     expect(loadedOf(model).dovlacenjeArtiklaUProgress).toBe(false)
@@ -277,8 +278,8 @@ describe('kreiranje stavke otpremnice', () => {
 
   it('closing is refused while something is in flight', () => {
     const checking = update(ctx, Msg.Provera(), filled(opened()))[0]
-    expect(update(ctx, Msg.Close(), checking)[2]._tag).toBe('Active')
-    expect(update(ctx, Msg.Close(), opened())[2]._tag).toBe('Cancel')
+    expect(update(ctx, Msg.Cancel(), checking)[2]._tag).toBe('Active')
+    expect(update(ctx, Msg.Cancel(), opened())[2]._tag).toBe('Cancel')
   })
 
   it('choosing an order line looks up what it points at, then fills both combos', () => {
@@ -291,11 +292,7 @@ describe('kreiranje stavke otpremnice', () => {
     expect(cmd).not.toBe(Cmd.none)
     expect(chosenOrderLine(loadedOf(chosenModel).form)).toEqual(stavkaPorudzbenice)
 
-    const [model] = update(
-      ctx,
-      Msg.Prefilled({ response: { total_: 1, offset_: 0, result: [pakovanje] } }),
-      chosenModel,
-    )
+    const [model] = update(ctx, Msg.Prefilled({ response: { total: 1, offset: 0, podaci: [pakovanje] } }), chosenModel)
     expect(loadedOf(model).dovlacenjeArtiklaUProgress).toBe(false)
     expect(chosen(loadedOf(model).form, 'artikal')?.label).toBe('ART-1 - Mleko 1l')
     expect(chosen(loadedOf(model).form, 'artikalPakovanje')?.label).toBe('Kutija 12/1')

@@ -1,5 +1,6 @@
 const path = require('path')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
 
 // FluentUI packages that carry React context (theme, portal mount node, positioning,
 // focus). The datepicker/timepicker-compat packages pull their own nested copies; if
@@ -17,9 +18,7 @@ module.exports = {
   entry: path.resolve(__dirname, '..', './src/index.tsx'),
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
-    alias: Object.fromEntries(
-      fluentSingletons.map(pkg => [pkg, path.resolve(__dirname, '..', 'node_modules', pkg)]),
-    ),
+    alias: Object.fromEntries(fluentSingletons.map(pkg => [pkg, path.resolve(__dirname, '..', 'node_modules', pkg)])),
   },
   module: {
     rules: [
@@ -50,11 +49,18 @@ module.exports = {
     path: path.resolve(__dirname, '..', './dist'),
     filename: 'scripts/bundle.[contenthash].js',
     clean: true,
-    publicPath: '/',
+    // 'auto' раствара путању у односу на <base href>, који entrypoint препише на префикс
+    // инстанце. Фиксно '/' би тражило bundle у корену и под /Magacin1.
+    publicPath: 'auto',
   },
   plugins: [
     new HtmlWebpackPlugin({
       template: path.resolve(__dirname, '..', './src/index.html'),
+    }),
+    // config.json стоји поред index.html, ван bundle-а — да га entrypoint препише при
+    // подизању контејнера, без поновног превођења.
+    new CopyWebpackPlugin({
+      patterns: [{ from: path.resolve(__dirname, '..', 'public/config.json'), to: 'config.json' }],
     }),
   ],
   stats: 'errors-only',

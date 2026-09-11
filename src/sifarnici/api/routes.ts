@@ -1,16 +1,15 @@
-import * as Http from 'tea-effect/Http'
-import { env } from '../../common/env'
-import * as Pretraga from '../../common/pretraga'
-import type { PretragaResponse } from '../../common/pretraga'
-import { ArtikalComboResult } from './types'
-import type { ArtikalComboResult as ArtikalComboResultType, ArtikalComboCriteria } from './types'
+import { makeApi, profiles } from '../../common/platform'
+import { sArtikalComboCriteria, sArtikalComboResult } from './types'
 
-export const pretraziArtikalCombo = (
-  criteria: ArtikalComboCriteria,
-  offset = 0,
-  limit?: number,
-): Http.Request<PretragaResponse<ArtikalComboResultType>> =>
-  Pretraga.comboRequest(`${env.apiBaseUrl}/api/sifarnik/pretraziArtikalCombo`, ArtikalComboResult, criteria, {
-    offset,
-    limit,
-  })
+// -------------------------------------------------------------------------------------
+// Шифарник — Java модул
+// -------------------------------------------------------------------------------------
+//
+// Backend се именује једном, овде. Испод ове линије ниједан екран не зна ко га услужује.
+
+const api = makeApi(profiles.java, '/api/sifarnik')
+
+/** Артикал нема стандардни `naziv` пар за лабелу, па се она задаје изричито. */
+export const ArtikalCombo = api.combo('pretraziArtikalCombo', sArtikalComboResult, sArtikalComboCriteria, {
+  toOption: item => ({ value: String(item.id), label: `${item.sifra} - ${item.naziv}` }),
+})

@@ -45,8 +45,8 @@ describe('Login', () => {
 
     it('should set result on LoginSucceeded', () => {
       const [model] = init
-      const session = { accessToken: 'tok', refreshToken: 'rtok', username: 'admin', permissions: ['home.view'] }
-      const [newModel, cmd] = update(Msg.LoginSucceeded({ session }), {
+      const sesija = { korisnickoIme: 'admin', prava: ['home.view'], istice: Date.now() + 600000 }
+      const [newModel, cmd] = update(Msg.LoginSucceeded({ sesija }), {
         ...model,
         isSubmitting: true,
       })

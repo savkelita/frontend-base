@@ -15,6 +15,8 @@ import * as Http from 'tea-effect/Http'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Api from '../auth/api'
+import { izOdgovora } from '../auth/session'
+import { S, t } from '../common/strings'
 import type { Model } from './model'
 import { Msg, usernameChanged, passwordChanged, submit, loginSucceeded, loginFailed } from './msg'
 
@@ -46,13 +48,13 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     PasswordChanged: ({ password }): [Model, Cmd.Cmd<Msg>] => [{ ...model, password, error: Option.none() }, Cmd.none],
     Submit: (): [Model, Cmd.Cmd<Msg>] => [
       { ...model, isSubmitting: true, error: Option.none() },
-      Http.send(Api.loginRequest({ username: model.username, password: model.password }), {
-        onSuccess: response => loginSucceeded(Api.toSession(response)),
+      Http.send(Api.prijava({ korisnickoIme: model.username, lozinka: model.password }), {
+        onSuccess: odgovor => loginSucceeded(izOdgovora(odgovor)),
         onError: loginFailed,
       }),
     ],
-    LoginSucceeded: ({ session }): [Model, Cmd.Cmd<Msg>] => [
-      { ...model, isSubmitting: false, result: Option.some(session) },
+    LoginSucceeded: ({ sesija }): [Model, Cmd.Cmd<Msg>] => [
+      { ...model, isSubmitting: false, result: Option.some(sesija) },
       Cmd.none,
     ],
     LoginFailed: ({ error }): [Model, Cmd.Cmd<Msg>] => [
@@ -70,7 +72,7 @@ export const view =
   (dispatch: Platform.Dispatch<Msg>) => (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <Card style={{ width: 400, padding: tokens.spacingHorizontalXXL }}>
-        <CardHeader header={<Title1>Login</Title1>} />
+        <CardHeader header={<Title1>{t(S.prijava.naslov)}</Title1>} />
         <form
           onSubmit={e => {
             e.preventDefault()
@@ -78,14 +80,14 @@ export const view =
           }}
           style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}
         >
-          <Field label="Username">
+          <Field label={t(S.prijava.korisnickoIme)}>
             <Input
               value={model.username}
               onChange={(_e, data) => dispatch(usernameChanged(data.value))}
               disabled={model.isSubmitting}
             />
           </Field>
-          <Field label="Password">
+          <Field label={t(S.prijava.lozinka)}>
             <Input
               type="password"
               value={model.password}
@@ -95,7 +97,7 @@ export const view =
           </Field>
           {Option.isSome(model.error) && (
             <MessageBar intent="error">
-              <MessageBarBody>Invalid username or password</MessageBarBody>
+              <MessageBarBody>{t(S.prijava.pogresniPodaci)}</MessageBarBody>
             </MessageBar>
           )}
           <Button

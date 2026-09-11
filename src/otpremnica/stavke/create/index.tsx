@@ -5,6 +5,8 @@ import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import { Form } from '../../../common/forms'
 import type { FormDialogState } from '../../../common/forms'
+import { greskeNaPoljima, errorReport } from '../../../common/platform'
+import * as State from '../../../common/state'
 import { proveriMagacinArtikalPakovanje } from '../../../prijem/api'
 import * as Api from '../../api'
 import type { Model, LoadedModel } from './model'
@@ -21,8 +23,8 @@ import {
   potvrdiKreiranjeMagacinArtikalPakovanje,
   dismissConfirm,
   saved,
-  failed,
-  close,
+  saveFailed,
+  cancel,
 } from './msg'
 import { StavkaForm, layout, fields, toCmd, chosenOrderLine, clearOrderDrivenFields, fillFromPakovanje } from './form'
 
@@ -43,6 +45,15 @@ export { Outcome }
 //   3. snimanje, koje nije trenutno: magacin možda ne poznaje ovo pakovanje, pa se prvo pita
 //      server, a korisnik možda mora da odgovori pre nego što se išta upiše
 
+/**
+ * Envelope не носи име поља, само `code`. Ово пресликавање зна модул, јер зна и своје
+ * пословне кодове; платформа само носи механизам.
+ */
+const POLJE_PO_KODU: Record<string, string> = {
+  REDNI_BROJ_ZAUZET: 'redniBroj',
+  KOLICINA_VECA_OD_PORUCENE: 'kolicina',
+}
+
 export type Context = {
   readonly otpremnicaID: number
   readonly magacinID: number
@@ -51,11 +62,14 @@ export type Context = {
 }
 
 export const init = (ctx: Context): [Model, Cmd.Cmd<Msg>] => [
-  { _tag: 'Loading' },
-  Http.send(Api.dajSledeciRedniBrojStavkeOtpremnice(ctx.otpremnicaID), { onSuccess: loaded, onError: loadFailed }),
+  State.loading,
+  Http.send(Api.dajSledeciRedniBrojStavkeOtpremnice({ otpremnicaID: ctx.otpremnicaID }), {
+    onSuccess: loaded,
+    onError: loadFailed,
+  }),
 ]
 
-const ready = (loadedModel: LoadedModel): Model => ({ _tag: 'Ready', loaded: loadedModel })
+const ready = (loadedModel: LoadedModel): Model => State.loaded(loadedModel)
 
 const active = (model: Model, cmd: Cmd.Cmd<Msg> = Cmd.none): [Model, Cmd.Cmd<Msg>, Outcome] => [
   model,
@@ -66,18 +80,18 @@ const active = (model: Model, cmd: Cmd.Cmd<Msg> = Cmd.none): [Model, Cmd.Cmd<Msg
 /** Pronađi artikal + pakovanje na koje stavka porudžbenice pokazuje, da se oba comboa popune sa labelama. */
 const prefillCmd = (line: Api.StavkaPorudzbeniceOtpremnicaComboResult): Cmd.Cmd<Msg> =>
   Http.send(
-    Api.pretraziArtikalPakovanjeOtpremnicaCombo(
-      { id: line.artikalPakovanjeID, artikalID: String(line.artikalID) },
-      0,
-      1,
-    ),
-    { onSuccess: prefilled, onError: failed },
+    Api.pretraziArtikalPakovanjeOtpremnicaCombo({
+      limit: 1,
+      offset: 0,
+      criteria: { id: line.artikalPakovanjeID, artikalID: line.artikalID },
+    }),
+    { onSuccess: prefilled, onError: saveFailed },
   )
 
 const proveraCmd = (ctx: Context, artikalPakovanjeID: number): Cmd.Cmd<Msg> =>
   Http.send(proveriMagacinArtikalPakovanje(ctx.magacinID, artikalPakovanjeID), {
     onSuccess: checked,
-    onError: failed,
+    onError: saveFailed,
   })
 
 const saveCmd = (ctx: Context, loadedModel: LoadedModel, kreirajMagacinArtikalPakovanje: boolean): Cmd.Cmd<Msg> =>
@@ -86,7 +100,7 @@ const saveCmd = (ctx: Context, loadedModel: LoadedModel, kreirajMagacinArtikalPa
     onSome: payload =>
       Http.send(
         Api.kreirajStavkaOtpremnice(toCmd(payload, { otpremnicaID: ctx.otpremnicaID, kreirajMagacinArtikalPakovanje })),
-        { onSuccess: saved, onError: failed },
+        { onSuccess: saved, onError: saveFailed },
       ),
   })
 
@@ -107,13 +121,13 @@ export const update = (ctx: Context, msg: Msg, model: Model): [Model, Cmd.Cmd<Ms
       )
     },
 
-    LoadFailed: ({ error }): [Model, Cmd.Cmd<Msg>, Outcome] => active({ _tag: 'Failed', error }),
+    LoadFailed: ({ error }): [Model, Cmd.Cmd<Msg>, Outcome] => active(State.failed(errorReport(error).message)),
 
     // Polje obrađuje sama forma. Feature-u ostaje jedino stavka porudžbenice: ona odlučuje o
     // artiklu i pakovanju, pa ih promena briše i traži red kojim treba da se popune. Promena
     // se primećuje poređenjem izbora pre i posle — bez zalaženja u combo iznutra.
     Form: ({ msg: formMessage }): [Model, Cmd.Cmd<Msg>, Outcome] => {
-      if (model._tag !== 'Ready') return active(model)
+      if (!State.isLoaded(model)) return active(model)
       const before = chosenOrderLine(model.loaded.form)
       const [updated, cmd] = StavkaForm.update(formMessage, model.loaded.form)
       const after = chosenOrderLine(updated)
@@ -131,8 +145,8 @@ export const update = (ctx: Context, msg: Msg, model: Model): [Model, Cmd.Cmd<Ms
     },
 
     Prefilled: ({ response }): [Model, Cmd.Cmd<Msg>, Outcome] => {
-      if (model._tag !== 'Ready') return active(model)
-      const row = response.result[0]
+      if (!State.isLoaded(model)) return active(model)
+      const row = response.podaci[0]
       return active(
         ready({
           ...model.loaded,
@@ -144,7 +158,7 @@ export const update = (ctx: Context, msg: Msg, model: Model): [Model, Cmd.Cmd<Ms
 
     // Snimanje ne upisuje: prvo validira, pa pita server da li magacin poznaje ovo pakovanje.
     Provera: (): [Model, Cmd.Cmd<Msg>, Outcome] => {
-      if (model._tag !== 'Ready' || isBusy(model.loaded)) return active(model)
+      if (!State.isLoaded(model) || isBusy(model.loaded)) return active(model)
       const [form, payload] = StavkaForm.trySubmit(model.loaded.form)
       return Option.match(payload, {
         onNone: (): [Model, Cmd.Cmd<Msg>, Outcome] => active(ready({ ...model.loaded, form })),
@@ -163,7 +177,7 @@ export const update = (ctx: Context, msg: Msg, model: Model): [Model, Cmd.Cmd<Ms
     },
 
     Checked: ({ info }): [Model, Cmd.Cmd<Msg>, Outcome] => {
-      if (model._tag !== 'Ready') return active(model)
+      if (!State.isLoaded(model)) return active(model)
       // Poznato pakovanje: snimi odmah. Nepoznato: korisnik prvo mora da odgovori.
       return info.postoji
         ? active(ready({ ...model.loaded, saving: { _tag: 'Saving' } }), saveCmd(ctx, model.loaded, false))
@@ -171,13 +185,13 @@ export const update = (ctx: Context, msg: Msg, model: Model): [Model, Cmd.Cmd<Ms
     },
 
     PotvrdiKreiranjeMagacinArtikalPakovanje: ({ kreiraj }): [Model, Cmd.Cmd<Msg>, Outcome] => {
-      if (model._tag !== 'Ready') return active(model)
+      if (!State.isLoaded(model)) return active(model)
       return active(ready({ ...model.loaded, saving: { _tag: 'Saving' } }), saveCmd(ctx, model.loaded, kreiraj))
     },
 
     // Odustajanje od pitanja napušta snimanje i vraća formu korisniku.
     DismissConfirm: (): [Model, Cmd.Cmd<Msg>, Outcome] => {
-      if (model._tag !== 'Ready') return active(model)
+      if (!State.isLoaded(model)) return active(model)
       return active(
         ready({
           ...model.loaded,
@@ -191,12 +205,14 @@ export const update = (ctx: Context, msg: Msg, model: Model): [Model, Cmd.Cmd<Ms
     Saved: ({ identifikator }): [Model, Cmd.Cmd<Msg>, Outcome] => [model, Cmd.none, Outcome.Success({ identifikator })],
 
     // Jedan handler za svaki zahtev na putu snimanja: vrati formu uz prikazanu grešku.
-    Failed: ({ error }): [Model, Cmd.Cmd<Msg>, Outcome] => {
-      if (model._tag !== 'Ready') return active(model)
+    // Poslovne greške sa koda koji poznajemo završe na polju; ostale ostaju na formi.
+    SaveFailed: ({ error }): [Model, Cmd.Cmd<Msg>, Outcome] => {
+      if (!State.isLoaded(model)) return active(model)
+      const vraceno = StavkaForm.toEditing(model.loaded.form)
       return active(
         ready({
           ...model.loaded,
-          form: StavkaForm.toEditing(model.loaded.form),
+          form: StavkaForm.withServerIssues(vraceno, greskeNaPoljima(error, POLJE_PO_KODU)),
           pending: Option.none(),
           saving: { _tag: 'Idle' },
           dovlacenjeArtiklaUProgress: false,
@@ -205,8 +221,8 @@ export const update = (ctx: Context, msg: Msg, model: Model): [Model, Cmd.Cmd<Ms
       )
     },
 
-    Close: (): [Model, Cmd.Cmd<Msg>, Outcome] =>
-      model._tag === 'Ready' && isBusy(model.loaded) ? active(model) : [model, Cmd.none, Outcome.Cancel()],
+    Cancel: (): [Model, Cmd.Cmd<Msg>, Outcome] =>
+      State.isLoaded(model) && isBusy(model.loaded) ? active(model) : [model, Cmd.none, Outcome.Cancel()],
   })
 
 // -------------------------------------------------------------------------------------
@@ -226,10 +242,12 @@ export const view =
           ? { status: 'Failed', error: 'Neuspešno učitavanje rednog broja stavke.' }
           : { status: 'Ready', model: model.loaded.form }
 
-    const busy = model._tag === 'Ready' && isBusy(model.loaded)
-    const confirming = model._tag === 'Ready' && model.loaded.saving._tag === 'Confirming'
+    const busy = State.isLoaded(model) && isBusy(model.loaded)
+    const confirming = State.isLoaded(model) && model.loaded.saving._tag === 'Confirming'
     const error =
-      model._tag === 'Ready' && Option.isSome(model.loaded.error) ? 'Radnja nije uspela. Pokušajte ponovo.' : undefined
+      State.isLoaded(model) && Option.isSome(model.loaded.error)
+        ? errorReport(model.loaded.error.value).message
+        : undefined
 
     return (
       <>
@@ -240,7 +258,7 @@ export const view =
           title: 'Kreiranje stavke otpremnice',
           dispatch: m => dispatch(formMsg(m)),
           onSubmit: () => dispatch(provera()),
-          onClose: () => dispatch(close()),
+          onClose: () => dispatch(cancel()),
           error,
           saveDisabled: busy,
           width: 720,

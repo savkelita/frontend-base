@@ -1,147 +1,140 @@
-import * as S from 'effect/Schema'
+import * as Cmd from 'tea-effect/Cmd'
 import * as Http from 'tea-effect/Http'
-import type { SelectOption } from '../forms/widgets'
+import type { AnyCriteria, PretragaRequest, PretragaResponse, Sort } from '../platform'
+import type { Ishod, Msg } from './msg'
+import { nastaviIshod, nijeUspelo, otvoren, primljeno as primljenoMsg, stanjePromenjeno } from './msg'
+import type { Model, Podaci } from './model'
+import { ucitanoIz } from './model'
+import type { StanjeListe } from './url'
+
+export * from './model'
+export * from './url'
+export type { Sort, SortDirection, AnyCriteria, PretragaRequest, PretragaResponse } from '../platform'
+export type { Msg, Ishod } from './msg'
+export * from './msg'
+export type { Kolona } from './tabela'
+export { Tabela } from './tabela'
+export { Paginacija } from './paginacija'
 
 // -------------------------------------------------------------------------------------
-// Pretraga (search) contract
+// Листа — претрага, страничење, сортирање
 // -------------------------------------------------------------------------------------
 //
-// The standard backend search protocol used across the app. Each module's `api` declares
-// its own Criteria/Result types and the concrete route (see products/api); this module
-// holds only the shared machinery.
-//
-//   PretragaRequest<Criteria, Order>  (query params)
-//     limit_?    Int        (omit for "return all")
-//     offset_?   Int        (-1 for last page)
-//     lop_?      and | or   (default: and)
-//     ...criteria           (e.g. unetaVrednost=contains&unetaVrednost=<text>)
-//     ...order              (order_=<attr>&order_=ASC|DESC)
-//
-//   PretragaResponse<Result>
-//     { total_: number; offset_: number | null; result: Result[] }
-
-/** A criterion value: a scalar, or a tuple that flattens to repeated params. */
-export type Predicate = string | number | readonly (string | number)[]
-
-export type PretragaRequest<Criteria extends Record<string, Predicate | undefined>> = {
-  readonly limit_?: number
-  readonly offset_?: number
-  readonly lop_?: 'and' | 'or'
-  readonly criteria: Criteria
-  readonly order_?: ReadonlyArray<readonly [attribute: string, direction: 'ASC' | 'DESC']>
-}
-
-export type PretragaResponse<Result> = {
-  readonly total_: number
-  readonly offset_: number | null
-  readonly result: ReadonlyArray<Result>
-}
-
-/** Criteria shared by every combo (id + the type-ahead text); specific combos extend it. */
-export type BaseComboCriteria = {
-  readonly id?: number
-  readonly unetaVrednost?: readonly ['contains', string]
-}
-
-/** `['contains', text]` — the standard type-ahead criterion. */
-export const contains = (text: string): readonly ['contains', string] => ['contains', text]
-
-/** Builds the query string for a PretragaRequest (repeats keys for tuple values). */
-export const toQuery = <C extends Record<string, Predicate | undefined>>({
-  limit_,
-  offset_,
-  lop_,
-  criteria,
-  order_,
-}: PretragaRequest<C>): string => {
-  const params = new URLSearchParams()
-  if (limit_ != null) params.set('limit_', String(limit_))
-  if (offset_ != null) params.set('offset_', String(offset_))
-  if (lop_) params.set('lop_', lop_)
-  for (const [key, value] of Object.entries(criteria)) {
-    if (value == null) continue
-    if (Array.isArray(value)) value.forEach(v => params.append(key, String(v)))
-    else params.append(key, String(value))
-  }
-  for (const [attribute, direction] of order_ ?? []) {
-    params.append('order_', attribute)
-    params.append('order_', direction)
-  }
-  return params.toString()
-}
-
-/** `PretragaResponse<Result>` schema for a given result-item schema. */
-export const response = <A>(result: S.Schema<A>) =>
-  S.Struct({
-    total_: S.Number,
-    offset_: S.NullOr(S.Number),
-    result: S.Array(result),
-  })
+// URL је извор истине. Свака промена стања (сорт, страна, критеријуми) враћа се домаћину
+// као `StanjePromenjeno`; домаћин уписује нови URL, рутер поново диже екран, и листа креће
+// из `init` са новим стањем. Тако освежавање и дугме „назад" раде без додатног кода.
 
 /**
- * Build a combo search request: `GET url?limit_&offset_&<criteria>`, decoding a
- * `PretragaResponse<Result>`. Extracts the paging + decode boilerplate every combo route
- * repeats. Combos default to `limit_ = 10, offset_ = 0` (first page). `offset_` is a row
- * offset, so page 2 is `offset_ = 10`, page 3 `offset_ = 20`, … ("load more").
+ * `C` је тип критеријума које рута прима. Листа их сама држи нетипизиране — стижу из
+ * адресне линије, а она је улаз као и сваки други — али рута сме да буде строга, па се тип
+ * наводи овде и сужавање се дешава на једном месту (`zahtevIz` испод).
  */
-export const comboRequest = <Result>(
-  url: string,
-  result: S.Schema<Result>,
-  criteria: Record<string, Predicate | undefined>,
-  paging: { readonly limit?: number; readonly offset?: number } = {},
-): Http.Request<PretragaResponse<Result>> => {
-  const { limit = 10, offset = 0 } = paging
-  return Http.get(`${url}?${toQuery({ limit_: limit, offset_: offset, criteria })}`, Http.expectJson(response(result)))
+export type Konfiguracija<R, O extends string, C = AnyCriteria> = {
+  readonly ruta: (zahtev: PretragaRequest<C, O>) => Http.Request<PretragaResponse<R>>
+  readonly limit?: number
 }
 
-// -------------------------------------------------------------------------------------
-// Combo source
-// -------------------------------------------------------------------------------------
-//
-// What `Form.combo` consumes. Defined next to a route via `pretragaCombo`, so the form
-// only names the source (and, for cascades, how a parent value maps to a criterion) —
-// the `unetaVrednost` criterion and result->option mapping live here, not in the form.
+export const PODRAZUMEVANI_LIMIT = 20
 
-// `Result` je red koji pretraga vraća. Putuje uz svaku opciju, i forma ga kroz taj tip čita
-// nazad — što je ono što izvedenu vrednost drži bez kastova.
-export type ComboSource<Result = unknown> = {
-  /** `offset` is a row offset for paging (0, then 10, 20, … as pages are loaded). */
-  readonly request: (extra: Record<string, unknown>, query: string, offset: number) => Http.Request<any>
-  readonly toOptions: (response: any) => ReadonlyArray<SelectOption<Result>>
-  /** How many rows match in total (drives the "load more" affordance while more remain). */
-  readonly total?: (response: any) => number
-}
-
-/** The standard combo result shape; such results map to options automatically. */
-export type ComboItem = { readonly id: string | number; readonly sifra?: string | null; readonly naziv: string }
-
-// Standard label: `sifra - naziv`, or just `naziv` when there is no sifra.
-const defaultToOption = (item: ComboItem): SelectOption => ({
-  value: String(item.id),
-  label: item.sifra ? `${item.sifra} - ${item.naziv}` : item.naziv,
+const zahtevIz = <R, O extends string, C>(
+  konfiguracija: Konfiguracija<R, O, C>,
+  model: Model<R, O>,
+): PretragaRequest<C, O> => ({
+  limit: konfiguracija.limit ?? PODRAZUMEVANI_LIMIT,
+  offset: model.offset,
+  // Критеријуми долазе из адресне линије, коју корисник сме да откуца руком, па их ниједан
+  // тип не гарантује. Рута их сама своди на своја поља пре слања.
+  criteria: model.criteria as C,
+  sort: model.sort,
 })
 
-// `toOption` is optional for the standard `{ id, naziv }` result (mapped automatically);
-// pass it only when the label is built differently (e.g. `ime + prezime`).
-export function pretragaCombo<Result extends ComboItem, C extends BaseComboCriteria>(
-  route: (criteria: C, offset?: number) => Http.Request<PretragaResponse<Result>>,
-  toOption?: (item: Result) => SelectOption,
-): ComboSource<Result>
-export function pretragaCombo<Result, C extends BaseComboCriteria>(
-  route: (criteria: C, offset?: number) => Http.Request<PretragaResponse<Result>>,
-  toOption: (item: Result) => SelectOption,
-): ComboSource<Result>
-export function pretragaCombo<Result, C extends BaseComboCriteria>(
-  route: (criteria: C, offset?: number) => Http.Request<PretragaResponse<Result>>,
-  toOption?: (item: Result) => SelectOption,
-): ComboSource<Result> {
-  const map = toOption ?? (defaultToOption as (item: Result) => SelectOption)
-  // Svaka opcija nosi red iz koga je nastala, pa forma može da pročita ostale atribute
-  // izabranog reda (faktor konverzije, jedinicu mere) bez drugog zahteva.
-  const toOption_ = (item: Result): SelectOption<Result> => ({ ...map(item), data: item })
-  return {
-    request: (extra, query, offset) => route({ ...extra, unetaVrednost: contains(query) } as C, offset),
-    toOptions: response => (response as PretragaResponse<Result>).result.map(toOption_),
-    total: response => (response as PretragaResponse<Result>).total_,
+const posalji = <R, O extends string, C>(
+  konfiguracija: Konfiguracija<R, O, C>,
+  model: Model<R, O>,
+): [Model<R, O>, Cmd.Cmd<Msg<R, O>>] => {
+  const seq = model.seq + 1
+  const uToku: Model<R, O> = {
+    ...model,
+    seq,
+    podaci: { _tag: 'Ucitava', prethodni: model.podaci._tag === 'Ucitano' ? model.podaci.redovi : [] },
+  }
+  return [
+    uToku,
+    Http.send(konfiguracija.ruta(zahtevIz(konfiguracija, uToku)), {
+      onSuccess: odgovor => primljenoMsg<R, O>(seq, odgovor),
+      onError: error => nijeUspelo<R, O>(seq, error),
+    }),
+  ]
+}
+
+/** Диже листу из стања које је прочитано из URL-а и одмах шаље претрагу. */
+export const init = <R, O extends string, C>(
+  konfiguracija: Konfiguracija<R, O, C>,
+  stanje: StanjeListe<O>,
+): [Model<R, O>, Cmd.Cmd<Msg<R, O>>] =>
+  posalji(konfiguracija, {
+    criteria: stanje.criteria,
+    sort: stanje.sort,
+    offset: stanje.offset,
+    podaci: { _tag: 'Ucitava', prethodni: [] } as Podaci<R>,
+    izabrani: undefined,
+    seq: 0,
+  })
+
+/** Стање које домаћин уписује у URL. */
+export const stanje = <R, O extends string>(model: Model<R, O>): StanjeListe<O> => ({
+  criteria: model.criteria,
+  sort: model.sort,
+  offset: model.offset,
+})
+
+// Клик на заглавље: иста колона обрће смер, друга колона креће од растућег. Више колона
+// постоји само као почетна вредност — први клик своди сорт на једну.
+const sledeciSort = <O extends string>(trenutni: ReadonlyArray<Sort<O>>, kolona: O): ReadonlyArray<Sort<O>> => {
+  const prva = trenutni[0]
+  const obrni = prva !== undefined && prva[0] === kolona && prva[1] === 'ASC'
+  return [[kolona, obrni ? 'DESC' : 'ASC']]
+}
+
+export const update = <R, O extends string, C>(
+  konfiguracija: Konfiguracija<R, O, C>,
+  msg: Msg<R, O>,
+  model: Model<R, O>,
+): [Model<R, O>, Cmd.Cmd<Msg<R, O>>, Ishod<R>] => {
+  type Rezultat = [Model<R, O>, Cmd.Cmd<Msg<R, O>>, Ishod<R>]
+  const nastavi = (m: Model<R, O>, cmd: Cmd.Cmd<Msg<R, O>> = Cmd.none): Rezultat => [m, cmd, nastaviIshod<R>()]
+  const promena = (m: Model<R, O>): Rezultat => [m, Cmd.none, stanjePromenjeno<R>()]
+
+  switch (msg._tag) {
+    // Одговор старијег захтева се одбацује: корисник је у међувремену већ тражио друго.
+    case 'Primljeno':
+      return msg.seq === model.seq ? nastavi({ ...model, podaci: ucitanoIz(msg.odgovor) }) : nastavi(model)
+
+    case 'NijeUspelo':
+      return msg.seq === model.seq
+        ? nastavi({ ...model, podaci: { _tag: 'Greska', error: msg.error } })
+        : nastavi(model)
+
+    // Нов сорт увек враћа на прву страну — иначе би корисник гледао двадесети ред новог редоследа.
+    case 'Sortiraj':
+      return promena({ ...model, sort: sledeciSort(model.sort, msg.kolona), offset: 0 })
+
+    case 'PromeniStranu':
+      return promena({ ...model, offset: msg.offset })
+
+    case 'PrimeniKriterijume':
+      return promena({ ...model, criteria: msg.criteria, offset: 0 })
+
+    // Освежавање не мења стање, па не иде кроз URL — само поновни захтев.
+    case 'Osvezi': {
+      const [m, cmd] = posalji(konfiguracija, model)
+      return nastavi(m, cmd)
+    }
+
+    case 'Izaberi':
+      return nastavi({ ...model, izabrani: msg.red })
+
+    case 'Otvori':
+      return [{ ...model, izabrani: msg.red }, Cmd.none, otvoren(msg.red)]
   }
 }

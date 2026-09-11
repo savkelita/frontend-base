@@ -1,13 +1,14 @@
-import * as Http from 'tea-effect/Http'
-import { env } from '../../common/env'
-import { MagacinArtikalPakovanjeInfo } from './types'
-import type { MagacinArtikalPakovanjeInfo as MagacinArtikalPakovanjeInfoType } from './types'
+import { makeApi, profiles } from '../../common/platform'
+import { sMagacinArtikalPakovanjeInfo } from './types'
 
-export const proveriMagacinArtikalPakovanje = (
-  magacinID: number,
-  artikalPakovanjeID: number,
-): Http.Request<MagacinArtikalPakovanjeInfoType> =>
-  Http.get(
-    `${env.apiBaseUrl}/api/sifarnik/proveriMagacinArtikalPakovanje?magacinID=${magacinID}&artikalPakovanjeID=${artikalPakovanjeID}`,
-    Http.expectJson(MagacinArtikalPakovanjeInfo),
-  )
+// -------------------------------------------------------------------------------------
+// Пријем — Java модул
+// -------------------------------------------------------------------------------------
+
+const api = makeApi(profiles.java, '/api/sifarnik')
+
+const proveri = api.upit('proveriMagacinArtikalPakovanje', sMagacinArtikalPakovanjeInfo)
+
+/** Да ли магацин већ познаје ово паковање артикла. Пита се пре снимања, не после. */
+export const proveriMagacinArtikalPakovanje = (magacinID: number, artikalPakovanjeID: number) =>
+  proveri({ magacinID, artikalPakovanjeID })

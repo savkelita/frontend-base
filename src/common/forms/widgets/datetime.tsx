@@ -2,6 +2,7 @@ import { Field, Input } from '@fluentui/react-components'
 import { DatePicker } from '@fluentui/react-datepicker-compat'
 import { DayOfWeek } from '@fluentui/react-calendar-compat'
 import type { ReactElement } from 'react'
+import { kalendarskiTekstovi } from '../../strings'
 import type { WidgetProps } from './registry'
 import { maskTime } from './masks'
 
@@ -59,6 +60,7 @@ export const DateTimeWidget = ({
           formatDate={formatDdMmYyyy}
           parseDateFromString={parseDdMmYyyy}
           allowTextInput
+          strings={kalendarskiTekstovi()}
           placeholder="dd.mm.yyyy"
           disabled={disabled}
           firstDayOfWeek={DayOfWeek.Monday}

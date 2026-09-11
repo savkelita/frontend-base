@@ -5,5 +5,5 @@ import * as S from 'effect/Schema'
 // -------------------------------------------------------------------------------------
 
 /** Da li magacin već poznaje ovo pakovanje ovog artikla. */
-export const MagacinArtikalPakovanjeInfo = S.Struct({ postoji: S.Boolean })
-export type MagacinArtikalPakovanjeInfo = typeof MagacinArtikalPakovanjeInfo.Type
+export const sMagacinArtikalPakovanjeInfo = S.Struct({ postoji: S.Boolean })
+export type MagacinArtikalPakovanjeInfo = typeof sMagacinArtikalPakovanjeInfo.Type

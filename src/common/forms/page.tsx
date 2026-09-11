@@ -1,5 +1,6 @@
 import { Title1, Button, Card, MessageBar, MessageBarBody, Link, makeStyles, tokens } from '@fluentui/react-components'
 import type { ReactElement } from 'react'
+import { S, t } from '../strings'
 import type { Fields, FormModel, FormMsg, FormSpec } from './core/object'
 
 // -------------------------------------------------------------------------------------
@@ -58,7 +59,7 @@ const FormPageView = <F extends Fields>(props: PageProps<F>): ReactElement => {
 
         <div className={styles.actions}>
           <Button appearance="primary" disabled={submitting} onClick={props.onSubmit}>
-            {submitting ? 'Snimanje…' : (props.submitLabel ?? 'Sačuvaj')}
+            {submitting ? t(S.opste.snimanje) : (props.submitLabel ?? t(S.opste.sacuvaj))}
           </Button>
           {props.cancel && (
             <Link href={props.cancel.href} as="a">

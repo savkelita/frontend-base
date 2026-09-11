@@ -1,54 +1,20 @@
-import { pipe } from 'effect'
-import * as Http from 'tea-effect/Http'
-import * as Task from 'tea-effect/Task'
-import { env } from '../../common/env'
-import type { ApiError } from '../../common/http'
-import { mapHttpError } from '../../common/http'
-import type { Session } from '../session'
-import { LoginRequest, LoginResponse, RefreshRequest, RefreshResponse } from './types'
-import type { Credentials, RefreshResult } from './types'
+import { makeApi, profiles, sNoContent } from '../../common/platform'
+import { sPrijava, sSesijaOdgovor } from './types'
 
 // -------------------------------------------------------------------------------------
-// Constants
+// Руте аутентикације
 // -------------------------------------------------------------------------------------
+//
+// Профил је овде без значаја — аутентикација не иде кроз претрагу, а исти колачић важи код
+// оба backend-а. `makeApi` се користи да и ови захтеви добију XSRF заглавље.
 
-const EXPIRES_IN_MINS = 5
-const HARDCODED_PERMISSIONS: ReadonlyArray<string> = ['home.view', 'products.view']
+const api = makeApi(profiles.java, '/api/autentifikacija')
 
-// -------------------------------------------------------------------------------------
-// Login
-// -------------------------------------------------------------------------------------
+export const prijava = api.komanda('prijava', sPrijava, sSesijaOdgovor)
 
-export const loginRequest = (credentials: Credentials): Http.Request<typeof LoginResponse.Type> =>
-  Http.post(
-    `${env.apiBaseUrl}/auth/login`,
-    Http.jsonBody(LoginRequest, {
-      username: credentials.username,
-      password: credentials.password,
-      expiresInMins: EXPIRES_IN_MINS,
-    }),
-    Http.expectJson(LoginResponse),
-  )
+/** Сесија коју колачић већ носи; 401 значи да пријаве нема. */
+export const tekucaSesija = api.pozovi('tekucaSesija', sSesijaOdgovor)
 
-export const toSession = (response: typeof LoginResponse.Type): Session => ({
-  accessToken: response.accessToken,
-  refreshToken: response.refreshToken,
-  username: response.username,
-  permissions: [...HARDCODED_PERMISSIONS],
-})
+export const produziSesiju = api.pozovi('produziSesiju', sSesijaOdgovor)
 
-// -------------------------------------------------------------------------------------
-// Refresh
-// -------------------------------------------------------------------------------------
-
-export const refresh = (refreshToken: string): Task.Task<RefreshResult, ApiError> =>
-  pipe(
-    Http.toTask(
-      Http.post(
-        `${env.apiBaseUrl}/auth/refresh`,
-        Http.jsonBody(RefreshRequest, { refreshToken, expiresInMins: EXPIRES_IN_MINS }),
-        Http.expectJson(RefreshResponse),
-      ),
-    ),
-    Task.mapError(mapHttpError),
-  )
+export const odjava = api.pozovi('odjava', sNoContent)

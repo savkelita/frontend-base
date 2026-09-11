@@ -1,11 +1,11 @@
-import { Data, Either, Option } from 'effect'
+import { Data } from 'effect'
+import type * as Http from 'tea-effect/Http'
 import type * as Navigation from 'tea-effect/Navigation'
-import type * as LocalStorage from 'tea-effect/LocalStorage'
-import type { ApiError } from '../common/http'
-import type { Session } from '../auth/session'
-import type { RefreshResult } from '../auth/api'
+import type { SesijaOdgovor } from '../auth/api'
+import type * as SesijaUnit from '../auth/sesija'
 import type * as Login from '../login'
 import type * as Nav from '../navigation'
+import type { Pismo } from '../common/strings'
 import type { ScreenMsg } from './screen-msg'
 
 export type Msg = Data.TaggedEnum<{
@@ -13,12 +13,13 @@ export type Msg = Data.TaggedEnum<{
   UrlChanged: { readonly location: Navigation.Location }
   Screen: { readonly screenMsg: ScreenMsg }
   Navigation: { readonly navMsg: Nav.Msg }
-  SessionLoaded: { readonly session: Option.Option<Session> }
-  SessionLoadError: { readonly error: LocalStorage.LocalStorageError }
+  /** Одговор на `tekucaSesija` при дизању апликације. */
+  SesijaPotvrdjena: { readonly odgovor: SesijaOdgovor }
+  SesijaNijePotvrdjena: { readonly error: Http.HttpError }
   Login: { readonly loginMsg: Login.Msg }
+  Sesija: { readonly sesijaMsg: SesijaUnit.Msg }
   Logout: {}
-  RefreshTick: {}
-  RefreshCompleted: { readonly result: Either.Either<RefreshResult, ApiError> }
+  PromeniPismo: { readonly pismo: Pismo }
 }>
 
 export const Msg = Data.taggedEnum<Msg>()
@@ -27,10 +28,9 @@ export const urlRequested = (request: Navigation.UrlRequest): Msg => Msg.UrlRequ
 export const urlChanged = (location: Navigation.Location): Msg => Msg.UrlChanged({ location })
 export const screen = (screenMsg: ScreenMsg): Msg => Msg.Screen({ screenMsg })
 export const navigation = (navMsg: Nav.Msg): Msg => Msg.Navigation({ navMsg })
-export const sessionLoaded = (session: Option.Option<Session>): Msg => Msg.SessionLoaded({ session })
-export const sessionLoadError = (error: LocalStorage.LocalStorageError): Msg => Msg.SessionLoadError({ error })
+export const sesijaPotvrdjena = (odgovor: SesijaOdgovor): Msg => Msg.SesijaPotvrdjena({ odgovor })
+export const sesijaNijePotvrdjena = (error: Http.HttpError): Msg => Msg.SesijaNijePotvrdjena({ error })
 export const login = (loginMsg: Login.Msg): Msg => Msg.Login({ loginMsg })
+export const sesija = (sesijaMsg: SesijaUnit.Msg): Msg => Msg.Sesija({ sesijaMsg })
 export const logout = (): Msg => Msg.Logout()
-export const refreshTick = (): Msg => Msg.RefreshTick()
-export const refreshCompleted = (result: Either.Either<RefreshResult, ApiError>): Msg =>
-  Msg.RefreshCompleted({ result })
+export const promeniPismo = (pismo: Pismo): Msg => Msg.PromeniPismo({ pismo })

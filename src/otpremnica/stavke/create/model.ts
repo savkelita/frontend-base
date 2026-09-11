@@ -1,5 +1,6 @@
 import type { Option } from 'effect'
 import type * as Http from 'tea-effect/Http'
+import type * as State from '../../../common/state'
 import type { Payload } from '../../../common/forms'
 import type { fields, StavkaFormModel } from './form'
 
@@ -28,10 +29,8 @@ export type LoadedModel = {
   readonly error: Option.Option<Http.HttpError>
 }
 
-export type Model =
-  | { readonly _tag: 'Loading' }
-  | { readonly _tag: 'Ready'; readonly loaded: LoadedModel }
-  | { readonly _tag: 'Failed'; readonly error: Http.HttpError }
+// Три гране стоje у `common/state`; овде је само оно што је у њима.
+export type Model = State.Load<LoadedModel>
 
 /** Da li je nešto u letu ili čeka odgovor? Dok jeste, snimanje i zatvaranje su blokirani. */
 export const isBusy = (loaded: LoadedModel): boolean =>

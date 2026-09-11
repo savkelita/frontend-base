@@ -1,4 +1,5 @@
 import { Spinner, makeStyles } from '@fluentui/react-components'
+import { S, t } from '../../common/strings'
 
 const useStyles = makeStyles({
   root: {
@@ -13,7 +14,7 @@ export const LoadingView = () => {
   const styles = useStyles()
   return (
     <div className={styles.root}>
-      <Spinner label="Loading..." />
+      <Spinner label={t(S.ljuska.ucitavanje)} />
     </div>
   )
 }

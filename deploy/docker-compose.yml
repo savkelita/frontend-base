@@ -1,0 +1,26 @@
+# Две инстанце из истог образа — доказ да префикс живи ван грађевине.
+services:
+  magacin1:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: frontend-base:latest
+    environment:
+      ENVIRONMENT: Magacin1
+      JAVA_UPSTREAM: java-backend:8080
+      DOTNET_UPSTREAM: dotnet-backend:5000
+      PISMO: cirilica
+    ports:
+      - '8081:80'
+
+  magacin2:
+    image: frontend-base:latest
+    environment:
+      ENVIRONMENT: Magacin2
+      JAVA_UPSTREAM: java-backend-2:8080
+      DOTNET_UPSTREAM: dotnet-backend-2:5000
+      PISMO: latinica
+    ports:
+      - '8082:80'
+    depends_on:
+      - magacin1

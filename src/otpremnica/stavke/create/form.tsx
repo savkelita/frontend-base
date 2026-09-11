@@ -1,5 +1,5 @@
 import { Form } from '../../../common/forms'
-import type { FormModel, FormMsg, FormCtx, FieldRenderer, Draft, Payload } from '../../../common/forms'
+import type { FormModel, FormMsg, FieldRenderer, Draft, Payload } from '../../../common/forms'
 import { ArtikalCombo } from '../../../sifarnici/api'
 import * as Api from '../../api'
 
@@ -27,7 +27,7 @@ export const fields = {
     label: 'Artikal pakovanje',
     source: Api.ArtikalPakovanjeOtpremnicaCombo,
     dependsOn: 'artikal',
-    criteria: deps => ({ artikalID: deps.artikal }),
+    criteria: deps => ({ artikalID: Form.roditelj(deps, 'artikal') }),
   }),
   kolicina: Form.decimal({ label: 'Poručena količina', min: 0 }),
   osnovnaKolicina: Form.decimal({ label: 'Osnovna količina', min: 0 }),
@@ -37,7 +37,6 @@ export type FieldKey = keyof typeof fields
 export type StavkaFormModel = FormModel<typeof fields>
 export type StavkaFormMsg = FormMsg<typeof fields>
 type StavkaDraft = Draft<typeof fields>
-type Ctx = FormCtx<typeof fields>
 
 // -------------------------------------------------------------------------------------
 // Osnovna količina = količina × kolicinaUOsnovnojJM × kolicinaUPakovanju
@@ -46,21 +45,21 @@ type Ctx = FormCtx<typeof fields>
 // Jedno pravilo na jednom mestu. Napisano kao invarijanta, a ne kao reakcija, pa ne može da
 // se razidje onako kako se razilaze dva odvojena handlera promene.
 
-const osnovnaKolicina = (draft: StavkaDraft, ctx: Ctx): string => {
-  const pakovanje = ctx.chosen('artikalPakovanje')
+const osnovnaKolicina = (draft: StavkaDraft): string => {
+  const pakovanje = draft.artikalPakovanje?.row
   const kolicina = Number(draft.kolicina.trim().replace(',', '.'))
   if (!pakovanje || draft.kolicina.trim() === '' || !Number.isFinite(kolicina)) return ''
   return String(kolicina * pakovanje.kolicinaUOsnovnojJM * pakovanje.kolicinaUPakovanju)
 }
 
 export const StavkaForm = Form.object(fields, {
-  derive: (draft, ctx) => ({ osnovnaKolicina: osnovnaKolicina(draft, ctx) }),
+  derive: draft => ({ osnovnaKolicina: osnovnaKolicina(draft) }),
 
   rules: draft => {
     // Stavka preuzeta sa porudžbenice diktira svoj artikal i pakovanje: prikazani, ali ne i
     // izmenjivi. Disabled a ne readonly, jer se ta dva i dalje moraju validirati — readonly
     // polja se preskaču, pa bi prazan obavezan combo prošao neprimećeno.
-    const fromOrder = draft.stavkaPorudzbenice !== ''
+    const fromOrder = draft.stavkaPorudzbenice !== undefined
     return {
       osnovnaKolicina: { readonly: true },
       artikal: { enabled: !fromOrder },
@@ -75,34 +74,21 @@ export const StavkaForm = Form.object(fields, {
 
 /** Stavka porudžbenice koju je korisnik izabrao, ili undefined — njeni id-evi vode pretragu u ./index. */
 export const chosenOrderLine = (model: StavkaFormModel): Api.StavkaPorudzbeniceOtpremnicaComboResult | undefined =>
-  StavkaForm.selected(model, 'stavkaPorudzbenice')[0]?.data
+  StavkaForm.draft(model).stavkaPorudzbenice?.row
 
 /** Promenjena stavka porudžbenice odlučuje o artiklu i pakovanju, pa ono što je bilo tu prvo ide. */
 export const clearOrderDrivenFields = (model: StavkaFormModel): StavkaFormModel =>
-  StavkaForm.setValues(model, { artikal: '', artikalPakovanje: '', kolicina: '' })
+  StavkaForm.setValues(model, { artikal: undefined, artikalPakovanje: undefined, kolicina: '' })
 
 /** Popuni artikal + pakovanje iz pronađenog reda pakovanja, zadržavajući obe labele. */
 export const fillFromPakovanje = (
   model: StavkaFormModel,
   row: Api.ArtikalPakovanjeOtpremnicaComboResult,
-): StavkaFormModel => {
-  const withArtikal = StavkaForm.update(
-    {
-      _tag: 'SetOption',
-      key: 'artikal',
-      options: [{ value: String(row.artikalID), label: `${row.artikalSifra} - ${row.artikalNaziv}` }],
-    },
-    model,
-  )[0]
-  return StavkaForm.update(
-    {
-      _tag: 'SetOption',
-      key: 'artikalPakovanje',
-      options: [{ value: String(row.id), label: row.pakovanjeDimenzijaNaziv, data: row }],
-    },
-    withArtikal,
-  )[0]
-}
+): StavkaFormModel =>
+  StavkaForm.setValues(model, {
+    artikal: { id: row.artikalID, label: `${row.artikalSifra} - ${row.artikalNaziv}` },
+    artikalPakovanje: { id: row.id, label: row.pakovanjeDimenzijaNaziv, row },
+  })
 
 // -------------------------------------------------------------------------------------
 // Payload -> komanda. Ovaj šav pripada feature-u: id-evi kojih nema na formi (otpremnicaID)

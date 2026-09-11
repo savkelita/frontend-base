@@ -1,17 +1,36 @@
-import { Schema } from 'effect'
+import * as S from 'effect/Schema'
+import type { SesijaOdgovor } from './api'
 import type { AuthorizationConfig } from './types'
 
-export const Session = Schema.Struct({
-  accessToken: Schema.String,
-  refreshToken: Schema.String,
-  username: Schema.String,
-  permissions: Schema.Array(Schema.String),
+// -------------------------------------------------------------------------------------
+// Сесија
+// -------------------------------------------------------------------------------------
+//
+// Токена овде нема: држи га прегледач у колачићу. Апликација памти само оно што јој треба
+// за мени, заштиту рута и одбројавање до истека.
+
+export const sSesija = S.Struct({
+  korisnickoIme: S.String,
+  prava: S.Array(S.String),
+  /** Тренутак истека, израчунат из релативног `istekZaSekundi` при пријави. */
+  istice: S.Number,
+})
+export type Sesija = typeof sSesija.Type
+
+/**
+ * Кључ у `localStorage`. Служи двоструко: за брзо прво исцртавање и као канал којим се
+ * картице обавештавају о пријави и одјави (`storage` догађај).
+ */
+export const SESIJA_KLJUC = 'sesija'
+
+export const izOdgovora = (odgovor: SesijaOdgovor, sada: number = Date.now()): Sesija => ({
+  korisnickoIme: odgovor.korisnickoIme,
+  prava: odgovor.authorizations.map(p => p.name),
+  istice: sada + odgovor.istekZaSekundi * 1000,
 })
 
-export type Session = typeof Session.Type
+export const toAuthorizationConfig = (sesija: Sesija): AuthorizationConfig => ({ permissions: sesija.prava })
 
-export const SESSION_KEY = 'session'
-
-export const toAuthorizationConfig = (session: Session): AuthorizationConfig => ({
-  permissions: [...session.permissions],
-})
+/** Колико још траје, у секундама; никад мање од нуле. */
+export const preostaloSekundi = (sesija: Sesija, sada: number = Date.now()): number =>
+  Math.max(0, Math.round((sesija.istice - sada) / 1000))

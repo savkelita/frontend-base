@@ -12,7 +12,10 @@ import {
   makeStyles,
   tokens,
 } from '@fluentui/react-components'
+import { Option } from 'effect'
 import type { ReactElement } from 'react'
+import type { Load } from '../state'
+import { S, t } from '../strings'
 import type { Fields, FormModel, FormMsg, FormSpec } from './core/object'
 import type { FieldRenderer } from './page'
 
@@ -48,6 +51,66 @@ const useStyles = makeStyles({
   content: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM },
 })
 
+// -------------------------------------------------------------------------------------
+// Од стања екрана до пропова дијалога
+// -------------------------------------------------------------------------------------
+//
+// Дијалог има два одвојена канала за грешку: `state.status === 'Failed'` је запис који се
+// није учитао (форме нема), а `error` је неуспело снимање (форма стоји, корисник поправља
+// унос). Свако ажурирање их изводи из истог стања, па то извођење стоји овде — уместо да
+// сваки вид поново гранa по истом `_tag`-у.
+
+/** Стање форме која се снима. Ово има свака радња са формом — и креирање и измена. */
+export type SavableForm<F extends Fields> = {
+  readonly form: FormModel<F>
+  readonly saving: boolean
+  readonly error: Option.Option<string>
+}
+
+/**
+ * Исто, плус учитан запис: измена мора да врати version непромењен. Креирање оригинал
+ * нема, па су ово два типа а не један са необавезним пољем.
+ *
+ * Написано у целини, а не као пресек са SavableForm: кроз пресек TypeScript не уме да
+ * закључи F (долази из мапираног типа у FormModel), па би сваки позив морао да га наведе.
+ */
+export type EditableForm<F extends Fields, Original> = {
+  readonly form: FormModel<F>
+  readonly saving: boolean
+  readonly error: Option.Option<string>
+  readonly original: Original
+}
+
+export type DialogStateProps<F extends Fields> = {
+  readonly state: FormDialogState<F>
+  readonly error: string | undefined
+  readonly saveDisabled: boolean
+}
+
+const spremna = <F extends Fields>(forma: SavableForm<F>): DialogStateProps<F> => ({
+  state: { status: 'Ready', model: forma.form },
+  error: Option.getOrUndefined(forma.error),
+  saveDisabled: forma.saving,
+})
+
+/**
+ * Прима и форму која се учитава (измена) и ону која се не учитава (креирање), па исти вид
+ * дијалога важи за обе радње.
+ */
+export function dialogProps<F extends Fields>(model: Load<SavableForm<F>>): DialogStateProps<F>
+export function dialogProps<F extends Fields>(model: SavableForm<F>): DialogStateProps<F>
+export function dialogProps<F extends Fields>(model: SavableForm<F> | Load<SavableForm<F>>): DialogStateProps<F> {
+  if (!('_tag' in model)) return spremna(model)
+  switch (model._tag) {
+    case 'Loading':
+      return { state: { status: 'Loading' }, error: undefined, saveDisabled: true }
+    case 'Loaded':
+      return spremna(model.loaded)
+    case 'Failed':
+      return { state: { status: 'Failed', error: model.message }, error: undefined, saveDisabled: true }
+  }
+}
+
 const backdrop = <div style={{ backgroundColor: 'rgba(0,0,0,.4)', width: '100%', height: '100%' }} aria-hidden="true" />
 
 export const dialog = <F extends Fields>(props: FormDialogProps<F>): ReactElement => <FormDialogView {...props} />
@@ -65,7 +128,7 @@ const FormDialogView = <F extends Fields>(props: FormDialogProps<F>): ReactEleme
         <DialogBody>
           <DialogTitle>{props.title}</DialogTitle>
           <DialogContent className={styles.content}>
-            {state.status === 'Loading' && <Spinner labelPosition="below" label="Učitavanje…" />}
+            {state.status === 'Loading' && <Spinner labelPosition="below" label={t(S.opste.ucitavanje)} />}
             {state.status === 'Failed' && (
               <MessageBar intent="error">
                 <MessageBarBody>{state.error}</MessageBarBody>
@@ -84,11 +147,11 @@ const FormDialogView = <F extends Fields>(props: FormDialogProps<F>): ReactEleme
           </DialogContent>
           <DialogActions>
             <Button appearance="secondary" disabled={submitting} onClick={props.onClose}>
-              Zatvori
+              {t(S.opste.zatvori)}
             </Button>
             {state.status === 'Ready' && (
               <Button appearance="primary" disabled={submitting || props.saveDisabled} onClick={props.onSubmit}>
-                {submitting ? 'Snimanje…' : (props.submitLabel ?? 'Sačuvaj')}
+                {submitting ? t(S.opste.snimanje) : (props.submitLabel ?? t(S.opste.sacuvaj))}
               </Button>
             )}
           </DialogActions>
@@ -131,10 +194,10 @@ const ConfirmDialogView = (props: ConfirmDialogProps): ReactElement => {
           </DialogContent>
           <DialogActions>
             <Button appearance="secondary" disabled={props.busy} onClick={props.onCancel}>
-              Odustani
+              {t(S.opste.odustani)}
             </Button>
             <Button appearance="primary" disabled={props.busy} onClick={props.onConfirm}>
-              {props.busy ? 'Brisanje…' : (props.confirmLabel ?? 'Obriši')}
+              {props.busy ? t(S.opste.brisanje) : (props.confirmLabel ?? t(S.opste.obrisi))}
             </Button>
           </DialogActions>
         </DialogBody>

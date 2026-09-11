@@ -1,64 +1,72 @@
 import * as S from 'effect/Schema'
-import * as Http from 'tea-effect/Http'
-import { ObjekatIdentifikator } from '../../common/api'
-import type { ObjekatIdentifikator as ObjekatIdentifikatorType } from '../../common/api'
-import { env } from '../../common/env'
-import * as Pretraga from '../../common/pretraga'
-import type { PretragaResponse } from '../../common/pretraga'
+import { makeApi, profiles, sObjekatIdentifikator } from '../../common/platform'
 import {
-  ArtikalPakovanjeOtpremnicaComboResult,
-  StavkaPorudzbeniceOtpremnicaComboResult,
-  KreirajStavkaOtpremniceCmd,
+  sArtikalPakovanjeOtpremnicaComboCriteria,
+  sArtikalPakovanjeOtpremnicaComboResult,
+  sArtikalPakovanjeOtpremnicaOrder,
+  sKreirajStavkaOtpremniceCmd,
+  sStavkaOtpremniceCriteria,
+  sStavkaOtpremniceOrder,
+  sStavkaOtpremniceResult,
+  sStavkaPorudzbeniceOtpremnicaComboCriteria,
+  sStavkaPorudzbeniceOtpremnicaComboResult,
 } from './types'
-import type {
-  ArtikalPakovanjeOtpremnicaComboResult as ArtikalPakovanjeOtpremnicaComboResultType,
-  ArtikalPakovanjeOtpremnicaComboCriteria,
-  StavkaPorudzbeniceOtpremnicaComboResult as StavkaPorudzbeniceOtpremnicaComboResultType,
-  StavkaPorudzbeniceOtpremnicaComboCriteria,
-  KreirajStavkaOtpremniceCmd as KreirajStavkaOtpremniceCmdType,
-} from './types'
-
-const base = `${env.apiBaseUrl}/api/otpremnica`
 
 // -------------------------------------------------------------------------------------
-// Rute comboa
+// Отпремница — Java модул
 // -------------------------------------------------------------------------------------
 
-export const pretraziArtikalPakovanjeOtpremnicaCombo = (
-  criteria: ArtikalPakovanjeOtpremnicaComboCriteria,
-  offset = 0,
-  limit?: number,
-): Http.Request<PretragaResponse<ArtikalPakovanjeOtpremnicaComboResultType>> =>
-  Pretraga.comboRequest(
-    `${base}/pretraziArtikalPakovanjeOtpremnicaCombo`,
-    ArtikalPakovanjeOtpremnicaComboResult,
-    criteria,
-    { offset, limit },
-  )
+const api = makeApi(profiles.java, '/api/otpremnica')
 
-export const pretraziStavkaPorudzbeniceOtpremnicaCombo = (
-  criteria: StavkaPorudzbeniceOtpremnicaComboCriteria,
-  offset = 0,
-  limit?: number,
-): Http.Request<PretragaResponse<StavkaPorudzbeniceOtpremnicaComboResultType>> =>
-  Pretraga.comboRequest(
-    `${base}/pretraziStavkaPorudzbeniceOtpremnicaCombo`,
-    StavkaPorudzbeniceOtpremnicaComboResult,
-    criteria,
-    { offset, limit },
-  )
+// --- combo извори ---
+//
+// Ниједан од ова два реда не носи стандардни пар `sifra` / `naziv`, па се лабела задаје.
 
-// -------------------------------------------------------------------------------------
-// Stavka otpremnice
-// -------------------------------------------------------------------------------------
+export const ArtikalPakovanjeOtpremnicaCombo = api.combo(
+  'pretraziArtikalPakovanjeOtpremnicaCombo',
+  sArtikalPakovanjeOtpremnicaComboResult,
+  sArtikalPakovanjeOtpremnicaComboCriteria,
+  { toOption: item => ({ value: String(item.id), label: item.pakovanjeDimenzijaNaziv }) },
+)
 
-/** Redni broj predložen za novu stavku; odgovor je goli broj. */
-export const dajSledeciRedniBrojStavkeOtpremnice = (otpremnicaID: number): Http.Request<number> =>
-  Http.get(`${base}/dajSledeciRedniBrojStavkeOtpremnice/${otpremnicaID}`, Http.expectJson(S.Number))
+export const StavkaPorudzbeniceOtpremnicaCombo = api.combo(
+  'pretraziStavkaPorudzbeniceOtpremnicaCombo',
+  sStavkaPorudzbeniceOtpremnicaComboResult,
+  sStavkaPorudzbeniceOtpremnicaComboCriteria,
+  {
+    toOption: item => ({
+      value: String(item.id),
+      label: `${item.redniBroj} - ${item.artikalSifra} - ${item.artikalNaziv}`,
+    }),
+  },
+)
 
-export const kreirajStavkaOtpremnice = (cmd: KreirajStavkaOtpremniceCmdType): Http.Request<ObjekatIdentifikatorType> =>
-  Http.post(
-    `${base}/kreirajStavkaOtpremnice`,
-    Http.jsonBody(KreirajStavkaOtpremniceCmd, cmd),
-    Http.expectJson(ObjekatIdentifikator),
-  )
+// --- операције ---
+
+/** Претрага паковања, за дохватање реда иза изабране ставке поруџбенице. */
+export const pretraziArtikalPakovanjeOtpremnicaCombo = api.pretraga(
+  'pretraziArtikalPakovanjeOtpremnicaCombo',
+  sArtikalPakovanjeOtpremnicaComboResult,
+  sArtikalPakovanjeOtpremnicaComboCriteria,
+  sArtikalPakovanjeOtpremnicaOrder,
+)
+
+export const pretraziStavkaOtpremnice = api.pretraga(
+  'pretraziStavkaOtpremnice',
+  sStavkaOtpremniceResult,
+  sStavkaOtpremniceCriteria,
+  sStavkaOtpremniceOrder,
+)
+
+/** Редни број предложен за нову ставку; одговор је голи број. */
+export const dajSledeciRedniBrojStavkeOtpremnice = api.dajInfo(
+  'dajSledeciRedniBrojStavkeOtpremnice',
+  S.Struct({ otpremnicaID: S.Number }),
+  S.Number,
+)
+
+export const kreirajStavkaOtpremnice = api.komanda(
+  'kreirajStavkaOtpremnice',
+  sKreirajStavkaOtpremniceCmd,
+  sObjekatIdentifikator,
+)

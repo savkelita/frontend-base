@@ -1,7 +1,6 @@
 import { Data } from 'effect'
 import type * as Http from 'tea-effect/Http'
-import type { ObjekatIdentifikator } from '../../../common/api'
-import type { PretragaResponse } from '../../../common/pretraga'
+import type { ObjekatIdentifikator, PretragaResponse } from '../../../common/platform'
 import type { MagacinArtikalPakovanjeInfo } from '../../../prijem/api'
 import type { ArtikalPakovanjeOtpremnicaComboResult } from '../../api'
 import type { StavkaFormMsg } from './form'
@@ -20,8 +19,8 @@ export type Msg = Data.TaggedEnum<{
   DismissConfirm: {}
   Saved: { readonly identifikator: ObjekatIdentifikator }
   /** Bilo koji od tri zahteva na putu snimanja je pao; forma se vraća korisniku. */
-  Failed: { readonly error: Http.HttpError }
-  Close: {}
+  SaveFailed: { readonly error: Http.HttpError }
+  Cancel: {}
 }>
 
 export const Msg = Data.taggedEnum<Msg>()
@@ -37,8 +36,8 @@ export const potvrdiKreiranjeMagacinArtikalPakovanje = (kreiraj: boolean): Msg =
   Msg.PotvrdiKreiranjeMagacinArtikalPakovanje({ kreiraj })
 export const dismissConfirm = (): Msg => Msg.DismissConfirm()
 export const saved = (identifikator: ObjekatIdentifikator): Msg => Msg.Saved({ identifikator })
-export const failed = (error: Http.HttpError): Msg => Msg.Failed({ error })
-export const close = (): Msg => Msg.Close()
+export const saveFailed = (error: Http.HttpError): Msg => Msg.SaveFailed({ error })
+export const cancel = (): Msg => Msg.Cancel()
 
 // -------------------------------------------------------------------------------------
 // Outcome — ono na šta host mora da reaguje. Nosi identitet kreirane stavke, pa host može da

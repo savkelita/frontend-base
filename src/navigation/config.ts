@@ -1,18 +1,20 @@
-import * as Router from 'tea-effect/Router'
 import type { AuthorizationConfig } from '../auth/types'
 import { hasAllPermissions, emptyAuthorization } from '../auth/types'
-import { routes } from '../router/route'
+import { putanja, routes } from '../router/route'
 import { NavigationEntry, navigationLink, navigationGroup } from './types'
 
 // -------------------------------------------------------------------------------------
 // Configuration: Declare all navigation items here
 // -------------------------------------------------------------------------------------
 
-const allEntries: ReadonlyArray<NavigationEntry> = [
-  navigationLink('home', 'Home', Router.format(routes.home, {}), { requiredPermissions: ['home.view'] }),
-  navigationLink('products', 'Products', Router.format(routes.products, {}), {
-    requiredPermissions: ['products.view'],
+// Функција, не константа: путање носе префикс инстанце, а он стиже из конфигурације —
+// после увоза модула.
+const allEntries = (): ReadonlyArray<NavigationEntry> => [
+  navigationLink('home', 'Home', putanja(routes.home, {}), { requiredPermissions: ['home.view'] }),
+  navigationLink('otpremnice', 'Stavke otpremnice', putanja(routes.otpremnicaStavke, { otpremnicaID: 1 }), {
+    requiredPermissions: ['otpremnice.view'],
   }),
+  navigationLink('artikli', 'Artikli', putanja(routes.artikli, {}), { requiredPermissions: ['artikal.view'] }),
 ]
 
 // -------------------------------------------------------------------------------------
@@ -49,6 +51,7 @@ const filterEntries = (
 // -------------------------------------------------------------------------------------
 
 export const buildNavigation = (config: AuthorizationConfig): ReadonlyArray<NavigationEntry> =>
-  filterEntries(config, allEntries)
+  filterEntries(config, allEntries())
 
-export const buildPublicNavigation = (): ReadonlyArray<NavigationEntry> => filterEntries(emptyAuthorization, allEntries)
+export const buildPublicNavigation = (): ReadonlyArray<NavigationEntry> =>
+  filterEntries(emptyAuthorization, allEntries())

@@ -4,9 +4,9 @@ import { ScreenModel } from './screen-model'
 export const selectedNavValue = (screenModel: ScreenModel): string =>
   ScreenModel.$match(screenModel, {
     HomeScreen: () => 'home',
-    ProductsScreen: () => 'products',
-    ProductCreateScreen: () => 'products',
-    OtpremnicaStavkeScreen: () => 'products',
+    OtpremnicaStavkeScreen: () => 'otpremnice',
+    ArtikliScreen: () => 'artikli',
+    ArtikalScreen: () => 'artikli',
     NotFoundScreen: () => '',
     UnauthorizedScreen: () => '',
   })

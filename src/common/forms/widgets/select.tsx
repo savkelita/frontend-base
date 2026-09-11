@@ -1,6 +1,7 @@
 import { Field, Dropdown, Option as DropdownOption } from '@fluentui/react-components'
 import type { ReactElement } from 'react'
 import type { SelectOption } from '../core/types'
+import { t } from '../../strings'
 import type { WidgetProps } from './registry'
 
 // -------------------------------------------------------------------------------------
@@ -29,7 +30,7 @@ export const SelectWidget = ({
   const selected = options.find(o => o.value === value)
   // Sačuvana vrednost bez odgovarajuće opcije (povučena enum vrednost na starom zapisu) mora
   // ipak da bude vidljiva — prazno polje bi delovalo kao da vrednosti nema.
-  const display = selected?.label ?? value ?? ''
+  const display = selected?.label === undefined ? (value ?? '') : t(selected.label)
 
   return (
     <Field
@@ -48,7 +49,7 @@ export const SelectWidget = ({
       >
         {options.map(option => (
           <DropdownOption key={option.value} value={option.value}>
-            {option.label}
+            {t(option.label)}
           </DropdownOption>
         ))}
       </Dropdown>

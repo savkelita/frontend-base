@@ -1,9 +1,9 @@
 import { Schema } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
-import * as Http from 'tea-effect/Http'
 import type { ReactElement } from 'react'
 import * as Domain from '../domain'
-import type { ComboSource } from '../pretraga'
+import { t } from '../strings'
+import type { ComboSource, ComboValue } from './core/types'
 import * as Combo from './combo'
 import {
   TextWidget,
@@ -51,7 +51,7 @@ const valueField = <A, E>(cfg: {
     changed: (msg, previous) => !sameValue(msg, previous),
     view: (state, ui) => dispatch => (
       <W
-        label={cfg.label}
+        label={t(cfg.label)}
         value={state}
         required={ui.required}
         disabled={!ui.enabled || ui.readonly}
@@ -188,13 +188,31 @@ export const multiEnum = (cfg: Labeled<Opt> & { options: ReadonlyArray<SelectOpt
 //   - criteria  : how those parent values become the search criteria for THIS combo, e.g.
 //                 `deps => ({ grupaID: deps.grupa })` (criterion on the left, value on the right).
 type DependsOn = string | ReadonlyArray<string>
-type Criteria = (deps: Record<string, unknown>) => Record<string, unknown>
+
+/**
+ * Из вредности родитеља у критеријуме комбоа. `deps` носи нацрте родитељских поља, па им
+ * тип није познат — зато `roditelj` испод, уместо каста на месту позива.
+ */
+type Criteria<C> = (deps: Record<string, unknown>) => C
+
+/**
+ * Вредност родитеља из каскаде. Нацрт комбоа увек носи текст; празан родитељ даје
+ * `undefined`, да критеријум испадне уместо да оде као празан низ.
+ */
+export const roditelj = (deps: Record<string, unknown>, polje: string): string | number | undefined => {
+  const vrednost = deps[polje]
+  if (typeof vrednost === 'string') return vrednost === '' ? undefined : vrednost
+  if (typeof vrednost === 'object' && vrednost !== null && 'id' in vrednost) {
+    return (vrednost as ComboValue<unknown>).id
+  }
+  return undefined
+}
 
 const parentsOf = (dependsOn?: DependsOn): ReadonlyArray<string> | undefined =>
   dependsOn === undefined ? undefined : typeof dependsOn === 'string' ? [dependsOn] : dependsOn
 
 const comboConfig =
-  (source: ComboSource, criteria: Criteria, multiple = false) =>
+  (source: ComboSource<any, any>, criteria: Criteria<any>, multiple = false) =>
   (ctx: { deps: Record<string, unknown> }): Combo.Config<any> => ({
     search: (q, offset) => source.request(criteria(ctx.deps), q, offset),
     toOptions: source.toOptions,
@@ -202,22 +220,21 @@ const comboConfig =
     multiple,
   })
 
-const noCriteria: Criteria = () => ({})
+// Combo без каскаде не шаље ниједан свој критеријум; шема их све има необавезне.
+const noCriteria: Criteria<any> = () => ({})
 
-export type ComboConfig<Result = unknown> = {
+export type ComboConfig<Result = unknown, Crit = Record<string, unknown>> = {
   readonly label: string
   readonly placeholder?: string
   readonly optional?: boolean
   /** The search route + result->option mapping, declared in the feature's api. */
-  readonly source: ComboSource<Result>
+  readonly source: ComboSource<Result, Crit>
   /** Parent field(s) this combo depends on (reset + disable + re-search). */
   readonly dependsOn?: DependsOn
-  /** How the parent values become this combo's search criteria, e.g. `d => ({ grupaID: d.grupa })`. */
-  readonly criteria?: Criteria
+  /** How the parent values become this combo's search criteria, e.g. `d => ({ grupaID: roditelj(d, 'grupa') })`. */
+  readonly criteria?: Criteria<Crit>
   /** Send the selected id as a number (default). Set false for string ids (codes/GUIDs). */
   readonly numeric?: boolean
-  /** Edit mode: resolve the label for a preselected id. */
-  readonly resolve?: (id: string) => Http.Request<SelectOption>
 }
 
 // Tip payload-a prati iste dve grane koje prati i šema ispod, pa `Payload<F>` govori istinu
@@ -229,52 +246,91 @@ type ComboId<C extends ComboConfig<any>> = C extends { readonly numeric: false }
     : number
 
 /** Tip reda koji izvor pretražuje, prenet na svaku opciju ovog polja. */
-type ComboRow<C> = C extends { readonly source: ComboSource<infer R> } ? R : unknown
+type ComboRow<C> = C extends { readonly source: ComboSource<infer R, any> } ? R : unknown
 
-export const combo = <const C extends ComboConfig<any>>(
-  cfg: C,
-): FieldDef<string, Combo.Model, Combo.Msg, ComboId<C>, ComboRow<C>> => {
+/** Критеријуми које извор признаје — из њих се проверава `criteria` функција поља. */
+type ComboCrit<C> = C extends { readonly source: ComboSource<any, infer K> } ? K : Record<string, unknown>
+
+/**
+ * Непознат кључ у критеријумима: `samoPoznata` би га у извршавању тихо избацио, па combo
+ * враћа непросејане редове а нико не зна зашто. Овде постаје грешка при превођењу.
+ */
+type NepoznatKriterijum<C> = C extends { readonly criteria: (...args: never) => infer R }
+  ? Exclude<keyof R, keyof ComboCrit<C>>
+  : never
+
+type ProveriKriterijume<C> = [NepoznatKriterijum<C>] extends [never]
+  ? unknown
+  : { readonly criteria: `непознат критеријум: ${NepoznatKriterijum<C> & string}` }
+
+// -------------------------------------------------------------------------------------
+// Нацрт combo поља је изабрана вредност, не голи идентификатор
+// -------------------------------------------------------------------------------------
+//
+// Тако `initialForm` уме да напуни поље из `Info` одговора — заједно са лабелом, јер
+// `Info` не носи иста поља као ред претраге — а `derive` чита цео ред кроз `row`.
+//
+// Унутра је `SelectOption` (оно што combo јединица већ разуме), па су ово само два
+// пресликавања.
+
+const uOpciju = (v: ComboValue<any>): SelectOption<any> => ({ value: String(v.id), label: v.label, data: v.row })
+
+const izOpcije = (o: SelectOption<any>): ComboValue<any> => ({ id: o.value, label: o.label, row: o.data })
+
+/**
+ * Од изабране вредности до онога што иде у тело захтева. Идентификатор се прво сведе на
+ * текст, па се пусти кроз постојеће домен провере — оне већ дају и поруку „Obavezno polje".
+ */
+const comboSchema = (base: Schema.Schema<any, string>) =>
+  Schema.compose(
+    Schema.transform(Schema.Any, Schema.String, {
+      strict: false,
+      decode: (v: ComboValue<any> | undefined) => (v === undefined ? '' : String(v.id)),
+      encode: (s: string) => (s === '' ? undefined : { id: s, label: s }),
+    }),
+    base,
+  ) as unknown as Schema.Schema<any, any>
+
+const comboMultiSchema = (base: Schema.Schema<any, readonly string[]>) =>
+  Schema.compose(
+    Schema.transform(Schema.Any, Schema.Array(Schema.String), {
+      strict: false,
+      decode: (v: ReadonlyArray<ComboValue<any>>) => v.map(x => String(x.id)),
+      encode: (ids: ReadonlyArray<string>) => ids.map(id => ({ id, label: id })),
+    }),
+    base,
+  ) as unknown as Schema.Schema<any, any>
+
+export const combo = <const C extends ComboConfig<any, any>>(
+  cfg: C & { readonly criteria?: Criteria<ComboCrit<C>> } & ProveriKriterijume<C>,
+): FieldDef<ComboValue<ComboRow<C>> | undefined, Combo.Model, Combo.Msg, ComboId<C>> => {
   const parentFields = parentsOf(cfg.dependsOn)
   const config = comboConfig(cfg.source, cfg.criteria ?? noCriteria)
-  // The draft is always the string id (the widget's value); the payload is a number by default.
-  const schema =
+  const schema = comboSchema(
     (cfg.numeric ?? true)
       ? cfg.optional
         ? Domain.optionalNumber({})
         : Domain.requiredNumber({})
       : cfg.optional
         ? Schema.String
-        : Schema.String.pipe(Schema.minLength(1, { message: () => 'Obavezno polje' }))
+        : Schema.String.pipe(Schema.minLength(1, { message: () => 'Obavezno polje' })),
+  )
 
-  // Šema se bira u runtime-u po iste dve grane koje ComboId kodira na nivou tipova; ovaj kast
-  // je mesto gde se to dvoje sastaje.
-  const field: FieldDef<string, Combo.Model, Combo.Msg, any, any> = {
+  const seed = (v: ComboValue<any> | undefined) => (v === undefined ? Combo.init : Combo.withSelected(uOpciju(v)))
+
+  const field: FieldDef<ComboValue<any> | undefined, Combo.Model, Combo.Msg, any> = {
     schema,
-    empty: '',
+    empty: undefined,
     required: !cfg.optional,
     dependsOn: parentFields,
-    init: v => {
-      if (v === '') return [Combo.init, Cmd.none]
-      const provisional = Combo.withSelected({ value: v, label: v }) // show id until resolved
-      return cfg.resolve
-        ? [
-            provisional,
-            Http.send(cfg.resolve(v), {
-              onSuccess: option => Combo.Msg.Resolved({ option }),
-              onError: () => Combo.Msg.Resolved({ option: { value: v, label: v } }),
-            }),
-          ]
-        : [provisional, Cmd.none]
-    },
-    value: Combo.value,
-    set: (_s, v) => (v === '' ? Combo.init : Combo.withSelected({ value: v, label: v })),
-    selected: Combo.selectedOptions,
-    setSelected: (_s, options) => (options[0] === undefined ? Combo.init : Combo.withSelected(options[0])),
+    init: v => [seed(v), Cmd.none],
+    value: state => (state.selected[0] === undefined ? undefined : izOpcije(state.selected[0])),
+    set: (_s, v) => seed(v),
     update: (msg, state, ctx) => Combo.update(config(ctx), msg, state),
     changed: Combo.isSelectionChange,
     view: (state, ui) =>
       Combo.view(state, {
-        label: cfg.label,
+        label: t(cfg.label),
         placeholder: cfg.placeholder,
         required: ui.required,
         disabled: !ui.enabled || ui.readonly,
@@ -285,64 +341,51 @@ export const combo = <const C extends ComboConfig<any>>(
 }
 
 // --- multi combo (async multi-select TEA unit; value is string[]) ---
-export type MultiComboConfig<Result = unknown> = {
+export type MultiComboConfig<Result = unknown, Crit = Record<string, unknown>> = {
   readonly label: string
   readonly placeholder?: string
   readonly optional?: boolean
-  readonly source: ComboSource<Result>
+  readonly source: ComboSource<Result, Crit>
   /** Parent field(s) this combo depends on (reset + disable + re-search). */
   readonly dependsOn?: DependsOn
   /** How the parent values become this combo's search criteria. */
-  readonly criteria?: Criteria
+  readonly criteria?: Criteria<Crit>
   /** Send the selected ids as numbers (default). Set false for string ids (codes/GUIDs). */
   readonly numeric?: boolean
-  /** Edit mode: resolve labels for preselected ids. */
-  readonly resolve?: (ids: ReadonlyArray<string>) => Http.Request<ReadonlyArray<SelectOption>>
 }
 
 type ComboIds<C extends MultiComboConfig<any>> = C extends { readonly numeric: false }
   ? ReadonlyArray<string>
   : ReadonlyArray<number>
 
-export const multiCombo = <const C extends MultiComboConfig<any>>(
-  cfg: C,
-): FieldDef<readonly string[], Combo.Model, Combo.Msg, ComboIds<C>, ComboRow<C>> => {
+export const multiCombo = <const C extends MultiComboConfig<any, any>>(
+  cfg: C & { readonly criteria?: Criteria<ComboCrit<C>> } & ProveriKriterijume<C>,
+): FieldDef<ReadonlyArray<ComboValue<ComboRow<C>>>, Combo.Model, Combo.Msg, ComboIds<C>> => {
   const parentFields = parentsOf(cfg.dependsOn)
   const config = comboConfig(cfg.source, cfg.criteria ?? noCriteria, true)
-  const seed = (ids: readonly string[]) => Combo.withSelectedMany(ids.map(id => ({ value: id, label: id })))
-  // Draft is the string ids; the payload is number[] by default (String[] when numeric: false).
   const element = (cfg.numeric ?? true) ? Schema.NumberFromString : Schema.String
-  const schema = cfg.optional
-    ? Schema.Array(element)
-    : Schema.Array(element).pipe(Schema.minItems(1, { message: () => 'Izaberite bar jednu vrednost' }))
+  const schema = comboMultiSchema(
+    cfg.optional
+      ? Schema.Array(element)
+      : Schema.Array(element).pipe(Schema.minItems(1, { message: () => 'Izaberite bar jednu vrednost' })),
+  )
 
-  const field: FieldDef<readonly string[], Combo.Model, Combo.Msg, any, any> = {
+  const seed = (v: ReadonlyArray<ComboValue<any>>) =>
+    v.length === 0 ? Combo.init : Combo.withSelectedMany(v.map(uOpciju))
+
+  const field: FieldDef<ReadonlyArray<ComboValue<any>>, Combo.Model, Combo.Msg, any> = {
     schema,
     empty: [],
     required: !cfg.optional,
     dependsOn: parentFields,
-    init: v => {
-      if (v.length === 0) return [Combo.init, Cmd.none]
-      const provisional = seed(v) // show ids until resolved
-      return cfg.resolve
-        ? [
-            provisional,
-            Http.send(cfg.resolve(v), {
-              onSuccess: options => Combo.Msg.ResolvedMany({ options }),
-              onError: () => Combo.Msg.ResolvedMany({ options: provisional.selected }),
-            }),
-          ]
-        : [provisional, Cmd.none]
-    },
-    value: Combo.values,
-    set: (_s, v) => (v.length === 0 ? Combo.init : seed(v)),
-    selected: Combo.selectedOptions,
-    setSelected: (_s, options) => (options.length === 0 ? Combo.init : Combo.withSelectedMany(options)),
+    init: v => [seed(v), Cmd.none],
+    value: state => state.selected.map(izOpcije),
+    set: (_s, v) => seed(v),
     update: (msg, state, ctx) => Combo.update(config(ctx), msg, state),
     changed: Combo.isSelectionChange,
     view: (state, ui) =>
       Combo.view(state, {
-        label: cfg.label,
+        label: t(cfg.label),
         placeholder: cfg.placeholder,
         required: ui.required,
         disabled: !ui.enabled || ui.readonly,

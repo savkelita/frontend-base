@@ -3,6 +3,7 @@ import { AddRegular, SubtractRegular, ArrowResetRegular } from '@fluentui/react-
 import * as Cmd from 'tea-effect/Cmd'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
+import { S, t } from '../common/strings'
 import type { Model } from './model'
 import { Msg, increment, decrement, reset } from './msg'
 
@@ -22,8 +23,8 @@ export const view =
   (model: Model): TeaReact.Html<Msg> =>
   (dispatch: Platform.Dispatch<Msg>) => (
     <Card>
-      <CardHeader header={<Title1>Home</Title1>} />
-      <Text>Welcome to the frontend-base scaffold using the tea-effect architecture.</Text>
+      <CardHeader header={<Title1>{t(S.pocetna.naslov)}</Title1>} />
+      <Text>{t(S.pocetna.opis)}</Text>
       <div
         style={{
           display: 'flex',

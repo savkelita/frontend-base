@@ -6,6 +6,8 @@ import { sGreske } from './tipovi'
 import type { PoslovnaGreska, Greska, ErrorReport, Severity } from './tipovi'
 
 export * from './tipovi'
+export { ErrorView } from './view'
+export type { ErrorViewProps } from './view'
 
 // -------------------------------------------------------------------------------------
 // Од HTTP грешке до поруке кориснику

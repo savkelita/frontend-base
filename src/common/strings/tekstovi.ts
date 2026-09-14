@@ -18,8 +18,16 @@ export const S = {
     novi: 'Нови',
     izmeni: 'Измени',
     nazad: 'Назад',
+    nesacuvaneIzmene: 'Унели сте измене које нису сачуване. Ако одустанете, биће изгубљене.',
     da: 'Да',
     ne: 'Не',
+  },
+
+  audit: {
+    kreirao: 'Креирао/ла {ko}',
+    datumKreiranja: 'Датум креирања {kad}',
+    izmenio: 'Изменио/ла {ko}',
+    datumPromene: 'Датум последње промене {kad}',
   },
 
   artikal: {

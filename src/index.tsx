@@ -5,6 +5,7 @@ import * as Navigation from 'tea-effect/Navigation'
 import * as TeaReact from 'tea-effect/React'
 import * as App from './router'
 import { defaultGlobalStyles } from './common/theme'
+import { ToastHost } from './common/toast/view'
 import { greska } from './config'
 import { GreskaKonfiguracije } from './config/greska-view'
 
@@ -16,6 +17,7 @@ const Element = ({ dom }: { dom: TeaReact.Dom }) => {
   return (
     <FluentProvider style={{ height: '100%' }} theme={webLightTheme}>
       {dom}
+      <ToastHost />
     </FluentProvider>
   )
 }

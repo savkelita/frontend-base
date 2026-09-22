@@ -6,6 +6,8 @@ Ruta zivi uz ekran, ne u routeru:
 
 ```ts
 // src/sifarnici/vozac/pretraga/index.tsx
+const RouteQuery = pretragaQuery(Api.ioVozacCriteria, Api.ioVozacOrder)
+
 export const route = Router.path('/sifarnici/vozaci').query(RouteQuery)
 export const FUNKCIONALNOSTI: ReadonlyArray<Funkcionalnost> = ['PretragaVozaca']
 ```

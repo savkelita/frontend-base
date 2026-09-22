@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 import { Audit } from '../../common/audit'
 import { ioValue as ioDate } from '../../common/domain/date/api'
-import type { DatePredicate, EnumPredicate, StringPredicate } from '../../common/pretraga'
+import { ioDatePredicate, ioEnumPredicate, ioId, ioStringPredicate } from '../../common/pretraga'
 import * as IstekRegistracije from '../domain/istek-registracije'
 import * as VoziloStanje from '../domain/vozilo-stanje'
 
@@ -43,17 +43,19 @@ export const ioVoziloOrder = Schema.Literal(
 
 export type VoziloOrder = typeof ioVoziloOrder.Type
 
-export type VoziloCriteria = {
-  readonly registarskaOznaka?: StringPredicate
-  readonly markaVozila?: StringPredicate
-  readonly modelVozila?: StringPredicate
-  readonly vrstaGorivaID?: number
-  readonly vrstaVozilaID?: number
-  readonly korisnikVozilaID?: number
-  readonly vozacID?: number
-  readonly datumPrveRegistracije?: DatePredicate
-  readonly datumIsticanjaRegistracije?: DatePredicate
-  readonly dostavljaMesecnuKm?: boolean
-  readonly stanje?: EnumPredicate<VoziloStanje.Value>
-  readonly istekRegistracije?: EnumPredicate<IstekRegistracije.Value>
-}
+export const ioVoziloCriteria = Schema.Struct({
+  registarskaOznaka: Schema.optional(ioStringPredicate),
+  markaVozila: Schema.optional(ioStringPredicate),
+  modelVozila: Schema.optional(ioStringPredicate),
+  vrstaGorivaID: Schema.optional(ioId),
+  vrstaVozilaID: Schema.optional(ioId),
+  korisnikVozilaID: Schema.optional(ioId),
+  vozacID: Schema.optional(ioId),
+  datumPrveRegistracije: Schema.optional(ioDatePredicate),
+  datumIsticanjaRegistracije: Schema.optional(ioDatePredicate),
+  dostavljaMesecnuKm: Schema.optional(Schema.BooleanFromString),
+  stanje: Schema.optional(ioEnumPredicate(VoziloStanje.ioValue)),
+  istekRegistracije: Schema.optional(ioEnumPredicate(IstekRegistracije.ioValue)),
+})
+
+export type VoziloCriteria = typeof ioVoziloCriteria.Type

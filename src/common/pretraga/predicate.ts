@@ -6,6 +6,8 @@ const RANGE_SEPARATOR = '~'
 export const predicateValue = <A>(predicate: readonly [string, A] | undefined): A | null =>
   predicate === undefined ? null : predicate[1]
 
+export const ioId = Schema.NumberFromString.pipe(Schema.int())
+
 export const ioStringOperator = Schema.Literal('eq', 'neq', 'contains', 'starts_with')
 export type StringOperator = typeof ioStringOperator.Type
 export const ioStringPredicate = Schema.Tuple(ioStringOperator, Schema.String)

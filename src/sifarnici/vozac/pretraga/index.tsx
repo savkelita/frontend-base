@@ -1,4 +1,4 @@
-import { Option, Schema } from 'effect'
+import { Option } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Html from 'tea-effect/Html'
 import * as Http from 'tea-effect/Http'
@@ -14,11 +14,9 @@ import {
   Data,
   fromRouteQuery,
   initial,
-  ioDirection,
-  ioEnumPredicate,
-  ioStringPredicate,
   isLoading,
   next,
+  pretragaQuery,
   sameRequest,
   toOrder,
   toRouteQuery,
@@ -57,18 +55,7 @@ import {
 export type { Model }
 export type { Msg }
 
-const RouteQuery = Schema.Struct({
-  offset: Schema.optional(Router.IntFromString),
-  order: Schema.optional(Api.ioVozacOrder),
-  dir: Schema.optional(ioDirection),
-  ime: Schema.optional(ioStringPredicate),
-  prezime: Schema.optional(ioStringPredicate),
-  imeZaPrikaz: Schema.optional(ioStringPredicate),
-  email: Schema.optional(ioStringPredicate),
-  telefon: Schema.optional(ioStringPredicate),
-  kategorijaID: Schema.optional(Router.IntFromString),
-  stanje: Schema.optional(ioEnumPredicate(StanjeVozaca.ioValue)),
-})
+const RouteQuery = pretragaQuery(Api.ioVozacCriteria, Api.ioVozacOrder)
 
 export const route = Router.path('/sifarnici/vozaci').query(RouteQuery)
 
@@ -81,8 +68,6 @@ const toRequest = (model: Model): PretragaRequest<VozacCriteria, VozacOrder> => 
   offset_: model.offset,
 })
 
-const state = (model: Model): Filter.State => Filter.toState(model.filterModel.value)
-
 const load = (model: Model): Cmd.Cmd<Msg> => {
   const request = toRequest(model)
   return Http.send(Api.pretraziVozac(request), {
@@ -90,6 +75,8 @@ const load = (model: Model): Cmd.Cmd<Msg> => {
     onError: error => failed(request, mapHttpError(error)),
   })
 }
+
+const state = (model: Model): Filter.State => Filter.toState(model.filterModel.value)
 
 const goTo = (
   offset: number,
@@ -135,6 +122,20 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
       isLoading(model.data) ? [model, Cmd.none] : [{ ...model, selected: rows }, Cmd.none],
 
     Retry: (): [Model, Cmd.Cmd<Msg>] => reload(model),
+
+    FilterMsg: ({ msg: msgFilter }): [Model, Cmd.Cmd<Msg>] => {
+      const [filterModel, filterCmd] = Filter.update(msgFilter, model.filterModel)
+      const cmd = Cmd.map(filterMsg)(filterCmd)
+      return msgFilter._tag === 'Submitted'
+        ? [
+            { ...model, filterModel },
+            Cmd.batch([
+              cmd,
+              goTo(0, model.sort, Filter.toCriteria(filterModel.value), Filter.toState(filterModel.value)),
+            ]),
+          ]
+        : [{ ...model, filterModel }, cmd]
+    },
 
     StartKreiranje: (): [Model, Cmd.Cmd<Msg>] => {
       const [kreiranje, cmd] = Kreiranje.init
@@ -190,20 +191,6 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
       }
       const [brisanje, cmd] = Brisanje.update(msgBrisanje, model.brisanje.value)
       return [{ ...model, brisanje: Option.some(brisanje) }, Cmd.map(brisanjeMsg)(cmd)]
-    },
-
-    FilterMsg: ({ msg: msgFilter }): [Model, Cmd.Cmd<Msg>] => {
-      const [filterModel, filterCmd] = Filter.update(msgFilter, model.filterModel)
-      const cmd = Cmd.map(filterMsg)(filterCmd)
-      return msgFilter._tag === 'Submitted'
-        ? [
-            { ...model, filterModel },
-            Cmd.batch([
-              cmd,
-              goTo(0, model.sort, Filter.toCriteria(filterModel.value), Filter.toState(filterModel.value)),
-            ]),
-          ]
-        : [{ ...model, filterModel }, cmd]
     },
   })
 

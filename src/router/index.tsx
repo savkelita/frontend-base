@@ -9,6 +9,7 @@ import type * as TeaReact from 'tea-effect/React'
 import * as Router from 'tea-effect/Router'
 import * as Sub from 'tea-effect/Sub'
 import * as Api from '../auth/api'
+import * as Uloga from '../auth/domain/uloga'
 import * as IstekSesije from '../auth/istek-sesije'
 import { Session, SESSION_KEY, displayName, toAuthorizationConfig } from '../auth/session'
 import { hasAllFunkcionalnosti, type AuthorizationConfig } from '../auth/types'
@@ -256,7 +257,14 @@ export const view =
       Authenticated: m => (
         <>
           <Layout
-            header={<AppHeader isOpen={m.navigation.isOpen} username={displayName(m.session)} dispatch={dispatch} />}
+            header={
+              <AppHeader
+                isOpen={m.navigation.isOpen}
+                username={displayName(m.session)}
+                uloga={Uloga.text(m.session.uloga)}
+                dispatch={dispatch}
+              />
+            }
             nav={<AppNavigation model={m.navigation} selectedValue={selectedNavValue(m.screen)} dispatch={dispatch} />}
           >
             {Html.map(screen)(screenView(toAuthorizationConfig(m.session), m.screen))(dispatch)}

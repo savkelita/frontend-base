@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 import { Audit } from '../../common/audit'
 import type { Criteria as ComboCriteria } from '../../common/domain/combo'
-import type { EnumPredicate, StringPredicate } from '../../common/pretraga'
+import { ioEnumPredicate, ioId, ioStringPredicate, type StringPredicate } from '../../common/pretraga'
 import * as StanjeVozaca from '../domain/stanje-vozaca'
 
 export const KategorijaVozacaInfo = Schema.Struct({
@@ -122,12 +122,14 @@ export const ioVozacOrder = Schema.Literal('prezime', 'ime', 'imeZaPrikaz', 'ema
 
 export type VozacOrder = typeof ioVozacOrder.Type
 
-export type VozacCriteria = {
-  readonly ime?: StringPredicate
-  readonly prezime?: StringPredicate
-  readonly imeZaPrikaz?: StringPredicate
-  readonly email?: StringPredicate
-  readonly telefon?: StringPredicate
-  readonly kategorijaID?: number
-  readonly stanje?: EnumPredicate<StanjeVozaca.Value>
-}
+export const ioVozacCriteria = Schema.Struct({
+  ime: Schema.optional(ioStringPredicate),
+  prezime: Schema.optional(ioStringPredicate),
+  imeZaPrikaz: Schema.optional(ioStringPredicate),
+  email: Schema.optional(ioStringPredicate),
+  telefon: Schema.optional(ioStringPredicate),
+  kategorijaID: Schema.optional(ioId),
+  stanje: Schema.optional(ioEnumPredicate(StanjeVozaca.ioValue)),
+})
+
+export type VozacCriteria = typeof ioVozacCriteria.Type

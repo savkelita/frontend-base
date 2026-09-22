@@ -1,4 +1,3 @@
-import { Schema } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Html from 'tea-effect/Html'
 import * as Http from 'tea-effect/Http'
@@ -15,12 +14,9 @@ import {
   Data,
   fromRouteQuery,
   initial,
-  ioDatePredicate,
-  ioDirection,
-  ioEnumPredicate,
-  ioStringPredicate,
   isLoading,
   next,
+  pretragaQuery,
   sameRequest,
   toOrder,
   toRouteQuery,
@@ -32,7 +28,6 @@ import { Paging } from '../../../common/pretraga/components/paging'
 import { Table, type Column } from '../../../common/pretraga/components/table'
 import * as Api from '../../api'
 import type { Vozilo, VoziloCriteria, VoziloOrder } from '../../api'
-import * as IstekRegistracije from '../../domain/istek-registracije'
 import * as VoziloStanje from '../../domain/vozilo-stanje'
 import * as Filter from './filter'
 import { LIMIT, type Model } from './model'
@@ -41,23 +36,7 @@ import { Msg, failed, filterMsg, loaded, pageChanged, retry, selectionChanged, s
 export type { Model }
 export type { Msg }
 
-const RouteQuery = Schema.Struct({
-  offset: Schema.optional(Router.IntFromString),
-  order: Schema.optional(Api.ioVoziloOrder),
-  dir: Schema.optional(ioDirection),
-  registarskaOznaka: Schema.optional(ioStringPredicate),
-  markaVozila: Schema.optional(ioStringPredicate),
-  modelVozila: Schema.optional(ioStringPredicate),
-  vrstaGorivaID: Schema.optional(Router.IntFromString),
-  vrstaVozilaID: Schema.optional(Router.IntFromString),
-  korisnikVozilaID: Schema.optional(Router.IntFromString),
-  vozacID: Schema.optional(Router.IntFromString),
-  datumPrveRegistracije: Schema.optional(ioDatePredicate),
-  datumIsticanjaRegistracije: Schema.optional(ioDatePredicate),
-  dostavljaMesecnuKm: Schema.optional(Schema.BooleanFromString),
-  stanje: Schema.optional(ioEnumPredicate(VoziloStanje.ioValue)),
-  istekRegistracije: Schema.optional(ioEnumPredicate(IstekRegistracije.ioValue)),
-})
+const RouteQuery = pretragaQuery(Api.ioVoziloCriteria, Api.ioVoziloOrder)
 
 export const route = Router.path('/evidencija-vozila/vozila').query(RouteQuery)
 

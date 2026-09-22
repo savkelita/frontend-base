@@ -71,12 +71,21 @@ Ne pravi se jedan "veliki" tip sa opcionim poljima.
 export const ioVozacOrder = Schema.Literal('prezime', 'ime', 'imeZaPrikaz', 'email', 'telefon', 'stanje')
 export type VozacOrder = typeof ioVozacOrder.Type
 
-export type VozacCriteria = {
-  readonly ime?: StringPredicate
-  readonly kategorijaID?: number
-  readonly stanje?: EnumPredicate<StanjeVozaca.Value>
-}
+export const ioVozacCriteria = Schema.Struct({
+  ime: Schema.optional(ioStringPredicate),
+  kategorijaID: Schema.optional(ioId),
+  stanje: Schema.optional(ioEnumPredicate(StanjeVozaca.ioValue)),
+})
+
+export type VozacCriteria = typeof ioVozacCriteria.Type
 ```
+
+Kriterijum je **sema, ne tip**. Tip se izvodi iz nje, a iz iste seme ekran sastavlja `RouteQuery`
+kroz `pretragaQuery` — vidi [06 Pretraga](06-pretraga.md#ruta-i-upit). Da je pisan kao `type`,
+kriterijumi i adresa bi se odrzavali na dva mesta i tiho razisli.
+
+Zato su kodeci pisani onako kako polje izgleda u query stringu: `ioId`, a ne `Schema.Number`.
+Kriterijumi i tako odlaze na backend kao query parametri.
 
 Kriterijum je **opcion**. Odsutan kriterijum znaci "ne filtriraj po tome". Zato je `undefined`, a ne
 `null`.

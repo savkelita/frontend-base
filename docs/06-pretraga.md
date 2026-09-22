@@ -30,23 +30,62 @@ pretraga/
 └── test/
 ```
 
+## Redosled u `index.tsx`
+
+Fajl nema natpise sekcija, pa redosled **jeste** organizacija. Isti je na svakom ekranu pretrage,
+tako da se cita jednom:
+
+| | Sta | Ko to zove |
+|---|---|---|
+| 1 | `RouteQuery`, `route`, `FUNKCIONALNOSTI` | ruter |
+| 2 | `POCETNA_*` konstante, ako ekran ima podrazumevanu pretragu | `init` |
+| 3 | `toRequest`, `load` | server |
+| 4 | `state`, `goTo` | adresa |
+| 5 | `init`, `reload`, `update` | petlja |
+| 6 | `rowId` i pomocne za celije, `dispatchers`, `columns`, `<Ekran>View`, `view` | prikaz |
+
+Prelom je izmedju 5 i 6: **iznad `update` nema nista iz Reacta, ispod nema nista iz TEA petlje.**
+`export const view` je uvek poslednji.
+
+Grane `update`-a idu redom kojim ih `msg.ts` deklarise: prvo sedam iz kostura
+(`Loaded`, `Failed`, `Sorted`, `PageChanged`, `SelectionChanged`, `Retry`, `FilterMsg`), pa parovi
+`StartX` / `XMsg` po jednom dijalogu. Kostur je tako doslovno isti tekst na svim ekranima i razlika
+se vidi na prvi pogled.
+
 ## Ruta i upit
 
 ```ts
-const RouteQuery = Schema.Struct({
-  offset: Schema.optional(Router.IntFromString),
-  order: Schema.optional(Api.ioVozacOrder),
-  dir: Schema.optional(ioDirection),
-  ime: Schema.optional(ioStringPredicate),
-  kategorijaID: Schema.optional(Router.IntFromString),
-  stanje: Schema.optional(ioEnumPredicate(StanjeVozaca.ioValue)),
-})
+const RouteQuery = pretragaQuery(Api.ioVozacCriteria, Api.ioVozacOrder)
 
 export const route = Router.path('/sifarnici/vozaci').query(RouteQuery)
 export const FUNKCIONALNOSTI: ReadonlyArray<Funkcionalnost> = ['PretragaVozaca']
 ```
 
 Ruta i lista potrebnih funkcionalnosti stoje **uz ekran**, ne u routeru. Router ih samo pokupi.
+
+Upit se **ne pise rukom**. `pretragaQuery` uzima semu kriterijuma iz API sloja i dodaje `offset`,
+`order` i `dir`:
+
+```ts
+export const pretragaQuery = <F extends Schema.Struct.Fields & { [K in keyof Paging]?: never }, O extends string>(
+  criteria: Schema.Struct<F>,
+  order: Schema.Schema<O, O>,
+) =>
+  Schema.Struct({
+    offset: Schema.optional(Router.IntFromString),
+    order: Schema.optional(order),
+    dir: Schema.optional(ioDirection),
+    ...criteria.fields,
+  })
+```
+
+Novo polje se dodaje **samo u `ioVozacCriteria`** i adresa ga odmah zna. Kad su bila dva spiska,
+zaborav na jednoj strani niko nije primecivao: `fromRouteQuery` vraca `Omit<Q, keyof Paging>`, a to
+se uredno dodeljuje kriterijumu sa opcionim poljima u oba smera, pa kompajler cuti dok se polje na
+svaku promenu strane tiho prazni.
+
+`[K in keyof Paging]?: never` u potpisu znaci da kriterijum ne sme da se zove `offset`, `order` ili
+`dir`. Bez toga bi pregazio paging, a adresa bi izgledala ispravno.
 
 `offset`, `order` i `dir` su strana i sortiranje; sve ostalo su kriterijumi. `fromRouteQuery` to
 razdvaja bez rucnog nabrajanja:
@@ -205,6 +244,11 @@ export const button = (model: Model): TeaReact.Html<Msg> => filterButton(model.i
 `issues` je uvek `[]`. **Filter se ne validira.** Prazno polje znaci "ne filtriraj po tome", a
 besmislen upit vraca prazan rezultat — sto je tacan odgovor, ne greska.
 
+Jedini izuzetak je obavezan kriterijum: polje bez kojeg se ne sme pretrazivati. Tada polje izlazi iz
+`Schema.NullOr`, filter dobija `showErrors`, `issues` dolaze iz `Form.visibleIssues`, a gola adresa
+prestaje da bude pretraga. Ceo postupak:
+[10 Recepti — Obavezan kriterijum pretrage](10-recepti.md#obavezan-kriterijum-pretrage).
+
 `filterView` daje fioku, dugmad `Pretrazi` / `Ponisti` i memoizaciju. `fields`, `toggled`,
 `submitted` i `cleared` su konstante na nivou modula, pa poredjenje props-a staje na modelu filtera.
 
@@ -248,6 +292,9 @@ const sort = prazna ? POCETNI_SORT : sortIzAdrese
 ```
 
 Cim korisnik nesto promeni, adresa vise nije prazna i podrazumevano vise ne vazi.
+
+Ovo nije isto sto i obavezan kriterijum. Ovde prazna adresa jeste pretraga, samo suzena. Kod
+obaveznog kriterijuma prazna adresa uopste nije pretraga.
 
 ## Dijalozi nad pretragom
 

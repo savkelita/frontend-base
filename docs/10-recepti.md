@@ -20,11 +20,16 @@ export type Stavka = typeof Stavka.Type
 export const ioStavkaOrder = Schema.Literal('naziv', 'stanje')
 export type StavkaOrder = typeof ioStavkaOrder.Type
 
-export type StavkaCriteria = {
-  readonly naziv?: StringPredicate
-  readonly stanje?: EnumPredicate<Stanje.Value>
-}
+export const ioStavkaCriteria = Schema.Struct({
+  naziv: Schema.optional(ioStringPredicate),
+  stanje: Schema.optional(ioEnumPredicate(Stanje.ioValue)),
+})
+
+export type StavkaCriteria = typeof ioStavkaCriteria.Type
 ```
+
+Kriterijum je sema jer iz nje nastaje i `RouteQuery`. Kodeci su query-string kodeci: `ioId` za
+identifikatore, `Schema.BooleanFromString` za `da/ne`.
 
 `src/<oblast>/api/routes.ts`:
 
@@ -58,8 +63,13 @@ U `ioState` idu **samo combo vrednosti**. Tekst i enum se citaju iz adrese.
 `pretraga/model.ts` — `LIMIT` i `Model`.
 `pretraga/msg.ts` — `Loaded`, `Failed`, `Sorted`, `PageChanged`, `SelectionChanged`, `Retry`,
 `FilterMsg`.
-`pretraga/index.tsx` — `RouteQuery`, `route`, `FUNKCIONALNOSTI`, `toRequest`, `load`, `goTo`,
-`init`, `reload`, `update`, `columns`, `view`.
+`pretraga/index.tsx` — `route`, `FUNKCIONALNOSTI`, `toRequest`, `load`, `goTo`, `init`, `reload`,
+`update`, `columns`, `view`. Upit se ne pise:
+
+```ts
+const RouteQuery = pretragaQuery(Api.ioStavkaCriteria, Api.ioStavkaOrder)
+export const route = Router.path('/oblast/stavke').query(RouteQuery)
+```
 
 Ne zaboravi `sameRequest` u `Loaded` i `Failed`.
 
@@ -80,36 +90,282 @@ bez prava.
 **Tekst:**
 
 ```ts
-// model.ts
+// api/types.ts
+naziv: Schema.optional(ioStringPredicate) // ioStavkaCriteria
+// filter/model.ts
 naziv: Name.Form
 // vForm()
 naziv: Schema.NullOr(Name.vForm)
-// index.tsx
+// filter/index.tsx
 naziv: predicateValue(criteria.naziv)     // init
 naziv: contains(value.naziv)              // toCriteria
 naziv: { label: 'Naziv' }                 // options.fields
 {locals.inputs.naziv}                     // options.template
-// pretraga/index.tsx
-naziv: Schema.optional(ioStringPredicate) // RouteQuery
 ```
 
-**Enum:** isto, ali `eq(value.stanje)` / `predicateValue`, i
-`Schema.optional(ioEnumPredicate(Stanje.ioValue))` u ruti.
+**Enum:** isto, ali `Schema.optional(ioEnumPredicate(Stanje.ioValue))` u kriterijumu i
+`eq(value.stanje)` / `predicateValue`.
 
 **Opseg datuma:**
 
 ```ts
-datumOd: DateRange.Form                        // model.ts (tip je opseg, jedno polje)
+datumOd: Schema.optional(ioDatePredicate)      // ioStavkaCriteria
+datumOd: DateRange.Form                        // filter/model.ts (tip je opseg, jedno polje)
 datumOd: Schema.NullOr(DateRange.vForm)        // vForm()
 datumOd: rangeValue(criteria.datumOd)          // init
 datumOd: range(value.datumOd)                  // toCriteria
-datumOd: Schema.optional(ioDatePredicate)      // RouteQuery
 ```
+
+Ruta se ne dira ni u jednom slucaju — `pretragaQuery` polje pokupi iz kriterijuma.
 
 **Combo:** polje, poruka, combo model, `Combo.init` u `init`, grana u `update` sa `Combo.step`,
 `ioValue` u `ioState`, `id` u `toCriteria`, `Combo.empty()` u `Cleared`.
 
 Kad dodas polje, dodaj i njegov generator u `test/route.test.ts`.
+
+---
+
+## Obavezan kriterijum pretrage
+
+Podrazumevano nijedan kriterijum nije obavezan — prazno polje znaci "ne filtriraj po tome". Kad
+zahtev kaze da se bez nekog podatka ne sme pretrazivati, prvo se odlucuje koja je to od dve stvari.
+
+**A. Ima podrazumevanu vrednost.** Polje uvek nesto nosi, korisnik ga samo menja. Nema novog stanja
+ekrana:
+
+```ts
+stanje: StanjeVozaca.vForm,                        // vForm(), bez NullOr
+const EMPTY: FormValue = { ..., stanje: 'AKTIVAN' }
+```
+
+Prazna adresa je i dalje pretraga; vidi
+[Podrazumevana pretraga](06-pretraga.md#podrazumevana-pretraga). `Ponisti` vraca na podrazumevano,
+ne na prazno.
+
+**B. Nema je.** Korisnik mora sam da unese podatak koji aplikacija ne moze da pogodi. Tada gola
+adresa **prestaje da bude pretraga**, a ekran dobija stanje "jos nije pretrazeno". Ostatak recepta je
+o tom slucaju, na primeru obaveznog `ime` na vozacima.
+
+### 1. Polje gubi `NullOr`
+
+```ts
+// filter/model.ts
+export const vForm = () =>
+  Schema.Struct({
+    ime: Name.vForm,
+    prezime: Schema.NullOr(Name.vForm),
+    ...
+  })
+
+export type Value = Schema.Schema.Type<ReturnType<typeof vForm>>
+```
+
+`FormValue.ime` ostaje `Name.Form`, dakle i dalje sme `null`. Nacrt je sirok, sema je uska. Poruka
+"Podatak je obavezan" vec postoji u `Text.vForm` i `Combo.vForm` — ne dopisuje se.
+
+### 2. Filter pamti da je pretraga zatrazena
+
+```ts
+// filter/model.ts
+export type Model = {
+  readonly value: FormValue
+  readonly showErrors: boolean
+  readonly isOpen: boolean
+  readonly kategorijaCombo: Combo.Model<Kategorija.Value>
+}
+```
+
+```ts
+// filter/index.tsx
+Submitted: (): [Model, Cmd.Cmd<Msg>] => [{ ...model, showErrors: true }, Cmd.none],
+Cleared: (): [Model, Cmd.Cmd<Msg>] => [
+  { ...model, value: EMPTY, showErrors: false, kategorijaCombo: Combo.empty() },
+  Cmd.none,
+],
+```
+
+```ts
+issues: Form.visibleIssues(vForm, model.value, model.showErrors),
+```
+
+Do prvog `Pretrazi` nema crvenog — korisniku se ne vice pre nego sto je pokusao. Posle njega greske
+prate kucanje.
+
+### 3. Filter izdaje kriterijum samo kad je ispravan
+
+```ts
+export const toCriteria = (value: Value): VozacCriteria => ({
+  ime: contains(value.ime),
+  prezime: contains(value.prezime),
+  ...
+})
+
+export const criteria = (model: Model): Option.Option<VozacCriteria> => {
+  const result = Form.validate(vForm, model.value)
+  return result.isValid ? Option.some(toCriteria(result.value)) : Option.none()
+}
+```
+
+`toCriteria` sada prima `Value` (izlaz seme), ne `FormValue` (nacrt). To je jedina izmena koju
+kompajler nece oprostiti, i zato je dobra: mesto gde ekran pokusa da napravi kriterijum od nacrta
+odmah pukne.
+
+### 4. Ekran zna da adresa ne mora biti pretraga
+
+```ts
+// filter/index.tsx
+export const isSearch = (criteria: VozacCriteria): boolean => criteria.ime !== undefined
+```
+
+```ts
+// pretraga/index.tsx
+const load = (model: Model): Cmd.Cmd<Msg> => {
+  if (!Filter.isSearch(model.criteria)) return Cmd.none
+  const request = toRequest(model)
+  return Http.send(Api.pretraziVozac(request), { ... })
+}
+```
+
+```ts
+FilterMsg: ({ msg: msgFilter }): [Model, Cmd.Cmd<Msg>] => {
+  const [filterModel, filterCmd] = Filter.update(msgFilter, model.filterModel)
+  const cmd = Cmd.map(filterMsg)(filterCmd)
+  if (msgFilter._tag !== 'Submitted') return [{ ...model, filterModel }, cmd]
+  return [
+    { ...model, filterModel },
+    Option.match(Filter.criteria(filterModel), {
+      onNone: () => cmd,
+      onSome: criteria => Cmd.batch([cmd, goTo(0, model.sort, criteria, Filter.toState(filterModel.value))]),
+    }),
+  ]
+},
+```
+
+`toRequest`, `reload`, `Loaded`, `Failed`, `Sorted` i `PageChanged` ostaju **nepromenjeni**.
+
+### 5. Umesto tabele stoji poziv
+
+```tsx
+const isSearch = Filter.isSearch(model.criteria)
+```
+
+```tsx
+table={
+  isSearch ? (
+    <Table columns={columns} data={model.data} ... />
+  ) : (
+    <div className={styles.poziv}>
+      <Text>Unesite ime da biste pokrenuli pretragu.</Text>
+    </div>
+  )
+}
+paging={isSearch ? <Paging data={model.data} offset={model.offset} limit={LIMIT} onOffset={changeOffset} /> : null}
+```
+
+Fioka je vec otvorena na dolasku, preko `isOpen: previous?.isOpen ?? true` u `Filter.init`.
+
+### Kriterijum u API sloju ostaje `Schema.optional`
+
+```ts
+ime: Schema.optional(ioStringPredicate),   // ioVozacCriteria
+```
+
+Obavezno je **polje forme**, ne kriterijum. Iskusenje je da se `optional` skine i ovde, posto iz te
+seme nastaje `RouteQuery`. Ne sme. `Router.format(routes.vozaci, {})` u `src/navigation/config.ts`
+tada ne bi mogao da sastavi stavku menija, a `Router.parse` ne bi prepoznao `/sifarnici/vozaci`, pa
+bi korisnik iz menija pao na 404.
+
+Adresa bez kriterijuma je **ispravna adresa koja nije pretraga**. Zato se provera ne zove `isValid`.
+
+### Dva pravila, ne jedno
+
+| | ulaz | pravilo |
+|---|---|---|
+| fioka | nacrt (`FormValue`) | cela sema: `Trim`, `nonEmptyString`, `maxLength` |
+| adresa | `VozacCriteria` | polje postoji |
+
+Spajanje ne radi. Adresa nosi `kategorijaID: 3`, a nacrt trazi ceo objekat `{ id, oznaka }` koji tek
+stize sa servera. Kad bi se `isSearch` oslanjao na `Form.validate`, ekran sa obaveznim comboom ne bi
+pretrazivao dok combo ne odgovori.
+
+Posledica koja se prihvata: rucno otkucan `?ime=contains&ime=` pokrece pretragu sa praznim imenom.
+Kroz fioku se do toga ne moze doci, jer `Schema.Trim` + `nonEmptyString` zaustave razmake.
+
+### Testovi
+
+`filter/test/filter.test.ts`:
+
+```ts
+it('bez imena nema kriterijuma', () => {
+  expect(Option.isNone(criteriaOf(form({})))).toBe(true)
+})
+
+it('slanje bez imena pali prikaz gresaka, ali ne dira polja', () => {
+  const poslato = apply(submitted(), open())
+  expect(poslato.showErrors).toBe(true)
+  expect(poslato.value).toStrictEqual(open().value)
+})
+
+it('nijedna adresa bez imena nije pretraga', () => {
+  expect(isSearch({ kategorijaID: 3 })).toBe(false)
+  expect(isSearch({ ime: ['contains', 'Pera'] })).toBe(true)
+})
+```
+
+`test/update.test.ts` — primena bez obaveznog polja ne sme da dodirne adresu:
+
+```ts
+it('primena bez imena ne menja adresu', async () => {
+  const [, cmd] = update(filterMsg(Filter.submitted()), prazno())
+  expect(await pushedUrls(cmd)).toStrictEqual([])
+})
+```
+
+`test/view.test.ts` — sta korisnik vidi:
+
+```ts
+it('bez imena u adresi stoji poziv umesto tabele', () => {
+  expect(draw(SVE)).toContain('Unesite ime da biste pokrenuli pretragu.')
+})
+```
+
+Ne pisi test koji salje `Loaded` u model bez kriterijuma i ocekuje da bude odbijen. Ta poruka ne
+moze da nastane — `load` vraca `Cmd.none`, a `Retry` postoji samo u tabeli koje tada nema. To je
+odbrana od nepostojeceg stanja, pravilo 4.
+
+### Najveci deo posla su testovi
+
+Izvor je tri fajla i oko cetrdeset linija. Postojeci testovi su drugih tri fajla i vise izmena, jer
+`open()` i `request()` u `test/update.test.ts` prave model iz adrese koja vise nije pretraga:
+
+```ts
+const IME: StringPredicate = ['contains', 'Pera']
+const open = (query = {}): Model => init({ ime: IME, ...query }, undefined)[0]
+const prazno = (query = {}): Model => init(query, undefined)[0]
+```
+
+Racunaj na to pri proceni.
+
+### Kad ovo preraste oblik
+
+Model i dalje drzi `data` u `Loading` dok pretraga nije zadata, a niko ga tada ne cita. Podnosljivo
+je dok samo prikaz gleda `data`. Kad i `selected`, `offset` i `sort` pocnu da imaju smisla iskljucivo
+u zadatom stanju, pretraga postaje tagovana:
+
+```ts
+export type Pretraga = Tagged.TaggedEnum<{
+  Nezadata: {}
+  Zadata: {
+    readonly offset: number
+    readonly sort: Sort<VozacOrder> | null
+    readonly criteria: VozacCriteria
+    readonly data: Data<Vozac>
+    readonly selected: ReadonlyArray<Vozac>
+  }
+}>
+```
+
+Jedan ekran to ne opravdava (pravilo 10).
 
 ---
 

@@ -1,5 +1,6 @@
+import { DayOfWeek } from '@fluentui/react-calendar-compat'
 import { Field } from '@fluentui/react-components'
-import { DatePicker } from '@fluentui/react-datepicker-compat'
+import { DatePicker, type CalendarStrings } from '@fluentui/react-datepicker-compat'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
 import { format as formatDate } from '../date/api'
@@ -25,6 +26,47 @@ export const parse = (text: string): Date | null => {
 
 export const changed = (next: DateForm, current: DateForm): boolean => next?.getTime() !== current?.getTime()
 
+const STRINGS: CalendarStrings = {
+  months: [
+    'Januar',
+    'Februar',
+    'Mart',
+    'April',
+    'Maj',
+    'Jun',
+    'Jul',
+    'Avgust',
+    'Septembar',
+    'Oktobar',
+    'Novembar',
+    'Decembar',
+  ],
+  shortMonths: ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'],
+  days: ['Nedelja', 'Ponedeljak', 'Utorak', 'Sreda', 'Cetvrtak', 'Petak', 'Subota'],
+  shortDays: ['Ne', 'Po', 'Ut', 'Sr', 'Ce', 'Pe', 'Su'],
+  goToToday: 'Idi na danasnji dan',
+  prevMonthAriaLabel: 'Idi na prethodni mesec',
+  nextMonthAriaLabel: 'Idi na sledeci mesec',
+  prevYearAriaLabel: 'Idi na prethodnu godinu',
+  nextYearAriaLabel: 'Idi na sledecu godinu',
+  prevYearRangeAriaLabel: 'Prethodni opseg godina',
+  nextYearRangeAriaLabel: 'Sledeci opseg godina',
+  monthPickerHeaderAriaLabel: '{0}, promeni godinu',
+  yearPickerHeaderAriaLabel: '{0}, promeni mesec',
+  closeButtonAriaLabel: 'Zatvori kalendar',
+  weekNumberFormatString: 'Broj nedelje {0}',
+  selectedDateFormatString: 'Izabran datum {0}',
+  todayDateFormatString: 'Danasnji datum {0}',
+  dayMarkedAriaLabel: 'obelezen',
+}
+
+export const kalendar = {
+  formatDate: format,
+  parseDateFromString: parse,
+  strings: STRINGS,
+  firstDayOfWeek: DayOfWeek.Monday,
+}
+
 export const dateField = (l: Locals<DateForm, DateFieldOptions>): ReactNode => (
   <Field
     {...(l.label === undefined ? {} : { label: l.label })}
@@ -33,12 +75,11 @@ export const dateField = (l: Locals<DateForm, DateFieldOptions>): ReactNode => (
     {...(l.error === undefined ? {} : { validationMessage: l.error })}
   >
     <DatePicker
+      {...kalendar}
       id={l.id}
       name={l.name}
       value={l.value}
       disabled={l.disabled}
-      formatDate={format}
-      parseDateFromString={parse}
       allowTextInput={l.allowTextInput ?? true}
       onSelectDate={date => {
         const next = date ?? null

@@ -55,3 +55,5 @@ export type Model = {
   readonly error: Option.Option<ApiError>
   readonly kategorijeCombo: Combo.Model<Kategorija.Value>
 }
+
+export const isDirty = (model: Model): boolean => !sameForm(EMPTY, model.value)

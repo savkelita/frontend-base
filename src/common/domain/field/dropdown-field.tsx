@@ -1,6 +1,7 @@
-import { Dropdown, Field, Option } from '@fluentui/react-components'
+import { Dropdown, Option } from '@fluentui/react-components'
 import type { Locals, LocalsBase } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
+import { FormField } from './form-field'
 
 export interface Choice<A> {
   readonly value: A
@@ -24,12 +25,7 @@ export const clearing = (l: { readonly multiselect: boolean; readonly clearable?
   l.multiselect ? {} : { clearable: l.clearable ?? true }
 
 const view = <A extends string>(l: Base<A>): ReactNode => (
-  <Field
-    {...(l.label === undefined ? {} : { label: l.label })}
-    required={l.required}
-    validationState={l.hasError ? 'error' : 'none'}
-    {...(l.error === undefined ? {} : { validationMessage: l.error })}
-  >
+  <FormField l={l}>
     <Dropdown
       id={l.id}
       name={l.name}
@@ -52,7 +48,7 @@ const view = <A extends string>(l: Base<A>): ReactNode => (
         </Option>
       ))}
     </Dropdown>
-  </Field>
+  </FormField>
 )
 
 export const dropdownField =

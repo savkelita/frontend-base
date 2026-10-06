@@ -68,3 +68,6 @@ export type Model = Tagged.TaggedEnum<{
 }>
 
 export const Model = Tagged.taggedEnum<Model>()
+
+export const isDirty = (model: Model): boolean =>
+  model._tag === 'Ready' && !sameForm(toForm(model.original), model.value)

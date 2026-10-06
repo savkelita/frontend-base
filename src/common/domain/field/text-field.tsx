@@ -1,6 +1,7 @@
-import { Field, Input } from '@fluentui/react-components'
+import { Input } from '@fluentui/react-components'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
+import { FormField } from './form-field'
 
 export interface TextFieldOptions {
   readonly type?: 'text' | 'password' | 'email'
@@ -12,12 +13,7 @@ export interface TextFieldOptions {
 export type TextForm = string | null
 
 export const textField = (l: Locals<TextForm, TextFieldOptions>): ReactNode => (
-  <Field
-    {...(l.label === undefined ? {} : { label: l.label })}
-    required={l.required}
-    validationState={l.hasError ? 'error' : 'none'}
-    {...(l.error === undefined ? {} : { validationMessage: l.error })}
-  >
+  <FormField l={l}>
     <Input
       id={l.id}
       name={l.name}
@@ -25,9 +21,9 @@ export const textField = (l: Locals<TextForm, TextFieldOptions>): ReactNode => (
       value={l.value ?? ''}
       disabled={l.disabled}
       {...(l.placeholder === undefined ? {} : { placeholder: l.placeholder })}
-      {...(l.autoComplete === undefined ? {} : { autoComplete: l.autoComplete })}
+      autoComplete={l.autoComplete ?? 'off'}
       {...(l.autoFocus === undefined ? {} : { autoFocus: l.autoFocus })}
       onChange={(_e, data) => l.onChange(data.value === '' ? null : data.value)}
     />
-  </Field>
+  </FormField>
 )

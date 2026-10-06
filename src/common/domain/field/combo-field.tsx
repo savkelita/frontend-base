@@ -1,4 +1,4 @@
-import { Button, Combobox, Field, MessageBar, Option, Spinner, makeStyles, tokens } from '@fluentui/react-components'
+import { Button, Combobox, MessageBar, Option, Spinner, makeStyles, tokens } from '@fluentui/react-components'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
 import { reportError } from '../../error'
@@ -6,6 +6,7 @@ import { ErrorView } from '../../error/view'
 import { Data, rows } from '../../pretraga'
 import { LIMIT, type Model } from '../combo/model'
 import { closed, more, opened, selected, typed, type Msg } from '../combo/msg'
+import { FormField } from './form-field'
 
 export type ComboFieldOptions<A> = {
   readonly model: Model<A>
@@ -93,12 +94,7 @@ const ComboView = <A,>({ l, id, render }: { l: Locals<A | null, ComboFieldOption
   const items = model.data === null ? [] : rows(model.data)
 
   return (
-    <Field
-      {...(l.label === undefined ? {} : { label: l.label })}
-      required={l.required}
-      validationState={l.hasError ? 'error' : 'none'}
-      {...(l.error === undefined ? {} : { validationMessage: l.error })}
-    >
+    <FormField l={l}>
       <Combobox
         id={l.id}
         name={l.name}
@@ -123,7 +119,7 @@ const ComboView = <A,>({ l, id, render }: { l: Locals<A | null, ComboFieldOption
       >
         <ComboListbox model={model} onMsg={onMsg} id={id} render={render} />
       </Combobox>
-    </Field>
+    </FormField>
   )
 }
 

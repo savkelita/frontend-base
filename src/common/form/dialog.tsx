@@ -11,7 +11,6 @@ import {
   tokens,
 } from '@fluentui/react-components'
 import { useState, type ReactNode } from 'react'
-import { UnloadGuard } from './unload-guard'
 
 export type FormDialogProps = {
   readonly title: string
@@ -94,7 +93,6 @@ export const FormDialog = ({
 
   return (
     <>
-      <UnloadGuard active={dirty} />
       <Dialog open modalType="modal" onOpenChange={(_event, data) => !data.open && zatvori()}>
         <DialogSurface className={styles.surface}>
           {potvrda && (

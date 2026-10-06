@@ -14,7 +14,7 @@ import { FormDialog } from '../../../common/form/dialog'
 import * as Api from '../../api'
 import type { VozacInfo } from '../../api'
 import * as Kategorija from '../../domain/kategorija-vozaca'
-import { Model, sameForm, toForm, vForm, type FormValue, type Value } from './model'
+import { Model, isDirty, toForm, vForm, type FormValue, type Value } from './model'
 import { Msg, changed, closed, kategorijeMsg, receiveFailed, received, saveFailed, saved, submitted } from './msg'
 
 export * from './model'
@@ -167,7 +167,7 @@ const options = (
 
 const AzuriranjeView = ({ model, dispatch }: { model: Model; dispatch: Platform.Dispatch<Msg> }) => {
   const styles = useStyles()
-  const izmenjeno = model._tag === 'Ready' && !sameForm(toForm(model.original), model.value)
+  const izmenjeno = isDirty(model)
 
   return (
     <>

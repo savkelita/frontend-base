@@ -1,9 +1,9 @@
 import { DayOfWeek } from '@fluentui/react-calendar-compat'
-import { Field } from '@fluentui/react-components'
 import { DatePicker, type CalendarStrings } from '@fluentui/react-datepicker-compat'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
 import { format as formatDate } from '../date/api'
+import { FormField } from './form-field'
 
 export interface DateFieldOptions {
   readonly placeholder?: string
@@ -65,15 +65,11 @@ export const kalendar = {
   parseDateFromString: parse,
   strings: STRINGS,
   firstDayOfWeek: DayOfWeek.Monday,
+  autoComplete: 'off',
 }
 
 export const dateField = (l: Locals<DateForm, DateFieldOptions>): ReactNode => (
-  <Field
-    {...(l.label === undefined ? {} : { label: l.label })}
-    required={l.required}
-    validationState={l.hasError ? 'error' : 'none'}
-    {...(l.error === undefined ? {} : { validationMessage: l.error })}
-  >
+  <FormField l={l}>
     <DatePicker
       {...kalendar}
       id={l.id}
@@ -89,5 +85,5 @@ export const dateField = (l: Locals<DateForm, DateFieldOptions>): ReactNode => (
       {...(l.minDate === undefined ? {} : { minDate: l.minDate })}
       {...(l.maxDate === undefined ? {} : { maxDate: l.maxDate })}
     />
-  </Field>
+  </FormField>
 )

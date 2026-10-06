@@ -296,6 +296,98 @@ Cim korisnik nesto promeni, adresa vise nije prazna i podrazumevano vise ne vazi
 Ovo nije isto sto i obavezan kriterijum. Ovde prazna adresa jeste pretraga, samo suzena. Kod
 obaveznog kriterijuma prazna adresa uopste nije pretraga.
 
+## Ugnjezdena pretraga
+
+Pravilo "adresa je pretraga" vazi za **ekran**. Lista koja zivi unutar nekog pregleda — vozila
+jednog vozaca, zaduzenja jednog vozila — nije ekran i **ne sme da dira adresu**. Dva takva filtera
+na istoj strani bi se otimala oko istog URL-a, a `Nazad` bi ponistavao suzavanje podliste umesto
+da vrati korisnika odakle je dosao.
+
+Granica je ovakva:
+
+| | nosi ga |
+|---|---|
+| koji ekran gledas, nad cim | adresa |
+| kako si suzio podlistu unutar njega | model |
+
+Uzor: `src/sifarnici/vozac/pregled/vozila/`.
+
+### Model je isti, menjaju se tri grane
+
+```ts
+export type Model = {
+  readonly vozacID: number
+  readonly offset: number
+  readonly sort: Sort<VoziloOrder> | null
+  readonly criteria: VoziloCriteria
+  readonly data: Data<Vozilo>
+  readonly selected: ReadonlyArray<Vozilo>
+  readonly filterModel: Filter.Model
+}
+```
+
+Isti kostur kao na ekranu, plus identifikator roditelja. Razlika je samo u tome ko pamti promenu:
+
+```ts
+// ekran                                   // ugnjezdeno
+Sorted:      goTo(0, sort, …)              reload({ ...model, offset: 0, sort, selected: [] })
+PageChanged: goTo(offset, …)               reload({ ...model, offset, selected: [] })
+Submitted:   goTo(0, …, criteria)          reload({ ...model, offset: 0, criteria, selected: [] })
+```
+
+Nema `goTo`, nema `Navigation.pushUrl`, nema `fromRouteQuery`. Od celog `common/pretraga` jedino
+`query.ts` zna za adresu; `Data`, `sameRequest`, predikati, `Table` i `Paging` koriste se
+neizmenjeni.
+
+`sameRequest` ostaje i ovde, i **vazniji je nego na ekranu**: tamo ruter na svaku promenu adrese
+pravi nov model, a ovde isti model zivi kroz sve promene, pa zakasneli odgovor ima u sta da upadne.
+
+### Roditelj se dodaje u zahtevu, ne u filteru
+
+```ts
+const toRequest = (model: Model): PretragaRequest<VoziloCriteria, VoziloOrder> => ({
+  criteria: { ...model.criteria, vozacID: model.vozacID },
+  order_: toOrder(model.sort),
+  limit_: LIMIT,
+  offset_: model.offset,
+})
+```
+
+Korisnik ga ne menja, pa mu nije mesto medju poljima filtera. Posto ulazi u `criteria`, `sameRequest`
+ga automatski poredi.
+
+### Filter je traka, ne fioka
+
+Fioka se izvlaci sa strane i ima `isOpen`; ugnjezdenom filteru to ne treba — uvek je vidljiv.
+
+```ts
+export const view = (model: Model): TeaReact.Html<Msg> => filterBar(model, fields, submitted, cleared)
+```
+
+`filterBar` rasporedjuje polja u red koji se prelama i sam dodaje `Pretrazi` / `Ponisti`. Ekran u
+`options.template` samo nabraja polja, bez CSS-a.
+
+Zato je i filter model manji: nema `isOpen`, nema `Toggled`, nema `ioState`/`toState`. Istorija
+pregledaca ovu pretragu ne pamti, pa nema sta da se vraca iz `history.state`. `update` filtera vraca
+go `Model`, ne par sa komandom — jedini razlog za komandu bi bio combo, a ako ga ima, vraca se par
+kao i na ekranu.
+
+### Raspored
+
+```tsx
+<PretragaSection
+  title="Vozila vozaca"
+  filter={Html.map(filterMsg)(Filter.view(model.filterModel))(dispatch)}
+  actions={<Button appearance="subtle" icon={<ArrowClockwiseRegular />} onClick={retryLoad}>Osvezi</Button>}
+  table={<Table … />}
+  paging={<Paging … />}
+/>
+```
+
+`PretragaSection` je par za `PretragaLayout` sa istim propovima: `PretragaLayout` je ceo ekran,
+`PretragaSection` je odeljak unutar njega. Tabela raste do dna, uz `minHeight` koji drzi prazno
+stanje — ono se crta kroz apsolutno pozicioniran sloj, pa bez visine nema gde.
+
 ## Dijalozi nad pretragom
 
 `kreiranje`, `azuriranje` i `brisanje` su zasebni moduli koje pretraga drzi u `Option`-u. Svaki od

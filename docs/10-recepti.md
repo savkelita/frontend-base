@@ -369,6 +369,142 @@ Jedan ekran to ne opravdava (pravilo 10).
 
 ---
 
+## Ugnjezdena pretraga u pregledu
+
+Lista unutar nekog pregleda, sa svojim filterom i stranicama, koja **ne dira adresu**. Pojam je
+objasnjen u [06 Pretraga](06-pretraga.md#ugnjezdena-pretraga); ovde je redosled.
+
+Uzor: `src/sifarnici/vozac/pregled/` i `pregled/vozila/` u njemu.
+
+### 1. Modul
+
+```
+pregled/
+├── index.tsx       ruta sa :id, dajX, Model, view
+├── model.ts
+├── msg.ts
+├── vozila/                 <- ugnjezdena pretraga
+│   ├── index.tsx   toRequest, load, init(roditeljID), reload, update, columns, view
+│   ├── model.ts    Model sa roditeljID + offset/sort/criteria/data/selected/filterModel
+│   ├── msg.ts      sedam poruka kao na ekranu
+│   └── filter/
+│       ├── index.tsx   EMPTY, init, update, toCriteria, options, view
+│       ├── model.ts    FormValue, vForm, Model = { value }
+│       └── msg.ts      Changed, Submitted, Cleared
+└── test/
+```
+
+### 2. Filter bez fioke
+
+`filter/model.ts` — `Model` je samo `{ value }`. Bez `isOpen`.
+
+`filter/msg.ts` — tri poruke. Bez `Toggled`.
+
+`filter/index.tsx` — bez `ioState` / `toState` / `fromState`; istorija ovu pretragu ne pamti.
+`update` vraca go `Model`, ne par sa komandom:
+
+```ts
+export const update = (msg: Msg, model: Model): Model =>
+  Msg.$match(msg, {
+    Changed: ({ value }): Model => ({ value }),
+    Submitted: (): Model => model,
+    Cleared: (): Model => ({ value: EMPTY }),
+  })
+
+export const view = (model: Model): TeaReact.Html<Msg> => filterBar(model, fields, submitted, cleared)
+```
+
+Ako filter ima combo, `update` vraca par sa komandom kao i na ekranu.
+
+### 3. Pretraga
+
+`toRequest` spaja roditelja; `init` prima njegov identifikator:
+
+```ts
+const toRequest = (model: Model): PretragaRequest<VoziloCriteria, VoziloOrder> => ({
+  criteria: { ...model.criteria, vozacID: model.vozacID },
+  order_: toOrder(model.sort),
+  limit_: LIMIT,
+  offset_: model.offset,
+})
+
+export const init = (vozacID: number): [Model, Cmd.Cmd<Msg>] => {
+  const model: Model = { vozacID, offset: 0, sort: null, criteria: {}, data: initial<Vozilo>(),
+                         selected: [], filterModel: Filter.init({}) }
+  return [model, load(model)]
+}
+```
+
+`Loaded` i `Failed` su **nepromenjeni** u odnosu na ekran — isti `sameRequest`. Menjaju se tri:
+
+```ts
+Sorted: ({ sort }) => reload({ ...model, offset: 0, sort, selected: [] }),
+
+PageChanged: ({ offset }) => reload({ ...model, offset, selected: [] }),
+
+FilterMsg: ({ msg: msgFilter }) => {
+  const filterModel = Filter.update(msgFilter, model.filterModel)
+  if (msgFilter._tag !== 'Submitted') return [{ ...model, filterModel }, Cmd.none]
+  return reload({ ...model, filterModel, offset: 0, selected: [], criteria: Filter.toCriteria(filterModel.value) })
+},
+```
+
+### 4. Prikaz
+
+```tsx
+<PretragaSection title="Vozila vozaca" filter={…} actions={…} table={<Table … />} paging={<Paging … />} />
+```
+
+### 5. Ekran koji je nosi
+
+Pregled trazi svoj slog kroz `dajX` i drzi ugnjezdenu pretragu u `Ready`:
+
+```ts
+Received: ({ vozac }) => {
+  if (model._tag === 'Ready') return [model, Cmd.none]
+  const [vozila, vozilaCmd] = Vozila.init(vozac.id)
+  return [Model.Ready({ vozac, vozila }), Cmd.map(vozilaMsg)(vozilaCmd)]
+},
+```
+
+Ruta ide sa parametrom i mora `.end()` da bi `Router.format` radio:
+
+```ts
+export const route = Router.path('/sifarnici/vozaci/:id', { id: Router.IntFromString }).end()
+export const url = (id: number): string => Router.format(route, { id })
+```
+
+Dugme za otvaranje stoji **u modulu pregleda**, kao i kod kreiranja i azuriranja, a ekran pretrage
+samo navigira:
+
+```ts
+// pregled/index.tsx
+export const button = <M,>(config: AuthorizationConfig, start: (id: number) => M, id: number | undefined) => …
+
+// pretraga/index.tsx
+StartPregled: ({ id }) => [model, Navigation.pushUrl(VozacPregled.url(id))],
+```
+
+Zatim sest koraka iz [07 Rute i autorizacija](07-rute-i-autorizacija.md#dodavanje-rute).
+
+### 6. Testovi
+
+Jedan test mora da postoji i drzi ceo pojam:
+
+```ts
+it('primena filtera ne menja adresu', async () => {
+  const [, cmd] = update(filterMsg(Filter.submitted()), otkucano)
+  expect(await pushedUrls(cmd)).toStrictEqual([])
+})
+```
+
+Isto za `sorted` i `pageChanged`. Ako neko sutra ubaci `goTo`, ta tri testa padaju.
+
+Uz njih i uobicajeni cuvari: odgovor za drugi kriterijum i za drugu stranu se odbacuje, roditelj je
+u zahtevu i posle filtera, izbor reda pada na promenu strane i filtera.
+
+---
+
 ## Novi CRUD dijalog
 
 Uzori: `kreiranje/` (prazan obrazac), `azuriranje/` (ucitava pa menja), `brisanje/` (potvrda).

@@ -1,10 +1,11 @@
-import { Combobox, Field, Tag, TagGroup, makeStyles, tokens } from '@fluentui/react-components'
+import { Combobox, Tag, TagGroup, makeStyles, tokens } from '@fluentui/react-components'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
 import { rows } from '../../pretraga'
 import type { Model } from '../combo/model'
 import { closed, opened, selected, typed, type Msg } from '../combo/msg'
 import { ComboListbox, type Render } from './combo-field'
+import { FormField } from './form-field'
 
 export type MultiComboFieldOptions<A> = {
   readonly model: Model<A>
@@ -33,12 +34,7 @@ const MultiComboView = <A,>({
     l.value.find(one => String(id(one)) === key) ?? items.find(one => String(id(one)) === key)
 
   return (
-    <Field
-      {...(l.label === undefined ? {} : { label: l.label })}
-      required={l.required}
-      validationState={l.hasError ? 'error' : 'none'}
-      {...(l.error === undefined ? {} : { validationMessage: l.error })}
-    >
+    <FormField l={l}>
       <div className={styles.control}>
         <Combobox
           multiselect
@@ -72,7 +68,7 @@ const MultiComboView = <A,>({
           </TagGroup>
         )}
       </div>
-    </Field>
+    </FormField>
   )
 }
 

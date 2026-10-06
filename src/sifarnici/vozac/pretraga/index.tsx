@@ -33,6 +33,7 @@ import * as StanjeVozaca from '../../domain/stanje-vozaca'
 import * as Azuriranje from '../azuriranje'
 import * as Brisanje from '../brisanje'
 import * as Kreiranje from '../kreiranje'
+import * as VozacPregled from '../pregled'
 import * as Filter from './filter'
 import { LIMIT, type Model } from './model'
 import {
@@ -48,6 +49,7 @@ import {
   selectionChanged,
   sorted,
   startAzuriranje,
+  startPregled,
   startBrisanje,
   startKreiranje,
 } from './msg'
@@ -137,6 +139,8 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
         : [{ ...model, filterModel }, cmd]
     },
 
+    StartPregled: ({ id }): [Model, Cmd.Cmd<Msg>] => [model, Navigation.pushUrl(VozacPregled.url(id))],
+
     StartKreiranje: (): [Model, Cmd.Cmd<Msg>] => {
       const [kreiranje, cmd] = Kreiranje.init
       return [{ ...model, kreiranje: Option.some(kreiranje) }, Cmd.map(kreiranjeMsg)(cmd)]
@@ -217,6 +221,9 @@ const columns: ReadonlyArray<Column<Vozac, VozacOrder>> = [
   { id: 'stanje', header: 'Stanje', attribute: 'stanje', render: vozac => StanjeVozaca.text(vozac.stanje) },
 ]
 
+export const isDirty = (model: Model): boolean =>
+  Option.exists(model.kreiranje, Kreiranje.isDirty) || Option.exists(model.azuriranje, Azuriranje.isDirty)
+
 const PretragaVozacaView = ({
   config,
   model,
@@ -236,6 +243,7 @@ const PretragaVozacaView = ({
         actions={
           <>
             {Kreiranje.button(config, startKreiranje())(dispatch)}
+            {VozacPregled.button(config, startPregled, selectedRow?.id)(dispatch)}
             {Azuriranje.button(config, startAzuriranje, selectedRow?.id)(dispatch)}
             {Brisanje.button(config, startBrisanje, selectedRow)(dispatch)}
             {Html.map(filterMsg)(Filter.button(model.filterModel))(dispatch)}

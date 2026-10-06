@@ -13,7 +13,7 @@ const root = createRoot(container)
 const Element = ({ dom }: { dom: TeaReact.Dom }) => {
   defaultGlobalStyles()
   return (
-    <FluentProvider style={{ height: '100%' }} theme={webLightTheme}>
+    <FluentProvider theme={webLightTheme}>
       {dom}
       <ToastHost />
     </FluentProvider>

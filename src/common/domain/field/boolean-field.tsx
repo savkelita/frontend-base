@@ -1,6 +1,7 @@
-import { Dropdown, Field, Option } from '@fluentui/react-components'
+import { Dropdown, Option } from '@fluentui/react-components'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
+import { FormField } from './form-field'
 
 export interface BooleanFieldOptions {
   readonly placeholder?: string
@@ -15,12 +16,7 @@ export const booleanField = (l: Locals<BooleanForm, BooleanFieldOptions>): React
   const ne = l.ne ?? 'Ne'
 
   return (
-    <Field
-      {...(l.label === undefined ? {} : { label: l.label })}
-      required={l.required}
-      validationState={l.hasError ? 'error' : 'none'}
-      {...(l.error === undefined ? {} : { validationMessage: l.error })}
-    >
+    <FormField l={l}>
       <Dropdown
         id={l.id}
         name={l.name}
@@ -37,6 +33,6 @@ export const booleanField = (l: Locals<BooleanForm, BooleanFieldOptions>): React
         <Option value="true">{da}</Option>
         <Option value="false">{ne}</Option>
       </Dropdown>
-    </Field>
+    </FormField>
   )
 }

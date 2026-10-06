@@ -1,8 +1,9 @@
-import { Field, Input } from '@fluentui/react-components'
+import { Input } from '@fluentui/react-components'
 import { Schema } from 'effect'
 import * as Annotation from 'effect-form/Annotation'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
+import { FormField } from '../../field/form-field'
 
 export const POZIVNI = '3816'
 
@@ -35,12 +36,7 @@ const prikaz = (value: Form): string =>
   value === null ? '' : value.startsWith(POZIVNI) ? value.slice(POZIVNI.length) : value
 
 export const telefonField = (l: Locals<Form, TelefonFieldOptions>): ReactNode => (
-  <Field
-    {...(l.label === undefined ? {} : { label: l.label })}
-    required={l.required}
-    validationState={l.hasError ? 'error' : 'none'}
-    {...(l.error === undefined ? {} : { validationMessage: l.error })}
-  >
+  <FormField l={l}>
     <Input
       id={l.id}
       name={l.name}
@@ -56,7 +52,7 @@ export const telefonField = (l: Locals<Form, TelefonFieldOptions>): ReactNode =>
         l.onChange(cifre === '' ? null : POZIVNI + cifre)
       }}
     />
-  </Field>
+  </FormField>
 )
 
 export const vForm = Schema.String.pipe(

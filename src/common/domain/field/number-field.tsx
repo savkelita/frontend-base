@@ -1,6 +1,7 @@
-import { Field, Input } from '@fluentui/react-components'
+import { Input } from '@fluentui/react-components'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
+import { FormField } from './form-field'
 
 export interface NumberFieldOptions {
   readonly placeholder?: string
@@ -43,16 +44,12 @@ export const numberField = (decimals: number) => {
   const allowed = accepts(decimals)
 
   return (l: Locals<NumberForm, NumberFieldOptions>): ReactNode => (
-    <Field
-      {...(l.label === undefined ? {} : { label: l.label })}
-      required={l.required}
-      validationState={l.hasError ? 'error' : 'none'}
-      {...(l.error === undefined ? {} : { validationMessage: l.error })}
-    >
+    <FormField l={l}>
       <Input
         id={l.id}
         name={l.name}
         type="text"
+        autoComplete="off"
         inputMode={decimals === 0 ? 'numeric' : 'decimal'}
         value={l.value ?? ''}
         disabled={l.disabled}
@@ -73,6 +70,6 @@ export const numberField = (decimals: number) => {
           if (next !== l.value) l.onChange(next)
         }}
       />
-    </Field>
+    </FormField>
   )
 }

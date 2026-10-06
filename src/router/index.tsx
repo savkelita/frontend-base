@@ -13,11 +13,13 @@ import * as Uloga from '../auth/domain/uloga'
 import * as IstekSesije from '../auth/istek-sesije'
 import { Session, SESSION_KEY, displayName, toAuthorizationConfig } from '../auth/session'
 import { hasAllFunkcionalnosti, type AuthorizationConfig } from '../auth/types'
+import { unloadGuard } from '../common/form/unload'
 import * as Toast from '../common/toast'
 import * as VozilaPretraga from '../evidencija-vozila/vozilo/pretraga'
 import * as Home from '../home'
 import * as Login from '../login'
 import * as Nav from '../navigation'
+import * as VozacPregled from '../sifarnici/vozac/pregled'
 import * as VozaciPretraga from '../sifarnici/vozac/pretraga'
 import { AppHeader } from './components/app-header'
 import { AppNavigation } from './components/app-navigation'
@@ -40,8 +42,16 @@ import {
 } from './msg'
 import { routes, getRouteFunkcionalnosti } from './route'
 import type { Route } from './route'
-import { ScreenModel, homeScreen, notFoundScreen, unauthorizedScreen, vozaciScreen, vozilaScreen } from './screen-model'
-import { ScreenMsg, homeMsg, vozaciMsg, vozilaMsg } from './screen-msg'
+import {
+  ScreenModel,
+  homeScreen,
+  notFoundScreen,
+  unauthorizedScreen,
+  vozacScreen,
+  vozaciScreen,
+  vozilaScreen,
+} from './screen-model'
+import { ScreenMsg, homeMsg, vozacMsg, vozaciMsg, vozilaMsg } from './screen-msg'
 
 export type { Model }
 export type { Msg }
@@ -54,6 +64,7 @@ const selectedNavValue = (screenModel: ScreenModel): string =>
   ScreenModel.$match(screenModel, {
     HomeScreen: () => 'home',
     VozaciScreen: () => 'vozaci',
+    VozacScreen: () => 'vozaci',
     VozilaScreen: () => 'vozila',
     NotFoundScreen: () => '',
     UnauthorizedScreen: () => '',
@@ -72,6 +83,10 @@ const startScreen = (route: Route, state: unknown, previous?: ScreenModel): [Scr
         previous?._tag === 'VozaciScreen' ? previous.model : undefined,
       )
       return [vozaciScreen(model), Cmd.map(vozaciMsg)(cmd)]
+    }
+    case 'vozac': {
+      const [model, cmd] = VozacPregled.init(route.params)
+      return [vozacScreen(model), Cmd.map(vozacMsg)(cmd)]
     }
     case 'vozila': {
       const [model, cmd] = VozilaPretraga.init(
@@ -111,11 +126,26 @@ const updateScreen = (msg: ScreenMsg, screenModel: ScreenModel): [ScreenModel, C
       const [model, cmd] = VozaciPretraga.update(vozaciMessage, screenModel.model)
       return [vozaciScreen(model), Cmd.map(vozaciMsg)(cmd)]
     },
+    VozacMsg: ({ msg: vozacMessage }): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
+      if (screenModel._tag !== 'VozacScreen') return [screenModel, Cmd.none]
+      const [model, cmd] = VozacPregled.update(vozacMessage, screenModel.model)
+      return [vozacScreen(model), Cmd.map(vozacMsg)(cmd)]
+    },
     VozilaMsg: ({ msg: vozilaMessage }): [ScreenModel, Cmd.Cmd<ScreenMsg>] => {
       if (screenModel._tag !== 'VozilaScreen') return [screenModel, Cmd.none]
       const [model, cmd] = VozilaPretraga.update(vozilaMessage, screenModel.model)
       return [vozilaScreen(model), Cmd.map(vozilaMsg)(cmd)]
     },
+  })
+
+const screenIsDirty = (screenModel: ScreenModel): boolean =>
+  ScreenModel.$match(screenModel, {
+    HomeScreen: () => false,
+    VozaciScreen: ({ model }) => VozaciPretraga.isDirty(model),
+    VozacScreen: () => false,
+    VozilaScreen: () => false,
+    NotFoundScreen: () => false,
+    UnauthorizedScreen: () => false,
   })
 
 const screenView =
@@ -124,6 +154,7 @@ const screenView =
     ScreenModel.$match(screenModel, {
       HomeScreen: ({ model }) => Html.map(homeMsg)(Home.view(model))(dispatch),
       VozaciScreen: ({ model }) => Html.map(vozaciMsg)(VozaciPretraga.view(config, model))(dispatch),
+      VozacScreen: ({ model }) => Html.map(vozacMsg)(VozacPregled.view(model))(dispatch),
       VozilaScreen: ({ model }) => Html.map(vozilaMsg)(VozilaPretraga.view(model))(dispatch),
       NotFoundScreen: ({ path }) => <NotFoundView path={path} />,
       UnauthorizedScreen: ({ path }) => <UnauthorizedView path={path} />,
@@ -246,7 +277,9 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
   })
 
 export const subscriptions = (model: Model): Sub.Sub<Msg> =>
-  model._tag === 'Authenticated' ? Sub.map(istekSesije)(IstekSesije.subscriptions()) : Sub.none
+  model._tag === 'Authenticated'
+    ? Sub.batch([Sub.map(istekSesije)(IstekSesije.subscriptions()), unloadGuard(screenIsDirty(model.screen))])
+    : Sub.none
 
 export const view =
   (model: Model): TeaReact.Html<Msg> =>

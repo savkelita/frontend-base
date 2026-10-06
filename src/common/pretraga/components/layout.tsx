@@ -1,4 +1,4 @@
-import { Title3, makeStyles, tokens } from '@fluentui/react-components'
+import { Subtitle2, Title3, makeStyles, tokens } from '@fluentui/react-components'
 import type { ReactNode } from 'react'
 
 export type PretragaLayoutProps = {
@@ -8,6 +8,8 @@ export type PretragaLayoutProps = {
   readonly table: ReactNode
   readonly paging: ReactNode
 }
+
+export type PretragaSectionProps = PretragaLayoutProps
 
 const useStyles = makeStyles({
   root: {
@@ -44,6 +46,31 @@ const useStyles = makeStyles({
     flexGrow: 1,
     minHeight: 0,
   },
+  sekcija: {
+    display: 'flex',
+    flexDirection: 'column',
+    rowGap: tokens.spacingVerticalM,
+    minWidth: 0,
+    flexGrow: 1,
+    minHeight: 0,
+  },
+  sekcijaAkcije: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    columnGap: tokens.spacingHorizontalS,
+    rowGap: tokens.spacingVerticalS,
+  },
+  sekcijaTabela: {
+    display: 'flex',
+    flexDirection: 'column',
+    flexGrow: 1,
+    minHeight: '240px',
+    '& > *': {
+      flexGrow: 1,
+      minHeight: 0,
+    },
+  },
 })
 
 export const PretragaLayout = ({ title, actions, filter, table, paging }: PretragaLayoutProps): ReactNode => {
@@ -61,5 +88,19 @@ export const PretragaLayout = ({ title, actions, filter, table, paging }: Pretra
       </div>
       {filter}
     </div>
+  )
+}
+
+export const PretragaSection = ({ title, actions, filter, table, paging }: PretragaSectionProps): ReactNode => {
+  const styles = useStyles()
+
+  return (
+    <section className={styles.sekcija}>
+      <Subtitle2>{title}</Subtitle2>
+      {filter}
+      {actions !== undefined && <div className={styles.sekcijaAkcije}>{actions}</div>}
+      <div className={styles.sekcijaTabela}>{table}</div>
+      {paging}
+    </section>
   )
 }

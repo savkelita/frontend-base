@@ -19,6 +19,7 @@ export type Msg = Tagged.TaggedEnum<{
   FilterMsg: { readonly msg: Filter.Msg }
   StartKreiranje: {}
   KreiranjeMsg: { readonly msg: Kreiranje.Msg }
+  StartPregled: { readonly id: number }
   StartAzuriranje: { readonly id: number }
   AzuriranjeMsg: { readonly msg: Azuriranje.Msg }
   StartBrisanje: { readonly vozac: Vozac }
@@ -44,6 +45,8 @@ export const filterMsg = (msg: Filter.Msg): Msg => Msg.FilterMsg({ msg })
 export const startKreiranje = (): Msg => Msg.StartKreiranje()
 
 export const kreiranjeMsg = (msg: Kreiranje.Msg): Msg => Msg.KreiranjeMsg({ msg })
+
+export const startPregled = (id: number): Msg => Msg.StartPregled({ id })
 
 export const startAzuriranje = (id: number): Msg => Msg.StartAzuriranje({ id })
 

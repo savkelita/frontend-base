@@ -14,7 +14,7 @@ const session = (expiration: number): Session => ({
   expiration,
 })
 
-const at = (now: number) => ({ now: Option.some(now) })
+const at = (now: number, hasCookie = true) => ({ now: Option.some(now), hasCookie })
 
 describe('preostalo vreme', () => {
   it('racuna se u sekundama do isteka', () => {
@@ -72,7 +72,7 @@ describe('tekst upozorenja', () => {
 
 describe('otkucaj', () => {
   it('upisuje vreme i ne pravi komandu', () => {
-    const [model, cmd] = update(Msg.Tick({ now: 123 }), initial)
+    const [model, cmd] = update(Msg.Tick({ now: 123, hasCookie: true }), initial)
     expect(model.now).toStrictEqual(Option.some(123))
     expect(cmd).toBe(Cmd.none)
   })
@@ -80,5 +80,16 @@ describe('otkucaj', () => {
   it('odjava ne dira model — o njoj odlucuje router', () => {
     const [model] = update(Msg.SignOut(), at(5))
     expect(model).toStrictEqual(at(5))
+  })
+})
+
+describe('kolacici', () => {
+  it('otkucaj pamti da li su kolacici tu', () => {
+    const [model] = update(Msg.Tick({ now: 1, hasCookie: false }), initial)
+    expect(model.hasCookie).toBe(false)
+  })
+
+  it('pre prvog otkucaja se podrazumeva da jesu, jer je podizanje to vec proverilo', () => {
+    expect(initial.hasCookie).toBe(true)
   })
 })

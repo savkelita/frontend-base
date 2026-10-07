@@ -5,9 +5,10 @@ export const WARN_SECONDS = 2 * 60
 
 export type Model = {
   readonly now: Option.Option<number>
+  readonly hasCookie: boolean
 }
 
-export const initial: Model = { now: Option.none() }
+export const initial: Model = { now: Option.none(), hasCookie: true }
 
 export const remaining = (session: Session, model: Model): Option.Option<number> =>
   Option.map(model.now, now => Math.ceil((session.expiration - now) / 1000))

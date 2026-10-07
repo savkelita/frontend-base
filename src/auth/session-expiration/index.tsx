@@ -4,6 +4,7 @@ import * as Cmd from 'tea-effect/Cmd'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Sub from 'tea-effect/Sub'
+import { hasXsrfToken } from '../../common/http/request'
 import type { Session } from '../session'
 import { initial, remaining, warning, warns, type Model } from './model'
 import { Msg, signOut, tick } from './msg'
@@ -17,7 +18,7 @@ export const init: [Model, Cmd.Cmd<Msg>] = [initial, Cmd.none]
 
 export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
   Msg.$match(msg, {
-    Tick: ({ now }): [Model, Cmd.Cmd<Msg>] => [{ now: Option.some(now) }, Cmd.none],
+    Tick: ({ now, hasCookie }): [Model, Cmd.Cmd<Msg>] => [{ now: Option.some(now), hasCookie }, Cmd.none],
     SignOut: (): [Model, Cmd.Cmd<Msg>] => [model, Cmd.none],
   })
 
@@ -25,7 +26,13 @@ export const subscriptions = (): Sub.Sub<Msg> =>
   Sub.withKey(
     'session-expiration',
     Stream.repeatEffectWithSchedule(
-      Effect.clockWith(clock => Effect.map(clock.currentTimeMillis, tick)),
+      Effect.map(
+        Effect.all([
+          Effect.clockWith(clock => clock.currentTimeMillis),
+          Effect.sync(() => hasXsrfToken(typeof document === 'undefined' ? '' : document.cookie)),
+        ]),
+        ([now, hasCookie]) => tick(now, hasCookie),
+      ),
       Schedule.fixed(INTERVAL),
     ),
   )

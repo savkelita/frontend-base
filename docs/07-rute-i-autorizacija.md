@@ -202,6 +202,22 @@ gledao gresku umesto prijave.
 Provera kolacica vazi **samo u jednom smeru**: nema XSRF-a znaci da sesije sigurno nema, ima ga ne
 garantuje da je ziva (token sesije se ne moze procitati). Oslanja se na to da se oba brisu zajedno.
 
+**Ista provera ide i u otkucaj**, da garancija ne zavisi od toga *kako* je sesija nestala. Obrisani
+kolacici i istekli kolacici su za pregledac ista stvar — `document.cookie` ih prosto nema. Istek
+hvatamo jer smo vreme zapamtili u modelu; brisanje se ne najavljuje nicim, pa bi se bez ovoga
+primetilo tek pri sledecem podizanju:
+
+```ts
+Tick: { readonly now: number; readonly hasCookie: boolean }
+```
+
+Pretplata cita svet (sat i kolacic), poruka nosi oboje, `update` ostaje cist. Ruter onda ima jedno
+pravilo umesto dva — **sesija je gotova kad joj istekne vreme ili kad joj nestanu kolacici** — i
+jednu granu, jer korisniku je svejedno zasto je gotova.
+
+`initial.hasCookie` je `true`, i to nije pretpostavka: do `Authenticated` se stiglo tek posto je
+provera pri podizanju prosla.
+
 ### Sesija i vise tabova
 
 Kolacic dele svi tabovi, model ne. Zato ruter slusa `storage` dogadjaj, koji se po specifikaciji

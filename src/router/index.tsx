@@ -273,7 +273,7 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
       if (model._tag !== 'Authenticated') return [model, Cmd.none]
       if (expirationMsg._tag === 'SignOut') return signOut(model.location)
       const [expiration, expirationCmd] = SessionExpiration.update(expirationMsg, model.sessionExpiration)
-      if (SessionExpiration.expired(model.session, expiration)) {
+      if (SessionExpiration.expired(model.session, expiration) || !expiration.hasCookie) {
         const [anonModel, anonCmd] = signOut(model.location)
         return [anonModel, Cmd.batch([anonCmd, Toast.warning('Sesija je istekla. Prijavite se ponovo.')])]
       }

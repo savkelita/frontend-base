@@ -29,7 +29,7 @@ const signedIn = (expiration: number): Model =>
   update(sessionLoaded(Option.some(session(expiration))), Model.Initializing({ location }))[0]
 
 const afterTick = (expiration: number, now: number): Model =>
-  update(sessionExpiration(ExpirationMsg.Tick({ now })), signedIn(expiration))[0]
+  update(sessionExpiration(ExpirationMsg.Tick({ now, hasCookie: true })), signedIn(expiration))[0]
 
 describe('istek sesije gasi prijavu', () => {
   it('pre isteka se ostaje prijavljen', () => {
@@ -52,7 +52,21 @@ describe('istek sesije gasi prijavu', () => {
 
   it('bez prijave otkucaj ne radi nista', () => {
     const anonymous = update(sessionLoaded(Option.none()), Model.Initializing({ location }))[0]
-    const [model] = update(sessionExpiration(ExpirationMsg.Tick({ now: 1 })), anonymous)
+    const [model] = update(sessionExpiration(ExpirationMsg.Tick({ now: 1, hasCookie: true })), anonymous)
     expect(model).toBe(anonymous)
+  })
+})
+
+describe('nestali kolacici gase sesiju', () => {
+  it('otkucaj bez kolacica odjavljuje i pre isteka', () => {
+    const [model] = update(
+      sessionExpiration(ExpirationMsg.Tick({ now: 1 * MINUTE, hasCookie: false })),
+      signedIn(10 * MINUTE),
+    )
+    expect(model._tag).toBe('Anonymous')
+  })
+
+  it('sa kolacicima se ostaje prijavljen', () => {
+    expect(afterTick(10 * MINUTE, 1 * MINUTE)._tag).toBe('Authenticated')
   })
 })

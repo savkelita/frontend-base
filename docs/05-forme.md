@@ -122,27 +122,31 @@ Ovo je najcesca tiha greska pri pisanju novog domena. Pravilo pre poruke, uvek.
 
 **`ConfirmDialog`** — potvrda, koristi se za brisanje.
 
-### `Outcome` — kako dijalog javlja da je gotov
+### `UpdateResult` — kako dijalog javlja da je gotov
 
-`update` dijaloga **ne vraca `[Model, Cmd]`** nego `Outcome`, iz `common/form/outcome.ts`:
+`update` dijaloga **ne vraca `[Model, Cmd]`** nego `UpdateResult`, iz `common/form/result.ts`:
 
 ```ts
-export type Outcome<Model, Msg, A> = Tagged.TaggedEnum<{
+export type UpdateResult<Model, Msg, A> = Tagged.TaggedEnum<{
   Active: { readonly model: Model; readonly cmd: Cmd.Cmd<Msg> }
-  Closed: {}
+  Cancelled: {}
   Done: { readonly value: A }
 }>
 ```
+
+Slucaj se zove `Cancelled`, ne `Closed`: zatvaranje je mehanika dijaloga, a ishod je da je korisnik
+odustao. Usput se time i konstruktori razlikuju od poruka (`cancelled()` vs `closed()`), pa modul
+moze da se uvozi imenovano, bez prostora imena.
 
 Dete u potpisu kaze cime se zavrsava, pa `kreiranje` vraca `ObjekatIdentifikator`, `brisanje`
 vraca `Vozac`, a `azuriranje` nema sta da vrati pa je `void`:
 
 ```ts
-export type Result = Outcome.Outcome<Model, Msg, ObjekatIdentifikator>
+export type Result = UpdateResult<Model, Msg, ObjekatIdentifikator>
 
-Saved: ({ identifikator }): Result => Outcome.done(identifikator),
-Closed: (): Result => Outcome.closed(),
-SaveFailed: ({ error }): Result => Outcome.active({ ...model, error: Option.some(error) }),
+Saved: ({ identifikator }): Result => done(identifikator),
+Closed: (): Result => cancelled(),
+SaveFailed: ({ error }): Result => active({ ...model, error: Option.some(error) }),
 ```
 
 Roditelj presavija i **ne pominje nijednu poruku deteta**:
@@ -150,9 +154,9 @@ Roditelj presavija i **ne pominje nijednu poruku deteta**:
 ```ts
 KreiranjeMsg: ({ msg }): [Model, Cmd.Cmd<Msg>] => {
   if (Option.isNone(model.kreiranje)) return [model, Cmd.none]
-  return Outcome.match(Kreiranje.update(msg, model.kreiranje.value), {
+  return matchResult(Kreiranje.update(msg, model.kreiranje.value), {
     Active: ({ model: kreiranje, cmd }) => [{ ...model, kreiranje: Option.some(kreiranje) }, Cmd.map(kreiranjeMsg)(cmd)],
-    Closed: () => [{ ...model, kreiranje: Option.none() }, Cmd.none],
+    Cancelled: () => [{ ...model, kreiranje: Option.none() }, Cmd.none],
     Done: ({ value: { id } }) => /* reload + toast */,
   })
 },
@@ -164,7 +168,7 @@ izvrsilo, roditelj je znao privatna imena detetovih poruka, i **nigde u tipu nij
 poruke terminalne** — nova takva poruka ne bi nista srusila, dijalog bi samo ostao otvoren. Sada
 ruzi kompajliranje dok je ne obradis.
 
-`Outcome` je **samo za decu sa zivotnim ciklusom**, dakle dijaloge. Ekrani i dalje vracaju
+`UpdateResult` je **samo za decu sa zivotnim ciklusom**, dakle dijaloge. Ekrani i dalje vracaju
 `[Model, Cmd]`.
 
 U testu dijaloga ide lokalni pomocnik koji suzava na `Active`:

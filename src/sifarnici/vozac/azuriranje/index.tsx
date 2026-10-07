@@ -11,7 +11,7 @@ import { mapHttpError, reportError } from '../../../common/error'
 import { ErrorView } from '../../../common/error/view'
 import * as Form from '../../../common/form'
 import { FormDialog } from '../../../common/form/dialog'
-import * as Outcome from '../../../common/form/outcome'
+import { active, cancelled, done, type UpdateResult } from '../../../common/form/result'
 import * as Api from '../../api'
 import type { VozacInfo } from '../../api'
 import * as Kategorija from '../../domain/kategorija-vozaca'
@@ -57,12 +57,12 @@ const azuriraj = (original: VozacInfo, value: Value): Cmd.Cmd<Msg> =>
     onError: error => saveFailed(mapHttpError(error)),
   })
 
-export type Result = Outcome.Outcome<Model, Msg, void>
+export type Result = UpdateResult<Model, Msg, void>
 
 export const update = (msg: Msg, model: Model): Result =>
   Msg.$match(msg, {
     Received: ({ vozac }): Result =>
-      Outcome.active(
+      active(
         Model.Ready({
           original: vozac,
           value: toForm(vozac),
@@ -73,37 +73,37 @@ export const update = (msg: Msg, model: Model): Result =>
         }),
       ),
 
-    ReceiveFailed: ({ error }): Result => Outcome.active(Model.Failed({ error })),
+    ReceiveFailed: ({ error }): Result => active(Model.Failed({ error })),
 
     Changed: ({ value }): Result => {
-      if (model._tag !== 'Ready') return Outcome.active(model)
-      return Outcome.active(Model.Ready({ ...model, value, error: Option.none() }))
+      if (model._tag !== 'Ready') return active(model)
+      return active(Model.Ready({ ...model, value, error: Option.none() }))
     },
 
     Submitted: (): Result => {
-      if (model._tag !== 'Ready' || model.isSubmitting) return Outcome.active(model)
+      if (model._tag !== 'Ready' || model.isSubmitting) return active(model)
       const result = Form.validate(vForm, model.value)
-      if (!result.isValid) return Outcome.active(Model.Ready({ ...model, showErrors: true }))
-      return Outcome.active(
+      if (!result.isValid) return active(Model.Ready({ ...model, showErrors: true }))
+      return active(
         Model.Ready({ ...model, showErrors: true, isSubmitting: true, error: Option.none() }),
         azuriraj(model.original, result.value),
       )
     },
 
-    Saved: (): Result => Outcome.done(undefined),
+    Saved: (): Result => done(undefined),
 
     SaveFailed: ({ error }): Result => {
-      if (model._tag !== 'Ready') return Outcome.active(model)
-      return Outcome.active(Model.Ready({ ...model, isSubmitting: false, error: Option.some(error) }))
+      if (model._tag !== 'Ready') return active(model)
+      return active(Model.Ready({ ...model, isSubmitting: false, error: Option.some(error) }))
     },
 
-    Closed: (): Result => Outcome.closed(),
+    Closed: (): Result => cancelled(),
 
     KategorijeMsg: ({ msg: comboMessage }): Result => {
-      if (model._tag !== 'Ready') return Outcome.active(model)
+      if (model._tag !== 'Ready') return active(model)
       const [kategorijeCombo, comboCmd] = Combo.update(Kategorija.search, comboMessage, model.kategorijeCombo)
       const value = comboMessage._tag === 'Selected' ? { ...model.value, kategorije: comboMessage.values } : model.value
-      return Outcome.active(Model.Ready({ ...model, kategorijeCombo, value }), Cmd.map(kategorijeMsg)(comboCmd))
+      return active(Model.Ready({ ...model, kategorijeCombo, value }), Cmd.map(kategorijeMsg)(comboCmd))
     },
   })
 

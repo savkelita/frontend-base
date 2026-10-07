@@ -9,7 +9,7 @@ import { hasAllPermissions, type AuthorizationConfig, type Permission } from '..
 import { mapHttpError, reportError } from '../../../common/error'
 import { ErrorView } from '../../../common/error/view'
 import { ConfirmDialog } from '../../../common/form/dialog'
-import * as Outcome from '../../../common/form/outcome'
+import { active, cancelled, done, type UpdateResult } from '../../../common/form/result'
 import * as Api from '../../api'
 import type { Vozac } from '../../api'
 import type { Model } from './model'
@@ -42,20 +42,20 @@ const obrisi = (vozac: Vozac): Cmd.Cmd<Msg> =>
     onError: error => deleteFailed(mapHttpError(error)),
   })
 
-export type Result = Outcome.Outcome<Model, Msg, Vozac>
+export type Result = UpdateResult<Model, Msg, Vozac>
 
 export const update = (msg: Msg, model: Model): Result =>
   Msg.$match(msg, {
     Submitted: (): Result => {
-      if (model.isDeleting) return Outcome.active(model)
-      return Outcome.active({ ...model, isDeleting: true, error: Option.none() }, obrisi(model.vozac))
+      if (model.isDeleting) return active(model)
+      return active({ ...model, isDeleting: true, error: Option.none() }, obrisi(model.vozac))
     },
 
-    Deleted: (): Result => Outcome.done(model.vozac),
+    Deleted: (): Result => done(model.vozac),
 
-    DeleteFailed: ({ error }): Result => Outcome.active({ ...model, isDeleting: false, error: Option.some(error) }),
+    DeleteFailed: ({ error }): Result => active({ ...model, isDeleting: false, error: Option.some(error) }),
 
-    Closed: (): Result => Outcome.closed(),
+    Closed: (): Result => cancelled(),
   })
 
 const BrisanjeView = ({ model, dispatch }: { model: Model; dispatch: Platform.Dispatch<Msg> }) => (

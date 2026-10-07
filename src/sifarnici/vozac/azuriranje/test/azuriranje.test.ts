@@ -110,7 +110,7 @@ describe('snimanje', () => {
   })
 
   it('odustajanje javlja ekranu iznad da zatvori dijalog', () => {
-    expect(update(closed(), ucitan())._tag).toBe('Closed')
+    expect(update(closed(), ucitan())._tag).toBe('Cancelled')
   })
 })
 

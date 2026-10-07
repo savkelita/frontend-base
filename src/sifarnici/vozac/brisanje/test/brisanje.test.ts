@@ -79,7 +79,7 @@ describe('brisanje', () => {
   })
 
   it('odustajanje javlja ekranu iznad da zatvori dijalog', () => {
-    expect(update(closed(), otvoreno())._tag).toBe('Closed')
+    expect(update(closed(), otvoreno())._tag).toBe('Cancelled')
   })
 
   it('pocinje bez greske', () => {

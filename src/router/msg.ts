@@ -14,6 +14,7 @@ export type Msg = Data.TaggedEnum<{
   Navigation: { readonly navMsg: Nav.Msg }
   SessionLoaded: { readonly session: Option.Option<Session> }
   SessionLoadError: { readonly error: LocalStorage.LocalStorageError }
+  SessionChanged: { readonly session: Option.Option<Session> }
   Login: { readonly loginMsg: Login.Msg }
   IstekSesije: { readonly istekMsg: IstekSesije.Msg }
   Logout: {}
@@ -28,6 +29,7 @@ export const screen = (screenMsg: ScreenMsg): Msg => Msg.Screen({ screenMsg })
 export const navigation = (navMsg: Nav.Msg): Msg => Msg.Navigation({ navMsg })
 export const sessionLoaded = (session: Option.Option<Session>): Msg => Msg.SessionLoaded({ session })
 export const sessionLoadError = (error: LocalStorage.LocalStorageError): Msg => Msg.SessionLoadError({ error })
+export const sessionChanged = (session: Option.Option<Session>): Msg => Msg.SessionChanged({ session })
 export const login = (loginMsg: Login.Msg): Msg => Msg.Login({ loginMsg })
 export const istekSesije = (istekMsg: IstekSesije.Msg): Msg => Msg.IstekSesije({ istekMsg })
 export const logout = (): Msg => Msg.Logout()

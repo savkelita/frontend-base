@@ -4,7 +4,7 @@ import * as Combo from '../../../../common/domain/combo'
 import { ApiError } from '../../../../common/error'
 import * as Form from '../../../../common/form'
 import type { Value as Kategorija } from '../../../domain/kategorija-vozaca'
-import { init, toCmd, update } from '../index'
+import { init, toCmd, update, type Result } from '../index'
 import { vForm, type FormValue, type Model } from '../model'
 import { changed, closed, kategorijeMsg, saveFailed, saved, submitted } from '../msg'
 
@@ -24,7 +24,12 @@ const popunjen: FormValue = {
 
 const open = (): Model => init[0]
 
-const withValue = (value: FormValue): Model => update(changed(value), open())[0]
+const aktivan = (result: Result) => {
+  if (result._tag !== 'Active') throw new Error(`ocekivan Active, a stigao ${result._tag}`)
+  return result
+}
+
+const withValue = (value: FormValue): Model => aktivan(update(changed(value), open())).model
 
 const form = (fields: Partial<FormValue>): FormValue => ({ ...open().value, ...fields })
 
@@ -62,61 +67,61 @@ describe('validacija', () => {
 
 describe('snimanje', () => {
   it('nepotpun formular pali greske i ne zove server', () => {
-    const [model, cmd] = update(submitted(), open())
+    const { model, cmd } = aktivan(update(submitted(), open()))
     expect(model.showErrors).toBe(true)
     expect(model.isSubmitting).toBe(false)
     expect(cmd).toBe(Cmd.none)
   })
 
   it('potpun formular ide na server', () => {
-    const [model, cmd] = update(submitted(), withValue(popunjen))
+    const { model, cmd } = aktivan(update(submitted(), withValue(popunjen)))
     expect(model.isSubmitting).toBe(true)
     expect(cmd).not.toBe(Cmd.none)
   })
 
   // Dvoklik na Sacuvaj bi inace napravio dva vozaca.
   it('dok snimanje traje ponovni klik ne radi nista', () => {
-    const uToku = update(submitted(), withValue(popunjen))[0]
-    const [model, cmd] = update(submitted(), uToku)
+    const uToku = aktivan(update(submitted(), withValue(popunjen))).model
+    const { model, cmd } = aktivan(update(submitted(), uToku))
     expect(model).toBe(uToku)
     expect(cmd).toBe(Cmd.none)
   })
 
   it('greska servera zavrsava snimanje i ostaje u modelu', () => {
-    const uToku = update(submitted(), withValue(popunjen))[0]
-    const [model] = update(saveFailed(ApiError.ServerFailure()), uToku)
+    const uToku = aktivan(update(submitted(), withValue(popunjen))).model
+    const { model } = aktivan(update(saveFailed(ApiError.ServerFailure()), uToku))
     expect(model.isSubmitting).toBe(false)
     expect(model.error._tag).toBe('Some')
   })
 
   // Posle neuspeha korisnik ispravlja podatak; stara greska tu vise nema sta da trazi.
   it('izmena polja sklanja gresku servera', () => {
-    const sGreskom = update(saveFailed(ApiError.ServerFailure()), withValue(popunjen))[0]
-    expect(update(changed({ ...popunjen, ime: 'Mika' }), sGreskom)[0].error._tag).toBe('None')
+    const sGreskom = aktivan(update(saveFailed(ApiError.ServerFailure()), withValue(popunjen))).model
+    const { model } = aktivan(update(changed({ ...popunjen, ime: 'Mika' }), sGreskom))
+    expect(model.error._tag).toBe('None')
   })
 
-  it('uspeh gasi snimanje, a ekran iznad gasi dijalog', () => {
-    const uToku = update(submitted(), withValue(popunjen))[0]
-    const [model, cmd] = update(saved({ id: 7, version: 1 }), uToku)
-    expect(model.isSubmitting).toBe(false)
-    expect(cmd).toBe(Cmd.none)
+  it('uspeh javlja ekranu iznad koji je slog nastao', () => {
+    const uToku = aktivan(update(submitted(), withValue(popunjen))).model
+    const result = update(saved({ id: 7, version: 1 }), uToku)
+    expect(result._tag).toBe('Done')
+    expect(result._tag === 'Done' && result.value.id).toBe(7)
   })
 
-  it('odustajanje ne dira model', () => {
-    const model = withValue(popunjen)
-    expect(update(closed(), model)[0]).toBe(model)
+  it('odustajanje javlja ekranu iznad da zatvori dijalog', () => {
+    expect(update(closed(), withValue(popunjen))._tag).toBe('Closed')
   })
 })
 
 describe('kategorije', () => {
   it('izbor iz comboa upisuje vrednosti u formular', () => {
-    const [model] = update(kategorijeMsg(Combo.selected([B, C])), open())
+    const { model } = aktivan(update(kategorijeMsg(Combo.selected([B, C])), open()))
     expect(model.value.kategorije).toStrictEqual([B, C])
   })
 
   it('uklanjanje poslednje kategorije vraca formular u nevalidno stanje', () => {
-    const sKategorijama = update(kategorijeMsg(Combo.selected([B])), withValue(popunjen))[0]
-    const [model] = update(kategorijeMsg(Combo.selected([])), sKategorijama)
+    const sKategorijama = aktivan(update(kategorijeMsg(Combo.selected([B])), withValue(popunjen))).model
+    const { model } = aktivan(update(kategorijeMsg(Combo.selected([])), sKategorijama))
     expect(model.value.kategorije).toStrictEqual([])
     expect(poruke(model.value)).toStrictEqual(['kategorije: Podatak je obavezan'])
   })

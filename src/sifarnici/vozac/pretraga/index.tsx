@@ -9,6 +9,7 @@ import * as Router from 'tea-effect/Router'
 import type { AuthorizationConfig, Funkcionalnost } from '../../../auth/types'
 import { AuditCell } from '../../../common/audit/view'
 import { mapHttpError } from '../../../common/error'
+import * as Outcome from '../../../common/form/outcome'
 import { memoize } from '../../../common/memo'
 import {
   Data,
@@ -148,20 +149,23 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
 
     KreiranjeMsg: ({ msg: msgKreiranje }): [Model, Cmd.Cmd<Msg>] => {
       if (Option.isNone(model.kreiranje)) return [model, Cmd.none]
-      if (msgKreiranje._tag === 'Closed') return [{ ...model, kreiranje: Option.none() }, Cmd.none]
-      if (msgKreiranje._tag === 'Saved') {
-        const { id } = msgKreiranje.identifikator
-        const [next, cmd] = reload({ ...model, kreiranje: Option.none() })
-        return [
-          next,
-          Cmd.batch([
-            cmd,
-            Toast.success('Vozac je sacuvan.', { action: { label: 'Otvori', msg: () => startAzuriranje(id) } }),
-          ]),
-        ]
-      }
-      const [kreiranje, cmd] = Kreiranje.update(msgKreiranje, model.kreiranje.value)
-      return [{ ...model, kreiranje: Option.some(kreiranje) }, Cmd.map(kreiranjeMsg)(cmd)]
+      return Outcome.match(Kreiranje.update(msgKreiranje, model.kreiranje.value), {
+        Active: ({ model: kreiranje, cmd }): [Model, Cmd.Cmd<Msg>] => [
+          { ...model, kreiranje: Option.some(kreiranje) },
+          Cmd.map(kreiranjeMsg)(cmd),
+        ],
+        Closed: (): [Model, Cmd.Cmd<Msg>] => [{ ...model, kreiranje: Option.none() }, Cmd.none],
+        Done: ({ value: { id } }): [Model, Cmd.Cmd<Msg>] => {
+          const [next, cmd] = reload({ ...model, kreiranje: Option.none() })
+          return [
+            next,
+            Cmd.batch([
+              cmd,
+              Toast.success('Vozac je sacuvan.', { action: { label: 'Otvori', msg: () => startAzuriranje(id) } }),
+            ]),
+          ]
+        },
+      })
     },
 
     StartAzuriranje: ({ id }): [Model, Cmd.Cmd<Msg>] => {
@@ -171,13 +175,17 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
 
     AzuriranjeMsg: ({ msg: msgAzuriranje }): [Model, Cmd.Cmd<Msg>] => {
       if (Option.isNone(model.azuriranje)) return [model, Cmd.none]
-      if (msgAzuriranje._tag === 'Closed') return [{ ...model, azuriranje: Option.none() }, Cmd.none]
-      if (msgAzuriranje._tag === 'Saved') {
-        const [next, cmd] = reload({ ...model, azuriranje: Option.none(), selected: [] })
-        return [next, Cmd.batch([cmd, Toast.success('Izmene su sacuvane.')])]
-      }
-      const [azuriranje, cmd] = Azuriranje.update(msgAzuriranje, model.azuriranje.value)
-      return [{ ...model, azuriranje: Option.some(azuriranje) }, Cmd.map(azuriranjeMsg)(cmd)]
+      return Outcome.match(Azuriranje.update(msgAzuriranje, model.azuriranje.value), {
+        Active: ({ model: azuriranje, cmd }): [Model, Cmd.Cmd<Msg>] => [
+          { ...model, azuriranje: Option.some(azuriranje) },
+          Cmd.map(azuriranjeMsg)(cmd),
+        ],
+        Closed: (): [Model, Cmd.Cmd<Msg>] => [{ ...model, azuriranje: Option.none() }, Cmd.none],
+        Done: (): [Model, Cmd.Cmd<Msg>] => {
+          const [next, cmd] = reload({ ...model, azuriranje: Option.none(), selected: [] })
+          return [next, Cmd.batch([cmd, Toast.success('Izmene su sacuvane.')])]
+        },
+      })
     },
 
     StartBrisanje: ({ vozac }): [Model, Cmd.Cmd<Msg>] => {
@@ -187,14 +195,17 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
 
     BrisanjeMsg: ({ msg: msgBrisanje }): [Model, Cmd.Cmd<Msg>] => {
       if (Option.isNone(model.brisanje)) return [model, Cmd.none]
-      if (msgBrisanje._tag === 'Closed') return [{ ...model, brisanje: Option.none() }, Cmd.none]
-      if (msgBrisanje._tag === 'Deleted') {
-        const ime = model.brisanje.value.vozac.imeZaPrikaz
-        const [next, cmd] = reload({ ...model, brisanje: Option.none(), selected: [] })
-        return [next, Cmd.batch([cmd, Toast.success(`Vozac ${ime} je obrisan.`)])]
-      }
-      const [brisanje, cmd] = Brisanje.update(msgBrisanje, model.brisanje.value)
-      return [{ ...model, brisanje: Option.some(brisanje) }, Cmd.map(brisanjeMsg)(cmd)]
+      return Outcome.match(Brisanje.update(msgBrisanje, model.brisanje.value), {
+        Active: ({ model: brisanje, cmd }): [Model, Cmd.Cmd<Msg>] => [
+          { ...model, brisanje: Option.some(brisanje) },
+          Cmd.map(brisanjeMsg)(cmd),
+        ],
+        Closed: (): [Model, Cmd.Cmd<Msg>] => [{ ...model, brisanje: Option.none() }, Cmd.none],
+        Done: ({ value: vozac }): [Model, Cmd.Cmd<Msg>] => {
+          const [next, cmd] = reload({ ...model, brisanje: Option.none(), selected: [] })
+          return [next, Cmd.batch([cmd, Toast.success(`Vozac ${vozac.imeZaPrikaz} je obrisan.`)])]
+        },
+      })
     },
   })
 

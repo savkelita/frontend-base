@@ -1,4 +1,4 @@
-import { Option } from 'effect'
+import { Effect, Option } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Html from 'tea-effect/Html'
 import * as Http from 'tea-effect/Http'
@@ -8,12 +8,14 @@ import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Router from 'tea-effect/Router'
 import * as Sub from 'tea-effect/Sub'
+import * as Task from 'tea-effect/Task'
 import * as Api from '../auth/api'
 import * as Uloga from '../auth/domain/uloga'
 import * as IstekSesije from '../auth/istek-sesije'
-import { Session, SESSION_KEY, displayName, toAuthorizationConfig } from '../auth/session'
+import { Session, SESSION_KEY, displayName, sameIdentity, toAuthorizationConfig, canResume } from '../auth/session'
 import { hasAllFunkcionalnosti, type AuthorizationConfig } from '../auth/types'
 import { unloadGuard } from '../common/form/unload'
+import { hasXsrfToken } from '../common/http/request'
 import * as Toast from '../common/toast'
 import * as VozilaPretraga from '../evidencija-vozila/vozilo/pretraga'
 import * as Home from '../home'
@@ -36,6 +38,7 @@ import {
   navigation,
   sessionLoaded,
   sessionLoadError,
+  sessionChanged,
   login,
   istekSesije,
   logoutCompleted,
@@ -195,9 +198,25 @@ const odjavi = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => {
   ]
 }
 
+const zapamcenaSesija: Effect.Effect<Option.Option<Session>, LocalStorage.LocalStorageError> = Effect.map(
+  Effect.all([
+    LocalStorage.getTask(SESSION_KEY, Session),
+    Effect.sync(() => hasXsrfToken(typeof document === 'undefined' ? '' : document.cookie)),
+    Effect.clockWith(clock => clock.currentTimeMillis),
+  ]),
+  ([zapamcena, imaKolacic, sada]) => Option.filter(zapamcena, session => canResume(session, sada, imaKolacic)),
+)
+
+const ucitajSesiju: Cmd.Cmd<Msg> = Task.attemptWith<Option.Option<Session>, LocalStorage.LocalStorageError, Msg, never>(
+  {
+    onSuccess: sessionLoaded,
+    onFailure: sessionLoadError,
+  },
+)(zapamcenaSesija)
+
 export const init = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => [
   Model.Initializing({ location }),
-  LocalStorage.get(SESSION_KEY, Session, { onSuccess: sessionLoaded, onError: sessionLoadError }),
+  ucitajSesiju,
 ]
 
 export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
@@ -213,6 +232,27 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     SessionLoadError: (): [Model, Cmd.Cmd<Msg>] => {
       if (model._tag !== 'Initializing') return [model, Cmd.none]
       return initAnonymous(model.location)
+    },
+
+    SessionChanged: ({ session }): [Model, Cmd.Cmd<Msg>] => {
+      if (model._tag === 'Initializing') return [model, Cmd.none]
+      return Option.match(session, {
+        onNone: (): [Model, Cmd.Cmd<Msg>] => {
+          if (model._tag === 'Anonymous') return [model, Cmd.none]
+          const [anonModel, anonCmd] = initAnonymous(model.location)
+          return [anonModel, Cmd.batch([anonCmd, Toast.warning('Odjavljeni ste u drugom prozoru.')])]
+        },
+        onSome: (sledeca): [Model, Cmd.Cmd<Msg>] => {
+          if (model._tag === 'Authenticated' && sameIdentity(model.session, sledeca)) {
+            return [Model.Authenticated({ ...model, session: sledeca }), Cmd.none]
+          }
+          const [authModel, authCmd] = initAuthenticated(sledeca, model.location)
+          return [
+            authModel,
+            Cmd.batch([authCmd, Toast.info(`Prijavljeni ste kao ${displayName(sledeca)} u drugom prozoru.`)]),
+          ]
+        },
+      })
     },
 
     Login: ({ loginMsg }): [Model, Cmd.Cmd<Msg>] => {
@@ -276,10 +316,19 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     },
   })
 
+const sesijaDrugogTaba: Sub.Sub<Msg> = LocalStorage.onChange(SESSION_KEY, Session, {
+  onSuccess: sessionChanged,
+  onError: () => sessionChanged(Option.none()),
+})
+
 export const subscriptions = (model: Model): Sub.Sub<Msg> =>
   model._tag === 'Authenticated'
-    ? Sub.batch([Sub.map(istekSesije)(IstekSesije.subscriptions()), unloadGuard(screenIsDirty(model.screen))])
-    : Sub.none
+    ? Sub.batch([
+        sesijaDrugogTaba,
+        Sub.map(istekSesije)(IstekSesije.subscriptions()),
+        unloadGuard(screenIsDirty(model.screen)),
+      ])
+    : sesijaDrugogTaba
 
 export const view =
   (model: Model): TeaReact.Html<Msg> =>

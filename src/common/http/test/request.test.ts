@@ -1,7 +1,7 @@
 import { Chunk, Effect, Either, Option, Schema, Stream } from 'effect'
 import * as Http from 'tea-effect/Http'
 import { afterEach, describe, expect, it } from 'vitest'
-import { expectNoContent, get, readCookie, withSession } from '../request'
+import { expectNoContent, get, hasXsrfToken, readCookie, withSession } from '../request'
 
 describe('citanje kolacica', () => {
   it('nalazi vrednost medju vise kolacica', () => {
@@ -99,5 +99,22 @@ describe('NoContent shema', () => {
     ['broj', 0],
   ])('odbija %s — to jeste sadrzaj', (_naziv, value) => {
     expect(Either.isLeft(decode(value))).toBe(true)
+  })
+})
+
+// Token sesije je HttpOnly i ne moze da se procita, pa je XSRF kolacic jedini vidljivi
+// deo celine koja cini sesiju. Zato odgovor vredi samo u jednom smeru: nema ga znaci
+// da sesije sigurno nema, a ima ga ne garantuje da je jos ziva.
+describe('vidljivi trag sesije', () => {
+  it('kolacic postoji', () => {
+    expect(hasXsrfToken('a=1; XSRF-TOKEN=abc')).toBe(true)
+  })
+
+  it('kolacica nema', () => {
+    expect(hasXsrfToken('a=1; b=2')).toBe(false)
+  })
+
+  it('nijedan kolacic nije postavljen', () => {
+    expect(hasXsrfToken('')).toBe(false)
   })
 })

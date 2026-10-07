@@ -11,6 +11,8 @@ import { mapHttpError, reportError } from '../../../common/error'
 import { ErrorView } from '../../../common/error/view'
 import * as Form from '../../../common/form'
 import { FormDialog } from '../../../common/form/dialog'
+import * as Outcome from '../../../common/form/outcome'
+import type { ObjekatIdentifikator } from '../../../common/http/identifikator'
 import * as Api from '../../api'
 import * as Kategorija from '../../domain/kategorija-vozaca'
 import { EMPTY, isDirty, vForm, type FormValue, type Model, type Value } from './model'
@@ -58,30 +60,32 @@ const kreiraj = (value: Value): Cmd.Cmd<Msg> =>
     onError: error => saveFailed(mapHttpError(error)),
   })
 
-export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
-  Msg.$match(msg, {
-    Changed: ({ value }): [Model, Cmd.Cmd<Msg>] => [{ ...model, value, error: Option.none() }, Cmd.none],
+export type Result = Outcome.Outcome<Model, Msg, ObjekatIdentifikator>
 
-    Submitted: (): [Model, Cmd.Cmd<Msg>] => {
-      if (model.isSubmitting) return [model, Cmd.none]
+export const update = (msg: Msg, model: Model): Result =>
+  Msg.$match(msg, {
+    Changed: ({ value }): Result => Outcome.active({ ...model, value, error: Option.none() }),
+
+    Submitted: (): Result => {
+      if (model.isSubmitting) return Outcome.active(model)
       const result = Form.validate(vForm, model.value)
-      if (!result.isValid) return [{ ...model, showErrors: true }, Cmd.none]
-      return [{ ...model, showErrors: true, isSubmitting: true, error: Option.none() }, kreiraj(result.value)]
+      if (!result.isValid) return Outcome.active({ ...model, showErrors: true })
+      return Outcome.active(
+        { ...model, showErrors: true, isSubmitting: true, error: Option.none() },
+        kreiraj(result.value),
+      )
     },
 
-    Saved: (): [Model, Cmd.Cmd<Msg>] => [{ ...model, isSubmitting: false }, Cmd.none],
+    Saved: ({ identifikator }): Result => Outcome.done(identifikator),
 
-    SaveFailed: ({ error }): [Model, Cmd.Cmd<Msg>] => [
-      { ...model, isSubmitting: false, error: Option.some(error) },
-      Cmd.none,
-    ],
+    SaveFailed: ({ error }): Result => Outcome.active({ ...model, isSubmitting: false, error: Option.some(error) }),
 
-    Closed: (): [Model, Cmd.Cmd<Msg>] => [model, Cmd.none],
+    Closed: (): Result => Outcome.closed(),
 
-    KategorijeMsg: ({ msg: comboMessage }): [Model, Cmd.Cmd<Msg>] => {
+    KategorijeMsg: ({ msg: comboMessage }): Result => {
       const [kategorijeCombo, comboCmd] = Combo.update(Kategorija.search, comboMessage, model.kategorijeCombo)
       const value = comboMessage._tag === 'Selected' ? { ...model.value, kategorije: comboMessage.values } : model.value
-      return [{ ...model, kategorijeCombo, value }, Cmd.map(kategorijeMsg)(comboCmd)]
+      return Outcome.active({ ...model, kategorijeCombo, value }, Cmd.map(kategorijeMsg)(comboCmd))
     },
   })
 

@@ -5,7 +5,7 @@ import { ApiError } from '../../../../common/error'
 import * as Form from '../../../../common/form'
 import type { VozacInfo } from '../../../api'
 import type { Value as Kategorija } from '../../../domain/kategorija-vozaca'
-import { init, toCmd, update } from '../index'
+import { init, toCmd, update, type Result } from '../index'
 import { sameForm, vForm, type FormValue, type Model } from '../model'
 import { changed, closed, kategorijeMsg, receiveFailed, received, saveFailed, saved, submitted } from '../msg'
 
@@ -24,7 +24,12 @@ const vozac: VozacInfo = {
   stanje: 'AKTIVAN',
 }
 
-const ucitan = (): Model => update(received(vozac), init(7)[0])[0]
+const aktivan = (result: Result) => {
+  if (result._tag !== 'Active') throw new Error(`ocekivan Active, a stigao ${result._tag}`)
+  return result
+}
+
+const ucitan = (): Model => aktivan(update(received(vozac), init(7)[0])).model
 
 const spreman = (model: Model) => {
   if (model._tag !== 'Ready') throw new Error('model nije Ready')
@@ -32,7 +37,7 @@ const spreman = (model: Model) => {
 }
 
 const izmenjen = (fields: Partial<FormValue>): Model =>
-  update(changed({ ...spreman(ucitan()).value, ...fields }), ucitan())[0]
+  aktivan(update(changed({ ...spreman(ucitan()).value, ...fields }), ucitan())).model
 
 describe('ucitavanje', () => {
   it('pocinje praznim ekranom i trazi slog', () => {
@@ -54,62 +59,59 @@ describe('ucitavanje', () => {
   })
 
   it('neuspelo ucitavanje zavrsi u gresci', () => {
-    const [model] = update(receiveFailed(ApiError.NotFound()), init(7)[0])
+    const { model } = aktivan(update(receiveFailed(ApiError.NotFound()), init(7)[0]))
     expect(model._tag).toBe('Failed')
   })
 
   // Bez sloga nema sta da se salje, pa poruke forme nemaju gde da se primene.
   it('poruke forme pre ucitavanja otpadaju', () => {
     const prazan = init(7)[0]
-    expect(update(submitted(), prazan)[0]).toBe(prazan)
-    expect(update(changed({} as FormValue), prazan)[0]).toBe(prazan)
+    expect(aktivan(update(submitted(), prazan)).model).toBe(prazan)
+    expect(aktivan(update(changed({} as FormValue), prazan)).model).toBe(prazan)
   })
 })
 
 describe('snimanje', () => {
   it('nepotpuna forma pali greske i ne zove server', () => {
-    const [model, cmd] = update(submitted(), izmenjen({ ime: null }))
+    const { model, cmd } = aktivan(update(submitted(), izmenjen({ ime: null })))
     expect(spreman(model).showErrors).toBe(true)
     expect(spreman(model).isSubmitting).toBe(false)
     expect(cmd).toBe(Cmd.none)
   })
 
   it('ispravna forma ide na server', () => {
-    const [model, cmd] = update(submitted(), ucitan())
+    const { model, cmd } = aktivan(update(submitted(), ucitan()))
     expect(spreman(model).isSubmitting).toBe(true)
     expect(cmd).not.toBe(Cmd.none)
   })
 
   it('dvoklik ne salje dva puta', () => {
-    const uToku = update(submitted(), ucitan())[0]
-    const [model, cmd] = update(submitted(), uToku)
+    const uToku = aktivan(update(submitted(), ucitan())).model
+    const { model, cmd } = aktivan(update(submitted(), uToku))
     expect(model).toBe(uToku)
     expect(cmd).toBe(Cmd.none)
   })
 
   it('greska servera ostaje u modelu', () => {
-    const uToku = update(submitted(), ucitan())[0]
-    const [model] = update(saveFailed(ApiError.ServerFailure()), uToku)
+    const uToku = aktivan(update(submitted(), ucitan())).model
+    const { model } = aktivan(update(saveFailed(ApiError.ServerFailure()), uToku))
     expect(spreman(model).isSubmitting).toBe(false)
     expect(spreman(model).error._tag).toBe('Some')
   })
 
   it('izmena polja sklanja gresku servera', () => {
-    const sGreskom = update(saveFailed(ApiError.ServerFailure()), ucitan())[0]
-    const [model] = update(changed({ ...spreman(sGreskom).value, ime: 'Mika' }), sGreskom)
+    const sGreskom = aktivan(update(saveFailed(ApiError.ServerFailure()), ucitan())).model
+    const { model } = aktivan(update(changed({ ...spreman(sGreskom).value, ime: 'Mika' }), sGreskom))
     expect(spreman(model).error._tag).toBe('None')
   })
 
-  it('uspeh gasi snimanje, a ekran iznad gasi dijalog', () => {
-    const uToku = update(submitted(), ucitan())[0]
-    const [model, cmd] = update(saved(), uToku)
-    expect(spreman(model).isSubmitting).toBe(false)
-    expect(cmd).toBe(Cmd.none)
+  it('uspeh javlja ekranu iznad da je gotovo', () => {
+    const uToku = aktivan(update(submitted(), ucitan())).model
+    expect(update(saved(), uToku)._tag).toBe('Done')
   })
 
-  it('odustajanje ne dira model', () => {
-    const model = ucitan()
-    expect(update(closed(), model)[0]).toBe(model)
+  it('odustajanje javlja ekranu iznad da zatvori dijalog', () => {
+    expect(update(closed(), ucitan())._tag).toBe('Closed')
   })
 })
 
@@ -123,7 +125,7 @@ describe('komanda', () => {
   })
 
   it('kategorije se svode na id-eve', () => {
-    const model = update(kategorijeMsg(Combo.selected([B, C])), ucitan())[0]
+    const model = aktivan(update(kategorijeMsg(Combo.selected([B, C])), ucitan())).model
     const result = Form.validate(vForm, spreman(model).value)
     expect(result.isValid).toBe(true)
     if (!result.isValid) return

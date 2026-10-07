@@ -11,6 +11,7 @@ import { mapHttpError, reportError } from '../../../common/error'
 import { ErrorView } from '../../../common/error/view'
 import * as Form from '../../../common/form'
 import { FormDialog } from '../../../common/form/dialog'
+import * as Outcome from '../../../common/form/outcome'
 import * as Api from '../../api'
 import type { VozacInfo } from '../../api'
 import * as Kategorija from '../../domain/kategorija-vozaca'
@@ -56,54 +57,53 @@ const azuriraj = (original: VozacInfo, value: Value): Cmd.Cmd<Msg> =>
     onError: error => saveFailed(mapHttpError(error)),
   })
 
-export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
+export type Result = Outcome.Outcome<Model, Msg, void>
+
+export const update = (msg: Msg, model: Model): Result =>
   Msg.$match(msg, {
-    Received: ({ vozac }): [Model, Cmd.Cmd<Msg>] => [
-      Model.Ready({
-        original: vozac,
-        value: toForm(vozac),
-        showErrors: false,
-        isSubmitting: false,
-        error: Option.none(),
-        kategorijeCombo: Combo.empty<Kategorija.Value>(),
-      }),
-      Cmd.none,
-    ],
+    Received: ({ vozac }): Result =>
+      Outcome.active(
+        Model.Ready({
+          original: vozac,
+          value: toForm(vozac),
+          showErrors: false,
+          isSubmitting: false,
+          error: Option.none(),
+          kategorijeCombo: Combo.empty<Kategorija.Value>(),
+        }),
+      ),
 
-    ReceiveFailed: ({ error }): [Model, Cmd.Cmd<Msg>] => [Model.Failed({ error }), Cmd.none],
+    ReceiveFailed: ({ error }): Result => Outcome.active(Model.Failed({ error })),
 
-    Changed: ({ value }): [Model, Cmd.Cmd<Msg>] => {
-      if (model._tag !== 'Ready') return [model, Cmd.none]
-      return [Model.Ready({ ...model, value, error: Option.none() }), Cmd.none]
+    Changed: ({ value }): Result => {
+      if (model._tag !== 'Ready') return Outcome.active(model)
+      return Outcome.active(Model.Ready({ ...model, value, error: Option.none() }))
     },
 
-    Submitted: (): [Model, Cmd.Cmd<Msg>] => {
-      if (model._tag !== 'Ready' || model.isSubmitting) return [model, Cmd.none]
+    Submitted: (): Result => {
+      if (model._tag !== 'Ready' || model.isSubmitting) return Outcome.active(model)
       const result = Form.validate(vForm, model.value)
-      if (!result.isValid) return [Model.Ready({ ...model, showErrors: true }), Cmd.none]
-      return [
+      if (!result.isValid) return Outcome.active(Model.Ready({ ...model, showErrors: true }))
+      return Outcome.active(
         Model.Ready({ ...model, showErrors: true, isSubmitting: true, error: Option.none() }),
         azuriraj(model.original, result.value),
-      ]
+      )
     },
 
-    Saved: (): [Model, Cmd.Cmd<Msg>] => {
-      if (model._tag !== 'Ready') return [model, Cmd.none]
-      return [Model.Ready({ ...model, isSubmitting: false }), Cmd.none]
+    Saved: (): Result => Outcome.done(undefined),
+
+    SaveFailed: ({ error }): Result => {
+      if (model._tag !== 'Ready') return Outcome.active(model)
+      return Outcome.active(Model.Ready({ ...model, isSubmitting: false, error: Option.some(error) }))
     },
 
-    SaveFailed: ({ error }): [Model, Cmd.Cmd<Msg>] => {
-      if (model._tag !== 'Ready') return [model, Cmd.none]
-      return [Model.Ready({ ...model, isSubmitting: false, error: Option.some(error) }), Cmd.none]
-    },
+    Closed: (): Result => Outcome.closed(),
 
-    Closed: (): [Model, Cmd.Cmd<Msg>] => [model, Cmd.none],
-
-    KategorijeMsg: ({ msg: comboMessage }): [Model, Cmd.Cmd<Msg>] => {
-      if (model._tag !== 'Ready') return [model, Cmd.none]
+    KategorijeMsg: ({ msg: comboMessage }): Result => {
+      if (model._tag !== 'Ready') return Outcome.active(model)
       const [kategorijeCombo, comboCmd] = Combo.update(Kategorija.search, comboMessage, model.kategorijeCombo)
       const value = comboMessage._tag === 'Selected' ? { ...model.value, kategorije: comboMessage.values } : model.value
-      return [Model.Ready({ ...model, kategorijeCombo, value }), Cmd.map(kategorijeMsg)(comboCmd)]
+      return Outcome.active(Model.Ready({ ...model, kategorijeCombo, value }), Cmd.map(kategorijeMsg)(comboCmd))
     },
   })
 

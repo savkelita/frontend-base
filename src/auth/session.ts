@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Schema, type Equivalence } from 'effect'
 import { Korisnik, type LoginResponse } from './api/types'
 import * as Uloga from './domain/uloga'
 import type { AuthorizationConfig } from './types'
@@ -24,5 +24,10 @@ export const fromLoginResponse = (response: LoginResponse, uloga: Uloga.Value, c
 export const toAuthorizationConfig = (session: Session): AuthorizationConfig => ({
   funkcionalnosti: session.funkcionalnosti,
 })
+
+export const sameIdentity: Equivalence.Equivalence<Session> = Schema.equivalence(Session.omit('istek'))
+
+export const canResume = (session: Session, now: number, hasCookie: boolean): boolean =>
+  hasCookie && session.istek > now
 
 export const displayName = (session: Session): string => `${session.korisnik.ime} ${session.korisnik.prezime}`

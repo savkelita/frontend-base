@@ -15,6 +15,8 @@ export const readCookie = (name: string, cookie: string): Option.Option<string> 
   return Option.none()
 }
 
+export const hasXsrfToken = (cookie: string): boolean => Option.isSome(readCookie(XSRF_COOKIE, cookie))
+
 export const withSession = <A>(request: Http.Request<A>): Http.Request<A> => {
   const cookie = typeof document === 'undefined' ? '' : document.cookie
   const withCookies = Http.withCredentials(request)

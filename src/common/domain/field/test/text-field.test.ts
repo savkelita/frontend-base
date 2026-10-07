@@ -28,8 +28,6 @@ describe('text-field', () => {
     expect(draw({})).toContain('type="text"')
   })
 
-  // React ispisuje ovaj atribut kao `autoComplete`; HTML imena atributa ne razlikuju mala i velika
-  // slova, pa pregledac cita isto. Zato poredjenje ide bez obzira na velicinu slova.
   it('gasi autofill osim ako ekran ne kaze drugacije', () => {
     expect(draw({})).toMatch(/autocomplete="off"/i)
   })

@@ -19,4 +19,4 @@ export type Audit = typeof Audit.Type
 
 export const renderUser = (user: AuditUser | null): string => (user === null ? '' : `${user.ime} ${user.prezime}`)
 
-export const promenjen = (audit: Audit): boolean => audit.korisnikPromenio !== null || audit.datumPromene !== null
+export const changed = (audit: Audit): boolean => audit.korisnikPromenio !== null || audit.datumPromene !== null

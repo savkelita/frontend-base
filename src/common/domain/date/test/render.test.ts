@@ -45,7 +45,6 @@ describe('date domain', () => {
   })
 })
 
-// DatePicker zove onSelectDate(null) na blur i na zatvaranje praznog polja, bez izbora.
 describe('date change detection', () => {
   it('should ignore an empty pick on an empty field', () => {
     expect(changed(null, null)).toBe(false)

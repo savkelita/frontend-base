@@ -1,29 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { emptyAuthorization, hasAllFunkcionalnosti, hasFunkcionalnost } from '../types'
+import { emptyAuthorization, hasAllPermissions, hasPermission } from '../types'
 
 describe('ovlascenja', () => {
-  const config = { funkcionalnosti: ['PretragaVozaca'] }
+  const config = { permissions: ['PretragaVozaca'] }
 
   it('prepoznaje funkcionalnost koju je server poslao', () => {
-    expect(hasFunkcionalnost(config, 'PretragaVozaca')).toBe(true)
+    expect(hasPermission(config, 'PretragaVozaca')).toBe(true)
   })
 
   it('odbija funkcionalnost koje nema', () => {
-    expect(hasFunkcionalnost(emptyAuthorization, 'PretragaVozaca')).toBe(false)
+    expect(hasPermission(emptyAuthorization, 'PretragaVozaca')).toBe(false)
   })
 
-  // Pocetna strana nije vezana ni za jednu funkcionalnost.
   it('prazan zahtev prolazi i bez ijednog prava', () => {
-    expect(hasAllFunkcionalnosti(emptyAuthorization, [])).toBe(true)
+    expect(hasAllPermissions(emptyAuthorization, [])).toBe(true)
   })
 
   it('trazi sve navedene, ne bilo koju', () => {
-    expect(hasAllFunkcionalnosti(config, ['PretragaVozaca'])).toBe(true)
-    expect(hasAllFunkcionalnosti({ funkcionalnosti: [] }, ['PretragaVozaca'])).toBe(false)
+    expect(hasAllPermissions(config, ['PretragaVozaca'])).toBe(true)
+    expect(hasAllPermissions({ permissions: [] }, ['PretragaVozaca'])).toBe(false)
   })
 
-  // Server sme da posalje i ono sto frontend jos ne poznaje.
   it('nepoznata funkcionalnost sa servera ne smeta', () => {
-    expect(hasFunkcionalnost({ funkcionalnosti: ['NestoNovo', 'PretragaVozaca'] }, 'PretragaVozaca')).toBe(true)
+    expect(hasPermission({ permissions: ['NestoNovo', 'PretragaVozaca'] }, 'PretragaVozaca')).toBe(true)
   })
 })

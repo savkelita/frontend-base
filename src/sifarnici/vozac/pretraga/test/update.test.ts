@@ -62,7 +62,6 @@ const open = (query: Parameters<typeof init>[0] = {}): Model => init(query, unde
 
 const ready = (): Model => update(loaded(request(), page([vozac(1, 'Peric')], 500)), open())[0]
 
-// Komanda ne nosi poruku, pa se navigacija vidi samo po tome sta je zavrsilo u istoriji.
 const pushedUrls = async (cmd: Cmd.Cmd<unknown>): Promise<ReadonlyArray<string>> => {
   const pushed: Array<string> = []
   vi.stubGlobal('window', {
@@ -118,7 +117,6 @@ describe('odgovor servera', () => {
     expect(next.data._tag).toBe('Failed')
   })
 
-  // Posle greske paging nestaje (nema ukupnog broja), pa je ponovni pokusaj jedini izlaz.
   it('ponovni pokusaj trazi bas tu stranu, ne prvu', () => {
     const failedModel = update(failed(request({ offset_: LIMIT }), ApiError.NetworkError()), open({ offset: LIMIT }))[0]
     const [retried, cmd] = update(retry(), failedModel)
@@ -129,7 +127,6 @@ describe('odgovor servera', () => {
     expect(rows(done.data).map(v => v.id)).toStrictEqual([1])
   })
 
-  // Ruter na promenu adrese pravi nov model, pa odgovor starog mora da otpadne.
   it('odbacuje odgovor koji pripada drugoj strani', () => {
     const model = open({ offset: 100 })
     const [next] = update(loaded(request({ offset_: 0 }), page([vozac(1, 'Peric')], 42)), model)
@@ -171,7 +168,6 @@ describe('sortiranje i strana menjaju adresu', () => {
 })
 
 describe('prelazak na novu adresu unutar istog ekrana', () => {
-  // Bez ovoga tabela na svaku sledecu stranu zatreperi u prazno.
   it('zatecena tabela ostaje dok sledeca strana stize', () => {
     const [model] = init({ offset: LIMIT }, undefined, ready())
     expect(isLoading(model.data)).toBe(true)
@@ -191,7 +187,6 @@ describe('prelazak na novu adresu unutar istog ekrana', () => {
     expect(init({ offset: LIMIT }, undefined, ready())[0].filterModel.isOpen).toBe(true)
   })
 
-  // Red iz stare strane nema smisla na novoj, a i mogao je u medjuvremenu da se promeni.
   it('izbor reda ne prelazi na novu stranu', () => {
     const izabrano = update(selectionChanged([vozac(1, 'Peric')]), ready())[0]
     expect(init({ offset: LIMIT }, undefined, izabrano)[0].selected).toStrictEqual([])
@@ -228,7 +223,6 @@ describe('filter', () => {
     expect(rows(next.data).map(v => v.id)).toStrictEqual([1])
   })
 
-  // Ovde je referenca pukla: njen cuvar poredi stranu i sortiranje, a kriterijum ne.
   it('odbacuje odgovor koji pripada drugom kriterijumu', () => {
     const model = open({ ime: ['contains', 'Pera'] })
     const [next] = update(
@@ -238,7 +232,6 @@ describe('filter', () => {
     expect(rows(next.data)).toStrictEqual([])
   })
 
-  // Kucanje ne salje zahtev; primena je izricita.
   it('kucanje menja samo polja, ne i primenjen kriterijum', () => {
     const model = open({ ime: ['contains', 'Pera'] })
     const [next, cmd] = update(change(model, { ime: 'Mika' }), model)
@@ -281,7 +274,6 @@ describe('izbor reda', () => {
     expect(update(selectionChanged([row]), ready())[0].selected).toStrictEqual([row])
   })
 
-  // Red bi bio sa strane koja se upravo menja: dijalog bi radio nad necim sto vise nije u tabeli.
   it('dok stize odgovor izbor se ne prima', () => {
     const model = init({ offset: LIMIT }, undefined, ready())[0]
     expect(isLoading(model.data)).toBe(true)
@@ -292,7 +284,6 @@ describe('izbor reda', () => {
     expect(update(selectionChanged([vozac(7, 'Jovic')]), open())[0].selected).toStrictEqual([])
   })
 
-  // Ponovni klik na izabran red u Fluentu skida izbor; prazan skup je poniscen izbor.
   it('ponistavanje izbora dolazi do modela', () => {
     const izabrano = update(selectionChanged([vozac(7, 'Jovic')]), ready())[0]
     expect(update(selectionChanged([]), izabrano)[0].selected).toStrictEqual([])
@@ -314,7 +305,6 @@ describe('kreiranje', () => {
     expect(cmd).toBe(Cmd.none)
   })
 
-  // Nov vozac se ne vidi dok se strana ne procita ponovo.
   it('uspesno kreiranje gasi dijalog i ponovo trazi stranu', () => {
     const [model, cmd] = update(kreiranjeMsg(Kreiranje.saved({ id: 7, version: 1 })), otvoreno())
     expect(Option.isNone(model.kreiranje)).toBe(true)
@@ -348,7 +338,6 @@ describe('azuriranje', () => {
     expect(cmd).toBe(Cmd.none)
   })
 
-  // Izmenjen red iz zatecene strane je zastareo, pa izbor pada zajedno sa dijalogom.
   it('uspesna izmena gasi dijalog, ponistava izbor i ponovo trazi stranu', () => {
     const [model, cmd] = update(azuriranjeMsg(Azuriranje.saved()), otvoreno())
     expect(Option.isNone(model.azuriranje)).toBe(true)
@@ -370,7 +359,6 @@ describe('brisanje', () => {
 
   const otvoreno = (): Model => update(startBrisanje(row), saIzabranim())[0]
 
-  // Za razliku od azuriranja, ovde nema sta da se ucita — red vec nosi id i version.
   it('dugme otvara potvrdu bez poziva servera', () => {
     const [model, cmd] = update(startBrisanje(row), saIzabranim())
     expect(Option.isSome(model.brisanje)).toBe(true)

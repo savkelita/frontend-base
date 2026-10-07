@@ -53,7 +53,6 @@ const open = (query: Parameters<typeof init>[0] = {}): Model => init(query, unde
 
 const ready = (): Model => update(loaded(request(), page([vozilo(1, 'BG123AA')], 500)), open())[0]
 
-// Komanda ne nosi poruku, pa se navigacija vidi samo po tome sta je zavrsilo u istoriji.
 const pushedUrls = async (cmd: Cmd.Cmd<unknown>): Promise<ReadonlyArray<string>> => {
   const pushed: Array<string> = []
   vi.stubGlobal('window', {
@@ -71,7 +70,6 @@ const pushedUrls = async (cmd: Cmd.Cmd<unknown>): Promise<ReadonlyArray<string>>
 }
 
 describe('otvaranje ekrana', () => {
-  // Kao u VozniPark-u: gola adresa znaci "aktivna vozila, po registarskoj oznaci".
   it('prazna adresa daje podrazumevanu pretragu', () => {
     const [model, cmd] = init({}, undefined)
     expect(model.criteria).toStrictEqual(AKTIVNA)
@@ -81,7 +79,6 @@ describe('otvaranje ekrana', () => {
     expect(cmd).not.toBe(Cmd.none)
   })
 
-  // Podrazumevano vazi samo za golu adresu; cim korisnik nesto zada, adresa je merodavna.
   it('adresa koja nosi bilo sta gasi podrazumevano', () => {
     const model = open({ offset: LIMIT })
     expect(model.criteria).toStrictEqual({})
@@ -131,7 +128,6 @@ describe('odgovor servera', () => {
     expect(rows(done.data).map(v => v.id)).toStrictEqual([1])
   })
 
-  // Ruter na promenu adrese pravi nov model, pa odgovor starog mora da otpadne.
   it('odbacuje odgovor koji pripada drugom kriterijumu', () => {
     const [next] = update(loaded(request({ criteria: {} }), page([vozilo(1, 'BG123AA')], 1)), open())
     expect(rows(next.data)).toStrictEqual([])
@@ -207,7 +203,6 @@ describe('filter', () => {
     expect(model.filterModel.value.istekRegistracije).toBe('ISTEKAO')
   })
 
-  // Kucanje ne salje zahtev; primena je izricita.
   it('kucanje menja samo polja, ne i primenjen kriterijum', () => {
     const model = open({ registarskaOznaka: ['contains', 'BG'] })
     const [next, cmd] = update(change(model, { registarskaOznaka: 'NS' }), model)
@@ -232,7 +227,6 @@ describe('filter', () => {
     ])
   })
 
-  // Filter nema obavezna polja: jedan kraj opsega je pretraga, samo sa drugim operatorom.
   it('primena sa jednim krajem opsega pretrazuje', async () => {
     const model = open()
     const [, cmd] = update(

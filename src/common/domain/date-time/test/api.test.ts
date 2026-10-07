@@ -14,8 +14,6 @@ describe('DateTime sa zice', () => {
       expect([result.right.getHours(), result.right.getMinutes(), result.right.getSeconds()]).toStrictEqual([16, 2, 7])
     })
 
-    // Enkodovana strana je namerno Date, a ne string: samo tako `A === I`, sto je
-    // ono sto `Http.expectJson` trazi. Dekodiranje ipak prima `unknown`.
     it('pusta Date da prodje nepromenjen', () => {
       const now = new Date(2026, 7, 21, 16, 2, 7)
       expect(decode(now)).toStrictEqual(Either.right(now))

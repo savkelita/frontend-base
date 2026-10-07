@@ -50,7 +50,6 @@ describe('otvaranje pregleda', () => {
     expect(cmd).not.toBe(Cmd.none)
   })
 
-  // Ugnjezdena pretraga krece tek kad vozac stigne, jer joj treba njegov id.
   it('dolazak vozaca pokrece ugnjezdenu pretragu', () => {
     const [model, cmd] = update(received(vozac()), otvoren())
     expect(model._tag).toBe('Ready')
@@ -80,7 +79,6 @@ describe('adresa pregleda', () => {
     expect(parsed.value).toStrictEqual({ _tag: 'vozac', params: { id: 7 } })
   })
 
-  // Pretraga vozaca i pregled jednog vozaca su dve rute; specificnija ne sme da proguta opstiju.
   it('pretraga vozaca i dalje ima svoju rutu', () => {
     const parsed = Router.parse(routes, { pathname: '/sifarnici/vozaci', search: '' })
     expect(Option.isSome(parsed)).toBe(true)
@@ -89,7 +87,6 @@ describe('adresa pregleda', () => {
   })
 })
 
-// Sustina: filter ugnjezdene pretrage nigde ne dodiruje adresu.
 describe('ugnjezdena pretraga zivi u modelu ekrana', () => {
   const otkucaj = (model: Model): Model => {
     if (model._tag !== 'Ready') throw new Error('ocekivan Ready')

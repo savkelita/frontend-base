@@ -1,21 +1,21 @@
 import * as Router from 'tea-effect/Router'
-import type { AuthorizationConfig, Funkcionalnost } from '../auth/types'
-import { emptyAuthorization, hasAllFunkcionalnosti } from '../auth/types'
+import type { AuthorizationConfig, Permission } from '../auth/types'
+import { emptyAuthorization, hasAllPermissions } from '../auth/types'
 import { routes } from '../router/route'
 import { NavigationEntry, navigationLink, navigationGroup } from './types'
 
 const allEntries: ReadonlyArray<NavigationEntry> = [
   navigationLink('home', 'Home', Router.format(routes.home, {})),
   navigationLink('vozaci', 'Vozaci', Router.format(routes.vozaci, {}), {
-    requiredFunkcionalnosti: ['PretragaVozaca'],
+    requiredPermissions: ['PretragaVozaca'],
   }),
   navigationLink('vozila', 'Vozila', Router.format(routes.vozila, {}), {
-    requiredFunkcionalnosti: ['PretragaVozila'],
+    requiredPermissions: ['PretragaVozila'],
   }),
 ]
 
-const isPermitted = (config: AuthorizationConfig, trazene: ReadonlyArray<Funkcionalnost>): boolean =>
-  hasAllFunkcionalnosti(config, trazene)
+const isPermitted = (config: AuthorizationConfig, required: ReadonlyArray<Permission>): boolean =>
+  hasAllPermissions(config, required)
 
 const filterEntries = (
   config: AuthorizationConfig,
@@ -23,15 +23,15 @@ const filterEntries = (
 ): ReadonlyArray<NavigationEntry> =>
   entries.flatMap(entry =>
     NavigationEntry.$match(entry, {
-      NavigationLink: link => (isPermitted(config, link.requiredFunkcionalnosti) ? [entry] : []),
+      NavigationLink: link => (isPermitted(config, link.requiredPermissions) ? [entry] : []),
       NavigationGroup: group => {
-        if (!isPermitted(config, group.requiredFunkcionalnosti)) return []
+        if (!isPermitted(config, group.requiredPermissions)) return []
         const visibleChildren = filterEntries(config, group.children)
         return visibleChildren.length > 0
           ? [
               navigationGroup(group.key, group.label, visibleChildren, {
                 icon: group.icon,
-                requiredFunkcionalnosti: [...group.requiredFunkcionalnosti],
+                requiredPermissions: [...group.requiredPermissions],
               }),
             ]
           : []

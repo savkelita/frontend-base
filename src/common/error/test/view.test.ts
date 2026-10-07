@@ -26,7 +26,6 @@ describe('prikaz izvestaja', () => {
     expect(markup).not.toContain('PrvaDruga')
   })
 
-  // Izlaz iz greske ide u traku, ne pored nje — MessageBar za to ima svoje mesto.
   it('akcija stoji unutar trake, uz poruku', () => {
     const markup = renderToStaticMarkup(
       createElement(ErrorView, { report: reportError(ApiError.NetworkError()), actions: 'AKCIJA' }),
@@ -40,9 +39,9 @@ describe('prikaz izvestaja', () => {
   })
 
   it('upozorenje se u prikazu razlikuje od greske', () => {
-    const greska = draw(ApiError.BadRequest({ errors: [business('Ista', 'ERROR')] }))
-    const upozorenje = draw(ApiError.BadRequest({ errors: [business('Ista', 'WARNING')] }))
-    expect(upozorenje).not.toBe(greska)
-    expect(greska).toBe(draw(ApiError.BadRequest({ errors: [business('Ista', 'ERROR')] })))
+    const error = draw(ApiError.BadRequest({ errors: [business('Ista', 'ERROR')] }))
+    const warning = draw(ApiError.BadRequest({ errors: [business('Ista', 'WARNING')] }))
+    expect(warning).not.toBe(error)
+    expect(error).toBe(draw(ApiError.BadRequest({ errors: [business('Ista', 'ERROR')] })))
   })
 })

@@ -115,13 +115,22 @@ Cmd.fromEffect(
 `Sub` je izvor poruka koji **traje**, za razliku od `Cmd` koji se javi jednom. Sat, `matchMedia`,
 `WebSocket`, dogadjaj prozora. `Sub` je `Stream`, pa se pise Effect-om kao i sve ostalo.
 
-Jedini `Sub` u projektu je otkucaj koji prati istek sesije:
+Projekat ima tri pretplate, sve tri okacene na `router/subscriptions`:
+
+| kljuc | sta slusa | zasto |
+|---|---|---|
+| `session-expiration` | sat | odbrojava do isteka i odjavljuje |
+| `localStorage:onChange:session` | `storage` dogadjaj | odjava ili promena naloga u drugom tabu |
+| `unload-guard` | `beforeunload` | zadrzava korisnika dok ima nesacuvanih izmena |
+
+Druga i treca su opisane u [07 Rute i autorizacija](07-rute-i-autorizacija.md#sesija-i-vise-tabova)
+i [05 Forme](05-forme.md#dirty). Prva izgleda ovako:
 
 ```ts
 Sub.withKey(
-  'istek-sesije',
+  'session-expiration',
   Stream.repeatEffectWithSchedule(
-    Effect.clockWith(clock => Effect.map(clock.currentTimeMillis, otkucaj)),
+    Effect.clockWith(clock => Effect.map(clock.currentTimeMillis, tick)),
     Schedule.fixed('10 seconds'),
   ),
 )

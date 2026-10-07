@@ -50,7 +50,6 @@ describe('validacija', () => {
     expect(poruke(popunjen)).toStrictEqual([])
   })
 
-  // E-mail i telefon vozac ne mora da ima, ali ako ih unese moraju da valjaju.
   it('prazan e-mail i telefon prolaze', () => {
     expect(poruke({ ...popunjen, email: null, telefon: null })).toStrictEqual([])
   })
@@ -59,7 +58,6 @@ describe('validacija', () => {
     expect(poruke({ ...popunjen, email: 'pera@primer' })).toStrictEqual(['email: Podatak nije validan'])
   })
 
-  // Ovo je razlog zbog kog kategorije nisu obican niz nego multi combo sa svojim pravilom.
   it('bar jedna kategorija je obavezna', () => {
     expect(poruke({ ...popunjen, kategorije: [] })).toStrictEqual(['kategorije: Podatak je obavezan'])
   })
@@ -79,7 +77,6 @@ describe('snimanje', () => {
     expect(cmd).not.toBe(Cmd.none)
   })
 
-  // Dvoklik na Sacuvaj bi inace napravio dva vozaca.
   it('dok snimanje traje ponovni klik ne radi nista', () => {
     const uToku = aktivan(update(submitted(), withValue(popunjen))).model
     const { model, cmd } = aktivan(update(submitted(), uToku))
@@ -94,7 +91,6 @@ describe('snimanje', () => {
     expect(model.error._tag).toBe('Some')
   })
 
-  // Posle neuspeha korisnik ispravlja podatak; stara greska tu vise nema sta da trazi.
   it('izmena polja sklanja gresku servera', () => {
     const sGreskom = aktivan(update(saveFailed(ApiError.ServerFailure()), withValue(popunjen))).model
     const { model } = aktivan(update(changed({ ...popunjen, ime: 'Mika' }), sGreskom))

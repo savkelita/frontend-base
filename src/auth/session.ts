@@ -7,7 +7,7 @@ export const Session = Schema.Struct({
   korisnik: Korisnik,
   uloga: Uloga.ioValue,
   funkcionalnosti: Schema.Array(Schema.String),
-  istek: Schema.Number,
+  expiration: Schema.Number,
 })
 
 export type Session = typeof Session.Type
@@ -18,16 +18,16 @@ export const fromLoginResponse = (response: LoginResponse, uloga: Uloga.Value, c
   korisnik: response.korisnik,
   uloga,
   funkcionalnosti: response.funkcionalnosti,
-  istek: clientIssued + (response.expiration.getTime() - response.issued.getTime()),
+  expiration: clientIssued + (response.expiration.getTime() - response.issued.getTime()),
 })
 
 export const toAuthorizationConfig = (session: Session): AuthorizationConfig => ({
-  funkcionalnosti: session.funkcionalnosti,
+  permissions: session.funkcionalnosti,
 })
 
-export const sameIdentity: Equivalence.Equivalence<Session> = Schema.equivalence(Session.omit('istek'))
+export const sameIdentity: Equivalence.Equivalence<Session> = Schema.equivalence(Session.omit('expiration'))
 
 export const canResume = (session: Session, now: number, hasCookie: boolean): boolean =>
-  hasCookie && session.istek > now
+  hasCookie && session.expiration > now
 
 export const displayName = (session: Session): string => `${session.korisnik.ime} ${session.korisnik.prezime}`

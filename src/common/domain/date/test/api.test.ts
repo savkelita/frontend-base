@@ -19,8 +19,6 @@ describe('Date sa zice', () => {
       expect(result.right.getHours()).toBe(0)
     })
 
-    // Enkodovana strana je namerno Date, a ne string: samo tako `A === I`, sto je
-    // ono sto `Http.expectJson` trazi. Dekodiranje ipak prima `unknown`.
     it('pusta Date da prodje nepromenjen', () => {
       const day = picked(2026, 8, 6)
       expect(decode(day)).toStrictEqual(Either.right(day))
@@ -45,7 +43,6 @@ describe('Date sa zice', () => {
 
   describe('toYmd', () => {
     it('salje izabrani dan, a ne UTC trenutak — leti (UTC+2)', () => {
-      // `toISOString().slice(0, 10)` bi ovde dao 2026-08-05.
       expect(toYmd(picked(2026, 8, 6))).toBe('2026-08-06')
     })
 

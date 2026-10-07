@@ -5,15 +5,15 @@ import { FormField } from './form-field'
 
 export interface BooleanFieldOptions {
   readonly placeholder?: string
-  readonly da?: string
-  readonly ne?: string
+  readonly yes?: string
+  readonly no?: string
 }
 
 export type BooleanForm = boolean | null
 
 export const booleanField = (l: Locals<BooleanForm, BooleanFieldOptions>): ReactNode => {
-  const da = l.da ?? 'Da'
-  const ne = l.ne ?? 'Ne'
+  const yes = l.yes ?? 'Da'
+  const no = l.no ?? 'Ne'
 
   return (
     <FormField l={l}>
@@ -22,7 +22,7 @@ export const booleanField = (l: Locals<BooleanForm, BooleanFieldOptions>): React
         name={l.name}
         clearable
         disabled={l.disabled}
-        value={l.value === null ? '' : l.value ? da : ne}
+        value={l.value === null ? '' : l.value ? yes : no}
         selectedOptions={l.value === null ? [] : [String(l.value)]}
         {...(l.placeholder === undefined ? {} : { placeholder: l.placeholder })}
         onOptionSelect={(_event, data) => {
@@ -30,8 +30,8 @@ export const booleanField = (l: Locals<BooleanForm, BooleanFieldOptions>): React
           l.onChange(first === undefined ? null : first === 'true')
         }}
       >
-        <Option value="true">{da}</Option>
-        <Option value="false">{ne}</Option>
+        <Option value="true">{yes}</Option>
+        <Option value="false">{no}</Option>
       </Dropdown>
     </FormField>
   )

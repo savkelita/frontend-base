@@ -47,7 +47,7 @@ describe('table', () => {
   })
 
   /**
-   * `DataGridRow` crta povratnu vrednost DIREKTNO, bez omotaca. Zato se celija omotava u
+   * `DataGridRow` crta povratnu value DIREKTNO, bez omotaca. Zato se celija omotava u
    * redu — inace nema `fui-DataGridCell`, a s njim ni uloga, ni sortiranja, ni sirine.
    *
    * Broji se bas ta klasa: `role="gridcell"` postoji i bez omotaca, jer ga daje celija
@@ -59,7 +59,6 @@ describe('table', () => {
     expect(markup).toContain('role="columnheader"')
   })
 
-  // Kolona bez `attribute` ne sme da bude klikabilna — server po njoj ne ume da sortira.
   it('samo kolona sa `attribute` prijavljuje sortiranje', () => {
     expect(draw().match(/aria-sort/g) ?? []).toHaveLength(1)
   })
@@ -82,13 +81,11 @@ describe('table', () => {
     expect(markup).toContain('Preuzimam podatke')
   })
 
-  // Klik kroz spinner bi uneo red sa strane koja se upravo menja.
   it('ucitavanje javlja zauzetost', () => {
     expect(draw({ data: Data.Loading({ previous: null }) })).toContain('aria-busy="true"')
     expect(draw()).toContain('aria-busy="false"')
   })
 
-  // Poruka o praznom skupu je odgovor servera; kad odgovora nema, tabela ne tvrdi nista.
   it('greska ne tvrdi da nema rezultata', () => {
     const markup = draw({ data: Data.Failed({ error: ApiError.ServerFailure() }) })
     expect(markup).not.toContain('Nema rezultata')
@@ -96,7 +93,6 @@ describe('table', () => {
     expect(markup).toContain('Naziv')
   })
 
-  // Sva cetiri stanja podataka stoje na istom mestu — tu gde bi bili i redovi.
   it('greska se ispisuje kroz reportError, uz izlaz iz stanja', () => {
     const markup = draw({ data: Data.Failed({ error: ApiError.NetworkError() }) })
     expect(markup).toContain('Desio se problem u komunikaciji sa serverom. Proverite vezu.')
@@ -115,7 +111,6 @@ describe('sirina kolona', () => {
     expect(markup.match(/fui-TableResizeHandle/g) ?? []).toHaveLength(COLUMNS.length)
   })
 
-  // Kolona bez `width` se i dalje hvata — sirina je pocetna vrednost, ne uslov.
   it('kolona bez zadate sirine takodje ima ruckicu', () => {
     const markup = draw({ columns: [{ id: 'naziv', header: 'Naziv', render: row => row.naziv }] })
     expect(markup).toContain('fui-TableResizeHandle')

@@ -65,7 +65,6 @@ describe('brisanje', () => {
     expect(model.error._tag).toBe('Some')
   })
 
-  // Posle neuspeha korisnik moze da pokusa ponovo; stara greska tada nema sta da trazi.
   it('ponovni pokusaj cisti prethodnu gresku', () => {
     const uToku = aktivan(update(submitted(), otvoreno())).model
     const sGreskom = aktivan(update(deleteFailed(ApiError.ServerFailure()), uToku)).model

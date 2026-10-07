@@ -9,7 +9,7 @@ Ruta zivi uz ekran, ne u routeru:
 const RouteQuery = pretragaQuery(Api.ioVozacCriteria, Api.ioVozacOrder)
 
 export const route = Router.path('/sifarnici/vozaci').query(RouteQuery)
-export const FUNKCIONALNOSTI: ReadonlyArray<Funkcionalnost> = ['PretragaVozaca']
+export const PERMISSIONS: ReadonlyArray<Permission> = ['PretragaVozaca']
 ```
 
 Router ih samo skuplja:
@@ -22,10 +22,10 @@ export const routes = Router.routes({
   vozila: VozilaPretraga.route,
 })
 
-const routeFunkcionalnosti: Record<Route['_tag'], ReadonlyArray<Funkcionalnost>> = {
+const PERMISSIONS_BY_ROUTE: Record<Route['_tag'], ReadonlyArray<Permission>> = {
   home: [],
-  vozaci: VozaciPretraga.FUNKCIONALNOSTI,
-  vozila: VozilaPretraga.FUNKCIONALNOSTI,
+  vozaci: VozaciPretraga.PERMISSIONS,
+  vozila: VozilaPretraga.PERMISSIONS,
 }
 ```
 
@@ -37,9 +37,9 @@ umesto da tiho postane javna. Ruta koja stvarno ne trazi nista se to i kaze, pra
 Sest koraka. Kompajler ce prijaviti svaki propusten osim poslednjeg.
 
 **1. Ekran.** `src/<oblast>/<entitet>/<slucaj>/` sa `model.ts`, `msg.ts`, `index.tsx`. Izvezi
-`route` i `FUNKCIONALNOSTI`.
+`route` i `PERMISSIONS`.
 
-**2. `src/router/route.ts`** — dodaj u `routes` i u `routeFunkcionalnosti`.
+**2. `src/router/route.ts`** — dodaj u `routes` i u `PERMISSIONS_BY_ROUTE`.
 
 **3. `src/router/screen-model.ts`** — nova varijanta i njen konstruktor:
 
@@ -80,7 +80,7 @@ VozilaScreen: () => 'vozila',
 
 ```ts
 navigationLink('vozila', 'Vozila', Router.format(routes.vozila, {}), {
-  requiredFunkcionalnosti: ['PretragaVozila'],
+  requiredPermissions: ['PretragaVozila'],
 })
 ```
 
@@ -104,18 +104,18 @@ sve krece ispocetka.
 Sesija nosi listu funkcionalnosti koje korisnik ima:
 
 ```ts
-export type AuthorizationConfig = { readonly funkcionalnosti: ReadonlyArray<string> }
+export type AuthorizationConfig = { readonly permissions: ReadonlyArray<string> }
 ```
 
 Nazivi funkcionalnosti su nabrojani na jednom mestu:
 
 ```ts
 // src/auth/types.ts
-export const FUNKCIONALNOSTI = [
+export const PERMISSIONS = [
   'PretragaVozaca', 'KreiranjeVozaca', 'AzuriranjeVozaca', 'BrisanjeVozaca', 'PretragaVozila',
 ] as const
 
-export type Funkcionalnost = (typeof FUNKCIONALNOSTI)[number]
+export type Permission = (typeof PERMISSIONS)[number]
 ```
 
 Niz je izvor tipa, pa se ime funkcionalnosti ne moze pogresno napisati nigde u aplikaciji.
@@ -128,7 +128,7 @@ Niz je izvor tipa, pa se ime funkcionalnosti ne moze pogresno napisati nigde u a
 | Meni | Skriva stavku | `buildNavigation(config)` |
 | Dugme | Skriva radnju | `Kreiranje.button(config, ...)` vraca `null` |
 
-Sva tri koriste `hasAllFunkcionalnosti(config, trazene)`. Prazan zahtev prolazi (`home`).
+Sva tri koriste `hasAllPermissions(config, trazene)`. Prazan zahtev prolazi (`home`).
 
 Provera na ruti je jedina obavezna — bez nje bi rucno ukucana adresa otvorila ekran. Meni i dugmad
 su udobnost, ali se **ne dupliraju u `update`-u**. Vidi
@@ -140,16 +140,16 @@ otvara drugi.
 
 ### Dodavanje funkcionalnosti
 
-1. Dodaj naziv u `FUNKCIONALNOSTI` u `src/auth/types.ts` (mora se poklopiti sa backend-om).
-2. Navedi je u `FUNKCIONALNOSTI` ekrana ili u lokalnoj konstanti modula:
+1. Dodaj naziv u `PERMISSIONS` u `src/auth/types.ts` (mora se poklopiti sa backend-om).
+2. Navedi je u `PERMISSIONS` ekrana ili u lokalnoj konstanti modula:
 
 ```ts
 // src/sifarnici/vozac/kreiranje/index.tsx
-const FUNKCIONALNOSTI: ReadonlyArray<Funkcionalnost> = ['KreiranjeVozaca']
-const isAuthorized = (config: AuthorizationConfig): boolean => hasAllFunkcionalnosti(config, FUNKCIONALNOSTI)
+const PERMISSIONS: ReadonlyArray<Permission> = ['KreiranjeVozaca']
+const isAuthorized = (config: AuthorizationConfig): boolean => hasAllPermissions(config, PERMISSIONS)
 ```
 
-3. Ako gasi ceo ekran, upisi je i u `routeFunkcionalnosti`.
+3. Ako gasi ceo ekran, upisi je i u `PERMISSIONS_BY_ROUTE`.
 4. Napisi test prikaza da dugmeta nema bez funkcionalnosti — to je jedina zastita.
 
 ## Sesija
@@ -176,6 +176,66 @@ servera.
 
 Kolacic i XSRF zaglavlje dodaje `common/http/request`, ne modul autentifikacije.
 
+### Podizanje ne veruje samo `localStorage`-u
+
+Sesiju cine **dva kolacica** — `TOKEN` (HttpOnly, nedostupan iz JS-a) i `XSRF-TOKEN` (citljiv). Oba
+imaju rok i pregledac ih sam brise kad prodje. `localStorage` nema rok i niko ga ne cisti, pa ta
+dva izvora mogu da se razidju.
+
+Zato `init` ne uzima zapamcenu sesiju na rec:
+
+```ts
+const rememberedSession = Effect.map(
+  Effect.all([
+    LocalStorage.getTask(SESSION_KEY, Session),
+    Effect.sync(() => hasXsrfToken(document.cookie)),
+    Effect.clockWith(clock => clock.currentTimeMillis),
+  ]),
+  ([remembered, hasCookie, now]) => Option.filter(remembered, s => canResume(s, now, hasCookie)),
+)
+```
+
+Bez ovoga bi se aplikacija digla kao prijavljena, iscrtala ceo ekran i ispalila zahtev koji vrati
+401 — a iz 401 po pravilu iznad **ne smemo** da zakljucimo da je sesija istekla, pa bi korisnik
+gledao gresku umesto prijave.
+
+Provera kolacica vazi **samo u jednom smeru**: nema XSRF-a znaci da sesije sigurno nema, ima ga ne
+garantuje da je ziva (token sesije se ne moze procitati). Oslanja se na to da se oba brisu zajedno.
+
+### Sesija i vise tabova
+
+Kolacic dele svi tabovi, model ne. Zato ruter slusa `storage` dogadjaj, koji se po specifikaciji
+okida **samo za druge dokumente**:
+
+```ts
+LocalStorage.onChange(SESSION_KEY, Session, {
+  onSuccess: sessionChanged,
+  onError: () => sessionChanged(Option.none()),
+})
+```
+
+Pretplata radi u **svakom** stanju rutera — i anoniman tab mora da sazna da si se prijavio negde
+drugde. `update` grana po identitetu:
+
+| sta se desilo | sta tab uradi |
+|---|---|
+| kljuc obrisan | `initAnonymous` + upozorenje da si odjavljen u drugom prozoru |
+| drugi identitet | `initAuthenticated` na tekucoj adresi + obavestenje ko si sada |
+| isti identitet | zameni `session` u mestu — bez poruke, bez rusenja ekrana |
+
+Identitet se **izvodi iz seme**, da se spisak polja ne odrzava rucno:
+
+```ts
+export const sameIdentity: Equivalence.Equivalence<Session> = Schema.equivalence(Session.omit('expiration'))
+```
+
+`expiration` je jedini izuzetak jer produzenje sesije pomera samo rok. **Treca grana je tu zbog
+toga** — kad stigne refresh token, isti korisnik sa novim rokom ne sme da izgubi ono sto radi.
+
+Bez ovoga je odjava u jednom tabu ostavljala drugi da izgleda prijavljeno i puca na 401, a prijava
+drugim nalogom je ostavljala staro ime u zaglavlju i stara prava na dugmadima — dok su se zahtevi
+izvrsavali kao novi korisnik.
+
 ### Istek sesije
 
 **401 ne znaci da je sesija istekla.** Isti status stize i kada je korisnik prijavljen ali nema pravo
@@ -184,31 +244,31 @@ na taj poziv — server na to odgovara sa
 odjava na svaki 401 izbacila bi korisnika zato sto je kliknuo nesto sto ne sme. Zato se iz 401 ne
 zakljucuje nista o sesiji, nego se prikaze poruka koju je server poslao.
 
-Sesija ima poznat rok, pa se istek racuna **iz sata**. `src/auth/istek-sesije/` to prati.
+Sesija ima poznat rok, pa se istek racuna **iz sata**. `src/auth/session-expiration/` to prati.
 
 `LoginResponse` nosi `issued` i `expiration` — dva serverska trenutka. Njihova razlika je trajanje i
 ne zavisi od toga koliko se satovi servera i pregledaca razilaze. Na klijentov sat prelazi tek kroz
 `clientIssued`, cas kada je odgovor stigao:
 
 ```ts
-istek: clientIssued + (response.expiration.getTime() - response.issued.getTime())
+expiration: clientIssued + (response.expiration.getTime() - response.issued.getTime())
 ```
 
-`istek` je obican broj (milisekunde), ne `Date`. Kroz `localStorage` `Date` bi se vratio pomeren za
+`expiration` je obican broj (milisekunde), ne `Date`. Kroz `localStorage` `Date` bi se vratio pomeren za
 vremensku zonu, jer ga `JSON` pise u UTC-u a nas `DateTime` kodek cita kao lokalno vreme.
 
-Sat je izvan aplikacije, pa ulazi kroz pretplatu — to je jedini `Sub` u projektu, i tece samo dok je
+Sat je izvan aplikacije, pa ulazi kroz pretplatu, i tece samo dok je
 neko prijavljen:
 
 ```ts
 export const subscriptions = (model: Model): Sub.Sub<Msg> =>
-  model._tag === 'Authenticated' ? Sub.map(istekSesije)(IstekSesije.subscriptions()) : Sub.none
+  model._tag === 'Authenticated' ? Sub.map(sessionExpiration)(SessionExpiration.subscriptions()) : Sub.none
 ```
 
 Modul javlja samo vreme; sta ono znaci odlucuje router: na pragu se prikazuje dijalog, na isteku se
-korisnik odjavljuje uz obavestenje. Pre prvog otkucaja `preostalo` je `Option.none()` — nista se jos
+korisnik odjavljuje uz obavestenje. Pre prvog otkucaja `remaining` je `Option.none()` — nista se jos
 nije izmerilo, pa se nista i ne tvrdi.
 
 Kada backend dobije produzetak, dodaje se `POST /api/administracija/extendSession` u
-`auth/api/routes.ts`, poruka `Produzi` u `istek-sesije/msg.ts`, dugme u dijalogu, i router na
-uspesan odgovor upisuje novi `istek`. Sve ostalo ostaje kako jeste.
+`auth/api/routes.ts`, poruka `Produzi` u `session-expiration/msg.ts`, dugme u dijalogu, i router na
+uspesan odgovor upisuje novu `expiration`. Sve ostalo ostaje kako jeste.

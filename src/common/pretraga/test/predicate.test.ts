@@ -40,7 +40,6 @@ describe('predicateValue', () => {
     expect(predicateValue(undefined)).toBeNull()
   })
 
-  // Ovo drzi obe strane: sto `contains` napravi, `predicateValue` vrati.
   it('vraca ono sto je uslo', () => {
     expect(predicateValue(contains('Pera'))).toBe('Pera')
     expect(predicateValue(eq('PASIVAN'))).toBe('PASIVAN')
@@ -48,12 +47,10 @@ describe('predicateValue', () => {
 })
 
 describe('range', () => {
-  // Oba datuma idu kao jedna vrednost, spojena tildom — tako ih BE i prima.
   it('oba datuma daju between', () => {
     expect(range([dan(2020, 1, 1), dan(2020, 12, 31)])).toStrictEqual(['between', '2020-01-01~2020-12-31'])
   })
 
-  // Pola opsega je pretraga kao i svaka druga, samo je operator drugi.
   it('jedan kraj daje granicu koja taj dan ukljucuje', () => {
     expect(range([dan(2020, 1, 1), null])).toStrictEqual(['after_or_same', '2020-01-01'])
     expect(range([null, dan(2020, 12, 31)])).toStrictEqual(['before_or_same', '2020-12-31'])
@@ -64,12 +61,10 @@ describe('range', () => {
     expect(range(null)).toBeUndefined()
   })
 
-  // Obrnut opseg se ne odbija: BE na njega prosto ne vrati nijedan slog.
   it('obrnut opseg ide na server takav kakav je', () => {
     expect(range([dan(2020, 12, 31), dan(2020, 1, 1)])).toStrictEqual(['between', '2020-12-31~2020-01-01'])
   })
 
-  // Isti razlog kao kod `toYmd`: `toISOString` bi ovde pomerio dan unazad.
   it('salje izabrani dan, ne UTC trenutak', () => {
     expect(range([dan(2026, 8, 6), dan(2026, 8, 6)])).toStrictEqual(['between', '2026-08-06~2026-08-06'])
   })
@@ -86,7 +81,6 @@ describe('rangeValue', () => {
     expect(rangeValue(undefined)).toBeNull()
   })
 
-  // Polje pise samo `between`, `after_or_same` i `before_or_same`; strogu granicu ne ume da prikaze.
   it('operatori koje polje ne pise ne mogu u opseg', () => {
     expect(rangeValue(['before', '2020-01-01'])).toBeNull()
     expect(rangeValue(['after', '2020-01-01'])).toBeNull()
@@ -110,13 +104,12 @@ const danArb = FastCheck.date({
 const krajArb = FastCheck.option(danArb, { nil: null })
 
 describe('svojstva', () => {
-  // Sto polje napise u adresu, iz adrese se vrati isto — bez obzira koji je kraj popunjen.
   it('opseg prezivi put kroz adresu', () => {
     FastCheck.assert(
       FastCheck.property(krajArb, krajArb, (od, doDatuma) => {
         const value: DateRange = [od, doDatuma]
-        const prazan = od === null && doDatuma === null
-        expect(rangeValue(range(value))).toStrictEqual(prazan ? null : value)
+        const empty = od === null && doDatuma === null
+        expect(rangeValue(range(value))).toStrictEqual(empty ? null : value)
       }),
     )
   })

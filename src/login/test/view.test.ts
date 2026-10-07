@@ -4,7 +4,6 @@ import { init, view } from '../index'
 
 const markup = renderToStaticMarkup(view(init[0])(() => {}))
 
-// Jedino mesto gde autofill treba da radi: bez ovoga menadzeri lozinki tiho prestanu da nude nalog.
 describe('prijava i autofill', () => {
   it('korisnicko ime trazi nalog', () => {
     expect(markup).toMatch(/autocomplete="username"/i)

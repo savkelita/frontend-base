@@ -63,7 +63,7 @@ U `ioState` idu **samo combo vrednosti**. Tekst i enum se citaju iz adrese.
 `pretraga/model.ts` — `LIMIT` i `Model`.
 `pretraga/msg.ts` — `Loaded`, `Failed`, `Sorted`, `PageChanged`, `SelectionChanged`, `Retry`,
 `FilterMsg`.
-`pretraga/index.tsx` — `route`, `FUNKCIONALNOSTI`, `toRequest`, `load`, `goTo`, `init`, `reload`,
+`pretraga/index.tsx` — `route`, `PERMISSIONS`, `toRequest`, `load`, `goTo`, `init`, `reload`,
 `update`, `columns`, `view`. Upit se ne pise:
 
 ```ts
@@ -515,7 +515,7 @@ Uzori: `kreiranje/` (prazan obrazac), `azuriranje/` (ucitava pa menja), `brisanj
 kreiranje/
 ├── model.ts    FormValue, vForm(), Value, EMPTY, sameForm, Model
 ├── msg.ts      Changed, Submitted, Saved, SaveFailed, Closed, + combo poruke
-└── index.tsx   FUNKCIONALNOSTI, button, init, toCmd, update, options, view
+└── index.tsx   PERMISSIONS, button, init, toCmd, update, options, view
 ```
 
 `button` sam proverava autorizaciju i vraca `null` bez nje:

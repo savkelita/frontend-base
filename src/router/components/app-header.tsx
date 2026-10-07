@@ -20,7 +20,7 @@ import * as Nav from '../../navigation'
 import { logout, navigation } from '../msg'
 import type { Msg } from '../msg'
 
-const USKO = '(max-width: 640px)'
+const NARROW = '(max-width: 640px)'
 
 const useStyles = makeStyles({
   actions: {
@@ -42,7 +42,7 @@ const useStyles = makeStyles({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
-    [`@media ${USKO}`]: {
+    [`@media ${NARROW}`]: {
       display: 'none',
     },
   },

@@ -8,16 +8,16 @@ const draw = (username = 'Petar Petrovic', uloga = 'Administrator'): string =>
   renderToStaticMarkup(createElement(AppHeader, { isOpen: true, username, uloga, dispatch: () => {} }))
 
 const poruke = (username = 'Petar Petrovic'): ReadonlyArray<Msg> => {
-  const posate: Array<Msg> = []
+  const sent: Array<Msg> = []
   renderToStaticMarkup(
     createElement(AppHeader, {
       isOpen: true,
       username,
       uloga: 'Administrator',
-      dispatch: (msg: Msg) => void posate.push(msg),
+      dispatch: (msg: Msg) => void sent.push(msg),
     }),
   )
-  return posate
+  return sent
 }
 
 describe('badge korisnika', () => {
@@ -33,12 +33,10 @@ describe('badge korisnika', () => {
     expect(draw()).toContain('Nalog korisnika Petar Petrovic')
   })
 
-  // Uloga stoji tek u otvorenom meniju, pa je u zatvorenom zaglavlju nema.
   it('uloga ne zauzima mesto u zaglavlju', () => {
     expect(draw('Petar Petrovic', 'Referent za kazne')).not.toContain('Referent za kazne')
   })
 
-  // Crtanje ne sme samo od sebe nista da posalje — odjava ide tek na klik.
   it('samo iscrtavanje ne salje nijednu poruku', () => {
     expect(poruke()).toStrictEqual([])
   })

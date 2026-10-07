@@ -55,7 +55,6 @@ describe('prvi korak: korisnicko ime i lozinka', () => {
 })
 
 describe('izmedju koraka', () => {
-  // Bira se samo kad ima sta da se bira.
   it('jedna uloga preskace ekran izbora i odmah salje prijavu', () => {
     const [model, cmd] = update(identified(['REFERENT']), { ...initial, isSubmitting: true })
     expect(model.step._tag).toBe('Korisnik')
@@ -131,7 +130,6 @@ describe('drugi korak: izbor uloge', () => {
     expect(Option.isNone(model.error)).toBe(true)
   })
 
-  // Poruka pripada koraku na kome je nastala.
   it('poruka prvog koraka ne stize do drugog', () => {
     const [model] = update(
       changeKorisnik({ korisnickoIme: 'p', lozinka: null }),
@@ -146,7 +144,7 @@ describe('kraj prijave', () => {
     korisnik: { id: 1, ime: 'Pera', prezime: 'Peric', korisnickoIme: 'pera', email: 'p@p.rs' },
     uloga: 'REFERENT' as const,
     funkcionalnosti: ['PretragaVozaca'],
-    istek: 0,
+    expiration: 0,
   }
 
   it('uspeh nosi sesiju i gasi indikator', () => {

@@ -20,7 +20,6 @@ const message = <A, I, R>(schema: Schema.Schema<A, I, R>, value: NumberDomain.Fo
   return r.isValid ? undefined : r.issues[0]?.message
 }
 
-// Srpski zapis: zarez je decimalni, tacka hiljadna.
 describe('canonical form on blur', () => {
   it('should group thousands with a dot', () => {
     expect(canonical('12000', 2)).toBe('12.000,00')
@@ -64,7 +63,6 @@ describe('canonical form on blur', () => {
   })
 })
 
-// Ono sto stigne u polje se svodi na goli broj, pa nema dvosmislenosti tacke.
 describe('editable form', () => {
   it('should read a dot as the decimal comma', () => {
     expect(editable('4.25')).toBe('4,25')
@@ -151,7 +149,6 @@ describe('decimal', () => {
     expect(decoded(Decimal.vForm, '4,25')).toBe(4.25)
   })
 
-  // Zaokruzuje i shema, ne samo widget — vrednost ne zavisi od toga da li je bilo blur-a.
   it('should round away the extra decimals', () => {
     expect(decoded(Decimal.vForm, '4,256')).toBe(4.26)
   })
@@ -194,8 +191,6 @@ describe('widget', () => {
   })
 })
 
-// Konvencija zadaje granicu BROJEM CIFARA (Int = Number(10), Decimal2 = Number(18,2)),
-// pa se meri na tekstu — `Number()` preko 2^53 vec izgubi tacnu vrednost.
 describe('granica broja cifara', () => {
   it('prima Int na tacnoj granici od 10 cifara', () => {
     expect(decoded(Int.vForm, '1234567890')).toBe(1234567890)

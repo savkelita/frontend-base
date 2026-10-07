@@ -28,8 +28,8 @@ describe('reportError', () => {
   })
 
   it('sistemska greska nikad nije upozorenje, ma sta stajalo uz nju', () => {
-    const sistemska: ServerError = { type: 'SYSTEM', code: 'SYS01', message: 'Pao servis' }
-    expect(badRequest(business('a', 'WARNING'), sistemska).severity).toBe('ERROR')
+    const system: ServerError = { type: 'SYSTEM', code: 'SYS01', message: 'Pao servis' }
+    expect(badRequest(business('a', 'WARNING'), system).severity).toBe('ERROR')
   })
 
   it('400 bez razumljivog tela dobija nasu poruku, ne prazan prikaz', () => {
@@ -48,7 +48,7 @@ describe('reportError', () => {
     ['BadResponse', ApiError.BadResponse()],
     ['BadRequestPayload', ApiError.BadRequestPayload()],
     ['UnexpectedStatus', ApiError.UnexpectedStatus({ status: 418 })],
-  ])('%s ima tacno jednu poruku i nikad nije upozorenje', (_naziv, error) => {
+  ])('%s ima tacno jednu poruku i nikad nije warning', (_label, error) => {
     const report = reportError(error)
     expect(report.messages).toHaveLength(1)
     expect(report.messages[0]).not.toBe('')
@@ -56,7 +56,7 @@ describe('reportError', () => {
   })
 
   it('svaki slucaj daje razlicit tekst — nijedan se ne stapa sa drugim', () => {
-    const svi = [
+    const all = [
       ApiError.Unauthorized({ errors: [] }),
       ApiError.NotFound(),
       ApiError.ServerFailure(),
@@ -66,7 +66,7 @@ describe('reportError', () => {
       ApiError.BadResponse(),
       ApiError.BadRequestPayload(),
     ].map(text)
-    expect(new Set(svi).size).toBe(svi.length)
+    expect(new Set(all).size).toBe(all.length)
   })
 
   it('nepoznat status stoji u poruci', () => {

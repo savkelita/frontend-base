@@ -5,35 +5,30 @@ const PERA: Session = {
   korisnik: { id: 1, ime: 'Pera', prezime: 'Peric', korisnickoIme: 'pera', email: 'p@p.rs' },
   uloga: 'ADMINISTRATOR',
   funkcionalnosti: ['PretragaVozaca', 'KreiranjeVozaca'],
-  istek: 1_000_000,
+  expiration: 1_000_000,
 }
 
-const DRUGACIJE: ReadonlyArray<readonly [string, Session]> = [
+const DIFFERENT: ReadonlyArray<readonly [string, Session]> = [
   ['korisnik', { ...PERA, korisnik: { ...PERA.korisnik, id: 2 } }],
   ['uloga', { ...PERA, uloga: 'REFERENT' }],
   ['funkcionalnosti', { ...PERA, funkcionalnosti: ['PretragaVozaca'] }],
 ]
 
 describe('identitet sesije', () => {
-  // Ovo je grana kojom ce proci produzenje sesije: isti covek, pomeren rok, ekran se ne rusi.
   it('pomeren rok je ista sesija', () => {
-    expect(sameIdentity(PERA, { ...PERA, istek: PERA.istek + 60_000 })).toBe(true)
+    expect(sameIdentity(PERA, { ...PERA, expiration: PERA.expiration + 60_000 })).toBe(true)
   })
 
-  // Smisao izvodjenja iz seme. Novo polje u Session obara prvu tvrdnju i trazi da se ovde dopise,
-  // umesto da tiho ostane van poredjenja kao kod rucno pisanog uslova.
   it('svako polje seme osim isteka ulazi u identitet', () => {
-    const pokrivena = DRUGACIJE.map(([polje]) => polje)
-    const ocekivana = Object.keys(Session.fields).filter(polje => polje !== 'istek')
-    expect([...pokrivena].sort()).toStrictEqual([...ocekivana].sort())
+    const covered = DIFFERENT.map(([polje]) => polje)
+    const expected = Object.keys(Session.fields).filter(polje => polje !== 'expiration')
+    expect([...covered].sort()).toStrictEqual([...expected].sort())
 
-    for (const [polje, drugacija] of DRUGACIJE) {
+    for (const [polje, drugacija] of DIFFERENT) {
       expect(sameIdentity(PERA, drugacija), polje).toBe(false)
     }
   })
 
-  // Niz se poredi po redosledu. Ako se server ikada pokaze nedeterministickim, resenje je
-  // Equivalence.mapInput sa sortiranjem, kao kod sameForm u azuriranju.
   it('redosled ovlascenja se racuna kao razlika', () => {
     expect(sameIdentity(PERA, { ...PERA, funkcionalnosti: ['KreiranjeVozaca', 'PretragaVozaca'] })).toBe(false)
   })
@@ -41,14 +36,14 @@ describe('identitet sesije', () => {
 
 describe('nastavak zapamcene sesije', () => {
   it('rok u buducnosti uz kolacic prolazi', () => {
-    expect(canResume(PERA, PERA.istek - 1, true)).toBe(true)
+    expect(canResume(PERA, PERA.expiration - 1, true)).toBe(true)
   })
 
   it('bez kolacica ne prolazi ni ziva sesija', () => {
-    expect(canResume(PERA, PERA.istek - 1, false)).toBe(false)
+    expect(canResume(PERA, PERA.expiration - 1, false)).toBe(false)
   })
 
   it('istekla sesija ne prolazi ni sa kolacicem', () => {
-    expect(canResume(PERA, PERA.istek, true)).toBe(false)
+    expect(canResume(PERA, PERA.expiration, true)).toBe(false)
   })
 })

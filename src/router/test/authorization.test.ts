@@ -2,7 +2,7 @@ import { Option } from 'effect'
 import type * as Navigation from 'tea-effect/Navigation'
 import { describe, expect, it } from 'vitest'
 import type { Session } from '../../auth/session'
-import { FUNKCIONALNOSTI, type Funkcionalnost } from '../../auth/types'
+import { PERMISSIONS, type Permission } from '../../auth/types'
 import { update } from '../index'
 import { Model } from '../model'
 import { sessionLoaded, urlChanged } from '../msg'
@@ -16,16 +16,16 @@ const location = (pathname: string): Navigation.Location => ({
   state: null,
 })
 
-const session = (funkcionalnosti: ReadonlyArray<Funkcionalnost>, istek = Number.MAX_SAFE_INTEGER): Session => ({
+const session = (permissions: ReadonlyArray<Permission>, expiration = Number.MAX_SAFE_INTEGER): Session => ({
   korisnik: { id: 1, ime: 'Pera', prezime: 'Peric', korisnickoIme: 'pera', email: 'pera@x.rs' },
   uloga: 'ADMINISTRATOR',
-  funkcionalnosti,
-  istek,
+  funkcionalnosti: permissions,
+  expiration,
 })
 
-const ekran = (funkcionalnosti: ReadonlyArray<Funkcionalnost>, pathname: string): string => {
+const screen = (permissions: ReadonlyArray<Permission>, pathname: string): string => {
   const [model] = update(
-    sessionLoaded(Option.some(session(funkcionalnosti))),
+    sessionLoaded(Option.some(session(permissions))),
     Model.Initializing({ location: location(pathname) }),
   )
   return model._tag === 'Authenticated' ? model.screen._tag : model._tag
@@ -33,45 +33,44 @@ const ekran = (funkcionalnosti: ReadonlyArray<Funkcionalnost>, pathname: string)
 
 describe('ruta trazi funkcionalnost', () => {
   it('sa pravom se otvara ekran', () => {
-    expect(ekran(['PretragaVozaca'], '/sifarnici/vozaci')).toBe('VozaciScreen')
-    expect(ekran(['PretragaVozila'], '/evidencija-vozila/vozila')).toBe('VozilaScreen')
+    expect(screen(['PretragaVozaca'], '/sifarnici/vozaci')).toBe('VozaciScreen')
+    expect(screen(['PretragaVozila'], '/evidencija-vozila/vozila')).toBe('VozilaScreen')
   })
 
-  // Meni i dugmad su udobnost; ovo je jedina prepreka za rucno ukucanu adresu.
   it('bez prava se ne otvara, ma sta stajalo u adresi', () => {
-    expect(ekran([], '/sifarnici/vozaci')).toBe('UnauthorizedScreen')
-    expect(ekran([], '/evidencija-vozila/vozila')).toBe('UnauthorizedScreen')
+    expect(screen([], '/sifarnici/vozaci')).toBe('UnauthorizedScreen')
+    expect(screen([], '/evidencija-vozila/vozila')).toBe('UnauthorizedScreen')
   })
 
   it('pravo za jedan ekran ne otvara drugi', () => {
-    expect(ekran(['PretragaVozaca'], '/evidencija-vozila/vozila')).toBe('UnauthorizedScreen')
-    expect(ekran(['PretragaVozila'], '/sifarnici/vozaci')).toBe('UnauthorizedScreen')
+    expect(screen(['PretragaVozaca'], '/evidencija-vozila/vozila')).toBe('UnauthorizedScreen')
+    expect(screen(['PretragaVozila'], '/sifarnici/vozaci')).toBe('UnauthorizedScreen')
   })
 
   it('pocetna ne trazi nista', () => {
-    expect(ekran([], '/')).toBe('HomeScreen')
+    expect(screen([], '/')).toBe('HomeScreen')
   })
 
   it('nepoznata adresa je 404, a ne 401', () => {
-    expect(ekran([...FUNKCIONALNOSTI], '/nema/ovoga')).toBe('NotFoundScreen')
+    expect(screen([...PERMISSIONS], '/nema/ovoga')).toBe('NotFoundScreen')
   })
 })
 
 describe('promena adrese prolazi kroz istu proveru', () => {
-  const prijavljen = (funkcionalnosti: ReadonlyArray<Funkcionalnost>): Model =>
-    update(sessionLoaded(Option.some(session(funkcionalnosti))), Model.Initializing({ location: location('/') }))[0]
+  const signedIn = (permissions: ReadonlyArray<Permission>): Model =>
+    update(sessionLoaded(Option.some(session(permissions))), Model.Initializing({ location: location('/') }))[0]
 
-  const posleSkoka = (funkcionalnosti: ReadonlyArray<Funkcionalnost>, pathname: string): string => {
-    const [model] = update(urlChanged(location(pathname)), prijavljen(funkcionalnosti))
+  const landsOn = (permissions: ReadonlyArray<Permission>, pathname: string): string => {
+    const [model] = update(urlChanged(location(pathname)), signedIn(permissions))
     return model._tag === 'Authenticated' ? model.screen._tag : model._tag
   }
 
   it('bez prava ni skok sa pocetne ne otvara ekran', () => {
-    expect(posleSkoka([], '/sifarnici/vozaci')).toBe('UnauthorizedScreen')
+    expect(landsOn([], '/sifarnici/vozaci')).toBe('UnauthorizedScreen')
   })
 
   it('sa pravom otvara', () => {
-    expect(posleSkoka(['PretragaVozaca'], '/sifarnici/vozaci')).toBe('VozaciScreen')
+    expect(landsOn(['PretragaVozaca'], '/sifarnici/vozaci')).toBe('VozaciScreen')
   })
 })
 
@@ -84,10 +83,9 @@ describe('bez sesije nema ekrana', () => {
     expect(model._tag).toBe('Anonymous')
   })
 
-  // Adresa se prati i bez sesije, ali ekran se ne otvara — o cilju prijave vidi prijava.test.ts.
   it('promena adrese bez sesije ne otvara ekran', () => {
-    const anoniman = update(sessionLoaded(Option.none()), Model.Initializing({ location: location('/') }))[0]
-    const [model] = update(urlChanged(location('/sifarnici/vozaci')), anoniman)
+    const anonymous = update(sessionLoaded(Option.none()), Model.Initializing({ location: location('/') }))[0]
+    const [model] = update(urlChanged(location('/sifarnici/vozaci')), anonymous)
     expect(model._tag).toBe('Anonymous')
   })
 })

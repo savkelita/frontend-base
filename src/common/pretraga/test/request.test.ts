@@ -101,7 +101,6 @@ describe('sameRequest', () => {
     expect(sameRequest(request(), request({}, { order_: [['ime', 'ASC']] }))).toBe(false)
   })
 
-  // Ovde referenca greasi: poredi stranu i sortiranje, a kriterijum ne.
   it('drugi kriterijum nije isti zahtev', () => {
     expect(sameRequest(request({ ime: ['contains', 'Pera'] }), request({ ime: ['contains', 'Mika'] }))).toBe(false)
   })
@@ -117,47 +116,44 @@ describe('sameRequest', () => {
 
 const POLJA = ['ime', 'prezime', 'email', 'stanje', 'kategorijaID'] as const
 
-const vrednost = FastCheck.oneof(
+const value = FastCheck.oneof(
   FastCheck.string(),
   FastCheck.integer(),
   FastCheck.array(FastCheck.oneof(FastCheck.string(), FastCheck.integer()), { minLength: 1, maxLength: 3 }),
 )
 
-const kriterijum = FastCheck.dictionary(FastCheck.constantFrom(...POLJA), vrednost, { maxKeys: POLJA.length })
+const criteria = FastCheck.dictionary(FastCheck.constantFrom(...POLJA), value, { maxKeys: POLJA.length })
 
-const zahtev = kriterijum.map(criteria => request(criteria as Criteria))
+const requestArb = criteria.map(criteria => request(criteria as Criteria))
 
-const parovi = (query: string): ReadonlyArray<string> => (query === '' ? [] : query.split('&').toSorted())
+const pairs = (query: string): ReadonlyArray<string> => (query === '' ? [] : query.split('&').toSorted())
 
 describe('svojstva', () => {
   it('zahtev je isti sam sebi', () => {
     FastCheck.assert(
-      FastCheck.property(zahtev, a => {
+      FastCheck.property(requestArb, a => {
         expect(sameRequest(a, a)).toBe(true)
       }),
     )
   })
 
-  // Kriterijum iz adrese nema kljuc, a kriterijum iz filtera ga ima sa undefined.
-  // Ta dva oblika se sudaraju na svakoj pretrazi i moraju da znace isto.
   it('odsutan kljuc i undefined su isti zahtev', () => {
     FastCheck.assert(
-      FastCheck.property(zahtev, a => {
-        const prazni = Object.fromEntries(POLJA.filter(p => !(p in a.criteria)).map(p => [p, undefined]))
-        const b = request({ ...a.criteria, ...prazni })
+      FastCheck.property(requestArb, a => {
+        const empty = Object.fromEntries(POLJA.filter(p => !(p in a.criteria)).map(p => [p, undefined]))
+        const b = request({ ...a.criteria, ...empty })
         expect(sameRequest(a, b)).toBe(true)
         expect(toQuery(a)).toBe(toQuery(b))
       }),
     )
   })
 
-  // toQuery ide redom upisa, pa niz nije isti string — ali jeste isti upit.
   it('redosled kljuceva ne menja zahtev ni parametre', () => {
     FastCheck.assert(
-      FastCheck.property(zahtev, a => {
+      FastCheck.property(requestArb, a => {
         const b = request(Object.fromEntries(Object.entries(a.criteria).toReversed()))
         expect(sameRequest(a, b)).toBe(true)
-        expect(parovi(toQuery(a))).toStrictEqual(parovi(toQuery(b)))
+        expect(pairs(toQuery(a))).toStrictEqual(pairs(toQuery(b)))
       }),
     )
   })

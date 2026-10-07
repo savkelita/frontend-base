@@ -17,18 +17,18 @@ const useStyles = makeStyles({
     rowGap: tokens.spacingVerticalS,
     padding: tokens.spacingVerticalXXL,
   },
-  ikona: {
+  icon: {
     fontSize: '48px',
     color: tokens.colorNeutralForeground4,
   },
-  kod: {
+  code: {
     color: tokens.colorNeutralForeground3,
   },
-  adresa: {
+  address: {
     color: tokens.colorNeutralForeground3,
     overflowWrap: 'anywhere',
   },
-  dugme: {
+  button: {
     marginTop: tokens.spacingVerticalM,
   },
 })
@@ -39,12 +39,12 @@ export const NotFoundView = ({ path }: { path: string }) => {
   return (
     <div className={styles.root}>
       <Card className={styles.card}>
-        <DocumentQuestionMarkRegular className={styles.ikona} />
-        <Caption1 className={styles.kod}>404</Caption1>
+        <DocumentQuestionMarkRegular className={styles.icon} />
+        <Caption1 className={styles.code}>404</Caption1>
         <Title2>Strana ne postoji</Title2>
         <Body1>Adresa koju ste otvorili ne postoji ili je u medjuvremenu promenjena.</Body1>
-        <Body1 className={styles.adresa}>{path}</Body1>
-        <Button className={styles.dugme} appearance="primary" icon={<HomeRegular />} as="a" href="/">
+        <Body1 className={styles.address}>{path}</Body1>
+        <Button className={styles.button} appearance="primary" icon={<HomeRegular />} as="a" href="/">
           Idi na pocetnu
         </Button>
       </Card>

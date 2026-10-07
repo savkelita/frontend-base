@@ -36,7 +36,6 @@ describe('zahtev sa sesijom', () => {
     expect(request.withCredentials).toBe(true)
   })
 
-  // Bez kolacica nema sta da se posalje; zaglavlje se tada izostavlja umesto da bude prazno.
   it('ne izmislja XSRF zaglavlje kad kolacica nema', () => {
     expect(request.headers.find(h => h.name === 'X-XSRF-TOKEN')).toBeUndefined()
   })
@@ -65,7 +64,6 @@ describe('odgovor bez sadrzaja', () => {
       ),
     ).then(Chunk.toReadonlyArray)
 
-  // `expectJson` bi ovde dao `null`, a to nije isto sto i "nema odgovora".
   it('204 daje undefined, ne prazan string i ne null', async () => {
     globalThis.fetch = (() => Promise.resolve(new Response(null, { status: 204 }))) as typeof fetch
     const [outcome] = await send()
@@ -82,13 +80,12 @@ describe('odgovor bez sadrzaja', () => {
 describe('NoContent shema', () => {
   const decode = Schema.decodeUnknownEither(expectNoContent.decoder)
 
-  // Praznina zavisi od toga kako je telo procitano, i od servisa do servisa.
   it.each([
     ['prazan tekst', ''],
     ['null', null],
     ['undefined', undefined],
     ['prazan objekat', {}],
-  ])('prihvata %s kao odsustvo sadrzaja', (_naziv, value) => {
+  ])('prihvata %s kao odsustvo sadrzaja', (_label, value) => {
     const result = decode(value)
     expect(Either.isRight(result) && result.right).toBeUndefined()
   })
@@ -97,14 +94,11 @@ describe('NoContent shema', () => {
     ['tekst', 'nesto'],
     ['objekat sa poljem', { a: 1 }],
     ['broj', 0],
-  ])('odbija %s — to jeste sadrzaj', (_naziv, value) => {
+  ])('odbija %s — to jeste sadrzaj', (_label, value) => {
     expect(Either.isLeft(decode(value))).toBe(true)
   })
 })
 
-// Token sesije je HttpOnly i ne moze da se procita, pa je XSRF kolacic jedini vidljivi
-// deo celine koja cini sesiju. Zato odgovor vredi samo u jednom smeru: nema ga znaci
-// da sesije sigurno nema, a ima ga ne garantuje da je jos ziva.
 describe('vidljivi trag sesije', () => {
   it('kolacic postoji', () => {
     expect(hasXsrfToken('a=1; XSRF-TOKEN=abc')).toBe(true)

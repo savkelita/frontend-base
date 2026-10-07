@@ -60,7 +60,7 @@ const STRINGS: CalendarStrings = {
   dayMarkedAriaLabel: 'obelezen',
 }
 
-export const kalendar = {
+export const calendar = {
   formatDate: format,
   parseDateFromString: parse,
   strings: STRINGS,
@@ -71,7 +71,7 @@ export const kalendar = {
 export const dateField = (l: Locals<DateForm, DateFieldOptions>): ReactNode => (
   <FormField l={l}>
     <DatePicker
-      {...kalendar}
+      {...calendar}
       id={l.id}
       name={l.name}
       value={l.value}

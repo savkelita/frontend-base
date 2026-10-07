@@ -16,8 +16,6 @@ const collect = (): Array<Toast> => {
   return raised
 }
 
-// Komanda sa akcijom se ne zavrsava kad se toast prikaze, pa runCollect ne
-// moze da je saceka - mora fiber, isto kao sto je tea-effect vrti u programu.
 const drive = async <Msg>(
   cmd: Cmd.Cmd<Msg>,
   act: (toast: Toast) => void,
@@ -87,39 +85,38 @@ describe('toast kao Cmd', () => {
 })
 
 describe('akcija u toastu', () => {
-  const otvori = success('Vozac je sacuvan.', {
-    action: { label: 'Idi na pregled', msg: () => 'otvori:42' as const },
+  const open = success('Vozac je sacuvan.', {
+    action: { label: 'Idi na pregled', msg: () => 'open:42' as const },
   })
 
   it('klik vrati poruku i zatvori komandu', async () => {
-    expect(await drive(otvori, toast => toast.action?.run())).toStrictEqual({ msgs: ['otvori:42'], closed: true })
+    expect(await drive(open, toast => toast.action?.run())).toStrictEqual({ msgs: ['open:42'], closed: true })
   })
 
   it('bez klika komanda ceka dok toast ne nestane', async () => {
-    expect(await drive(otvori, () => {})).toStrictEqual({ msgs: [], closed: false })
-    expect(await drive(otvori, toast => toast.close())).toStrictEqual({ msgs: [], closed: true })
+    expect(await drive(open, () => {})).toStrictEqual({ msgs: [], closed: false })
+    expect(await drive(open, toast => toast.close())).toStrictEqual({ msgs: [], closed: true })
   })
 
-  // Oba se dese u praksi: korisnik dvaput klikne, ili klikne pa toast istekne.
   it('dupli klik da jednu poruku, klik pa nestanak ne puca', async () => {
     expect(
-      await drive(otvori, toast => {
+      await drive(open, toast => {
         toast.action?.run()
         toast.action?.run()
       }),
-    ).toStrictEqual({ msgs: ['otvori:42'], closed: true })
+    ).toStrictEqual({ msgs: ['open:42'], closed: true })
 
     expect(
-      await drive(otvori, toast => {
+      await drive(open, toast => {
         toast.action?.run()
         toast.close()
       }),
-    ).toStrictEqual({ msgs: ['otvori:42'], closed: true })
+    ).toStrictEqual({ msgs: ['open:42'], closed: true })
   })
 
   it('kada prikaz nije prijavljen komanda se ne zaglavi', async () => {
     const msgs: Array<string> = []
-    const fiber = Effect.runFork(Stream.runForEach(otvori, msg => Effect.sync(() => void msgs.push(msg))))
+    const fiber = Effect.runFork(Stream.runForEach(open, msg => Effect.sync(() => void msgs.push(msg))))
 
     await Effect.runPromise(Fiber.join(fiber))
     expect(msgs).toStrictEqual([])

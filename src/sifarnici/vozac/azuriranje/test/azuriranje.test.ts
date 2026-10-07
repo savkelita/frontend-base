@@ -63,7 +63,6 @@ describe('ucitavanje', () => {
     expect(model._tag).toBe('Failed')
   })
 
-  // Bez sloga nema sta da se salje, pa poruke forme nemaju gde da se primene.
   it('poruke forme pre ucitavanja otpadaju', () => {
     const prazan = init(7)[0]
     expect(aktivan(update(submitted(), prazan)).model).toBe(prazan)
@@ -116,7 +115,6 @@ describe('snimanje', () => {
 })
 
 describe('komanda', () => {
-  // Bez id-a i version-a BE ne zna koji slog menjamo ni od koje verzije.
   it('nosi id i verziju zatecenog sloga', () => {
     const result = Form.validate(vForm, spreman(ucitan()).value)
     expect(result.isValid).toBe(true)
@@ -156,7 +154,6 @@ describe('izmenjenost', () => {
     expect(sameForm(zatecena(), { ...zatecena(), kategorije: [] })).toBe(false)
   })
 
-  // Kategorije su skup, ne niz — redosled klikanja ne sme da se broji kao izmena.
   it('redosled kategorija nije izmena', () => {
     const forma = { ...zatecena(), kategorije: [B, C] }
     expect(sameForm(forma, { ...forma, kategorije: [C, B] })).toBe(true)

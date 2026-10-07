@@ -5,7 +5,7 @@ import * as Cmd from 'tea-effect/Cmd'
 import * as Http from 'tea-effect/Http'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
-import { hasAllFunkcionalnosti, type AuthorizationConfig, type Funkcionalnost } from '../../../auth/types'
+import { hasAllPermissions, type AuthorizationConfig, type Permission } from '../../../auth/types'
 import * as Combo from '../../../common/domain/combo'
 import { mapHttpError, reportError } from '../../../common/error'
 import { ErrorView } from '../../../common/error/view'
@@ -21,9 +21,9 @@ import { Msg, changed, closed, kategorijeMsg, receiveFailed, received, saveFaile
 export * from './model'
 export * from './msg'
 
-const FUNKCIONALNOSTI: ReadonlyArray<Funkcionalnost> = ['AzuriranjeVozaca']
+const PERMISSIONS: ReadonlyArray<Permission> = ['AzuriranjeVozaca']
 
-const isAuthorized = (config: AuthorizationConfig): boolean => hasAllFunkcionalnosti(config, FUNKCIONALNOSTI)
+const isAuthorized = (config: AuthorizationConfig): boolean => hasAllPermissions(config, PERMISSIONS)
 
 export const button =
   <M,>(config: AuthorizationConfig, start: (id: number) => M, id: number | undefined): TeaReact.Html<M> =>
@@ -113,16 +113,16 @@ const useStyles = makeStyles({
     flexDirection: 'column',
     rowGap: tokens.spacingVerticalM,
   },
-  red: {
+  row: {
     display: 'flex',
     columnGap: tokens.spacingHorizontalM,
   },
-  polje: {
+  field: {
     flexGrow: 1,
     flexBasis: 0,
     minWidth: 0,
   },
-  poruka: {
+  message: {
     display: 'flex',
     justifyContent: 'center',
     padding: tokens.spacingVerticalXXL,
@@ -136,14 +136,14 @@ const options = (
 ): Form.Options<FormValue> => ({
   template: locals => (
     <div className={styles.fields}>
-      <div className={styles.red}>
-        <div className={styles.polje}>{locals.inputs.ime}</div>
-        <div className={styles.polje}>{locals.inputs.prezime}</div>
+      <div className={styles.row}>
+        <div className={styles.field}>{locals.inputs.ime}</div>
+        <div className={styles.field}>{locals.inputs.prezime}</div>
       </div>
       {locals.inputs.imeZaPrikaz}
-      <div className={styles.red}>
-        <div className={styles.polje}>{locals.inputs.email}</div>
-        <div className={styles.polje}>{locals.inputs.telefon}</div>
+      <div className={styles.row}>
+        <div className={styles.field}>{locals.inputs.email}</div>
+        <div className={styles.field}>{locals.inputs.telefon}</div>
       </div>
       {locals.inputs.kategorije}
       {locals.inputs.stanje}
@@ -167,7 +167,7 @@ const options = (
 
 const AzuriranjeView = ({ model, dispatch }: { model: Model; dispatch: Platform.Dispatch<Msg> }) => {
   const styles = useStyles()
-  const izmenjeno = isDirty(model)
+  const dirty = isDirty(model)
 
   return (
     <>
@@ -175,14 +175,14 @@ const AzuriranjeView = ({ model, dispatch }: { model: Model; dispatch: Platform.
         title="Izmena vozaca"
         submitLabel="Sacuvaj"
         isSubmitting={model._tag === 'Ready' && model.isSubmitting}
-        submitDisabled={!izmenjeno}
-        dirty={izmenjeno}
+        submitDisabled={!dirty}
+        dirty={dirty}
         onSubmit={() => dispatch(submitted())}
         onClose={() => dispatch(closed())}
       >
         {Model.$match(model, {
           Loading: () => (
-            <div className={styles.poruka}>
+            <div className={styles.message}>
               <Spinner size="small" labelPosition="below" label="Preuzimam podatke..." />
             </div>
           ),

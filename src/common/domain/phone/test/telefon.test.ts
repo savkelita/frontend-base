@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import * as Form from '../../../form'
 import { PATTERN, toDigits, vForm, type Form as TelefonForm } from '../index'
 
-const vTelefon = () => Schema.Struct({ telefon: vForm })
+const vPhone = () => Schema.Struct({ telefon: vForm })
 
-const poruke = (telefon: TelefonForm): ReadonlyArray<string> =>
-  Form.visibleIssues(vTelefon, { telefon }, true).map(issue => issue.message)
+const messages = (telefon: TelefonForm): ReadonlyArray<string> =>
+  Form.visibleIssues(vPhone, { telefon }, true).map(issue => issue.message)
 
 describe('pravilo', () => {
   it('prima 7 i 8 cifara posle pozivnog', () => {
@@ -23,15 +23,15 @@ describe('pravilo', () => {
   })
 
   it('prazno polje trazi podatak', () => {
-    expect(poruke(null)).toStrictEqual(['Podatak je obavezan'])
+    expect(messages(null)).toStrictEqual(['Podatak je obavezan'])
   })
 
   it('nepotpun broj kaze koliko cifara fali', () => {
-    expect(poruke('3816123')).toStrictEqual(['Broj mora imati 7 ili 8 cifara posle +381 6'])
+    expect(messages('3816123')).toStrictEqual(['Broj mora imati 7 ili 8 cifara posle +381 6'])
   })
 
   it('ispravan broj nema zamerki', () => {
-    expect(poruke('38161234567')).toStrictEqual([])
+    expect(messages('38161234567')).toStrictEqual([])
   })
 })
 
@@ -41,14 +41,12 @@ describe('unos', () => {
     expect(toDigits('abc')).toBe('')
   })
 
-  // Kucanje ide cifru po cifru i nikad ne premasi 8, pa se skracivanje ne aktivira.
   it('kucanje se ne dira', () => {
     expect(toDigits('4')).toBe('4')
     expect(toDigits('41234567')).toBe('41234567')
     expect(toDigits('06381612')).toBe('06381612')
   })
 
-  // Nalepljen ceo broj u bilo kom uobicajenom zapisu daje isti rezultat.
   it('nalepljen ceo broj gubi pozivni', () => {
     expect(toDigits('+381 64 123 4567')).toBe('41234567')
     expect(toDigits('381641234567')).toBe('41234567')

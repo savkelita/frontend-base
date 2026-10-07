@@ -37,13 +37,13 @@ export type { Msg }
 
 export const init: [Model, Cmd.Cmd<Msg>] = [initial, Cmd.none]
 
-const identifikuj = (cmd: Api.IdentifikujCmd): Cmd.Cmd<Msg> =>
+const identify = (cmd: Api.IdentifikujCmd): Cmd.Cmd<Msg> =>
   Http.send(Api.identifikuj(cmd), {
     onSuccess: response => identified(response.uloge),
     onError: error => identifyFailed(mapHttpError(error)),
   })
 
-const prijavi = (uloga: Uloga.Value): Cmd.Cmd<Msg> =>
+const signIn = (uloga: Uloga.Value): Cmd.Cmd<Msg> =>
   Cmd.fromEffect(
     Effect.match(
       Effect.zip(
@@ -68,12 +68,12 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
       if (model.step._tag !== 'Korisnik') return [model, Cmd.none]
       const result = Form.validate(vFormKorisnik, model.step.form)
       if (!result.isValid) return [{ ...model, showErrors: true }, Cmd.none]
-      return [{ ...model, showErrors: true, isSubmitting: true, error: Option.none() }, identifikuj(result.value)]
+      return [{ ...model, showErrors: true, isSubmitting: true, error: Option.none() }, identify(result.value)]
     },
 
     Identified: ({ uloge }): [Model, Cmd.Cmd<Msg>] => {
       const [value] = uloge
-      if (uloge.length === 1) return [model, prijavi(value)]
+      if (uloge.length === 1) return [model, signIn(value)]
       return [
         {
           ...model,
@@ -100,7 +100,7 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
       if (model.step._tag !== 'Uloga') return [model, Cmd.none]
       const result = Form.validate(vFormUloga(model.step.uloge), model.step.form)
       if (!result.isValid) return [{ ...model, showErrors: true }, Cmd.none]
-      return [{ ...model, showErrors: true, isSubmitting: true, error: Option.none() }, prijavi(result.value.uloga)]
+      return [{ ...model, showErrors: true, isSubmitting: true, error: Option.none() }, signIn(result.value.uloga)]
     },
 
     LoginSucceeded: ({ session }): [Model, Cmd.Cmd<Msg>] => [
@@ -154,7 +154,7 @@ const ulogaOptions: Form.Options<FormUloga> = {
 
 const LoginView = ({ model, dispatch }: { model: Model; dispatch: Platform.Dispatch<Msg> }) => {
   const styles = useStyles()
-  const naslov = model.step._tag === 'Korisnik' ? 'Prijava' : 'Izbor uloge'
+  const title = model.step._tag === 'Korisnik' ? 'Prijava' : 'Izbor uloge'
 
   const form =
     model.step._tag === 'Korisnik'
@@ -178,7 +178,7 @@ const LoginView = ({ model, dispatch }: { model: Model; dispatch: Platform.Dispa
   return (
     <div className={styles.screen}>
       <Card className={styles.card}>
-        <CardHeader header={<Title1>{naslov}</Title1>} />
+        <CardHeader header={<Title1>{title}</Title1>} />
         <form
           noValidate
           className={styles.stack}

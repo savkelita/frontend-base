@@ -11,9 +11,9 @@ import * as Sub from 'tea-effect/Sub'
 import * as Task from 'tea-effect/Task'
 import * as Api from '../auth/api'
 import * as Uloga from '../auth/domain/uloga'
-import * as IstekSesije from '../auth/istek-sesije'
 import { Session, SESSION_KEY, displayName, sameIdentity, toAuthorizationConfig, canResume } from '../auth/session'
-import { hasAllFunkcionalnosti, type AuthorizationConfig } from '../auth/types'
+import * as SessionExpiration from '../auth/session-expiration'
+import { hasAllPermissions, type AuthorizationConfig } from '../auth/types'
 import { unloadGuard } from '../common/form/unload'
 import { hasXsrfToken } from '../common/http/request'
 import * as Toast from '../common/toast'
@@ -40,10 +40,10 @@ import {
   sessionLoadError,
   sessionChanged,
   login,
-  istekSesije,
+  sessionExpiration,
   logoutCompleted,
 } from './msg'
-import { routes, getRouteFunkcionalnosti } from './route'
+import { routes, routePermissions } from './route'
 import type { Route } from './route'
 import {
   ScreenModel,
@@ -111,8 +111,8 @@ const startScreenWithAuth = (
   Option.match(route, {
     onNone: () => [notFoundScreen(location.pathname), Cmd.none],
     onSome: r => {
-      const trazene = getRouteFunkcionalnosti(r._tag)
-      if (!hasAllFunkcionalnosti(config, trazene)) return [unauthorizedScreen(location.pathname), Cmd.none]
+      const required = routePermissions(r._tag)
+      if (!hasAllPermissions(config, required)) return [unauthorizedScreen(location.pathname), Cmd.none]
       return startScreen(r, location.state, previous)
     },
   })
@@ -168,16 +168,16 @@ const initAuthenticated = (session: typeof Session.Type, location: Navigation.Lo
   const route = parseRoute(location)
   const [screenModel, screenCmd] = startScreenWithAuth(route, location, config)
   const [navModel, navCmd] = Nav.init(config)
-  const [istekModel, istekCmd] = IstekSesije.init
+  const [expirationModel, expirationCmd] = SessionExpiration.init
   return [
     Model.Authenticated({
       session,
       location,
       screen: screenModel,
       navigation: navModel,
-      istekSesije: istekModel,
+      sessionExpiration: expirationModel,
     }),
-    Cmd.batch([Cmd.map(screen)(screenCmd), Cmd.map(navigation)(navCmd), Cmd.map(istekSesije)(istekCmd)]),
+    Cmd.batch([Cmd.map(screen)(screenCmd), Cmd.map(navigation)(navCmd), Cmd.map(sessionExpiration)(expirationCmd)]),
   ]
 }
 
@@ -186,7 +186,7 @@ const initAnonymous = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => 
   return [Model.Anonymous({ location, login: loginModel }), Cmd.map(login)(loginCmd)]
 }
 
-const odjavi = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => {
+const signOut = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => {
   const [anonModel, anonCmd] = initAnonymous(location)
   return [
     anonModel,
@@ -198,25 +198,23 @@ const odjavi = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => {
   ]
 }
 
-const zapamcenaSesija: Effect.Effect<Option.Option<Session>, LocalStorage.LocalStorageError> = Effect.map(
+const rememberedSession: Effect.Effect<Option.Option<Session>, LocalStorage.LocalStorageError> = Effect.map(
   Effect.all([
     LocalStorage.getTask(SESSION_KEY, Session),
     Effect.sync(() => hasXsrfToken(typeof document === 'undefined' ? '' : document.cookie)),
     Effect.clockWith(clock => clock.currentTimeMillis),
   ]),
-  ([zapamcena, imaKolacic, sada]) => Option.filter(zapamcena, session => canResume(session, sada, imaKolacic)),
+  ([remembered, hasCookie, now]) => Option.filter(remembered, session => canResume(session, now, hasCookie)),
 )
 
-const ucitajSesiju: Cmd.Cmd<Msg> = Task.attemptWith<Option.Option<Session>, LocalStorage.LocalStorageError, Msg, never>(
-  {
-    onSuccess: sessionLoaded,
-    onFailure: sessionLoadError,
-  },
-)(zapamcenaSesija)
+const loadSession: Cmd.Cmd<Msg> = Task.attemptWith<Option.Option<Session>, LocalStorage.LocalStorageError, Msg, never>({
+  onSuccess: sessionLoaded,
+  onFailure: sessionLoadError,
+})(rememberedSession)
 
 export const init = (location: Navigation.Location): [Model, Cmd.Cmd<Msg>] => [
   Model.Initializing({ location }),
-  ucitajSesiju,
+  loadSession,
 ]
 
 export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
@@ -242,14 +240,14 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
           const [anonModel, anonCmd] = initAnonymous(model.location)
           return [anonModel, Cmd.batch([anonCmd, Toast.warning('Odjavljeni ste u drugom prozoru.')])]
         },
-        onSome: (sledeca): [Model, Cmd.Cmd<Msg>] => {
-          if (model._tag === 'Authenticated' && sameIdentity(model.session, sledeca)) {
-            return [Model.Authenticated({ ...model, session: sledeca }), Cmd.none]
+        onSome: (next): [Model, Cmd.Cmd<Msg>] => {
+          if (model._tag === 'Authenticated' && sameIdentity(model.session, next)) {
+            return [Model.Authenticated({ ...model, session: next }), Cmd.none]
           }
-          const [authModel, authCmd] = initAuthenticated(sledeca, model.location)
+          const [authModel, authCmd] = initAuthenticated(next, model.location)
           return [
             authModel,
-            Cmd.batch([authCmd, Toast.info(`Prijavljeni ste kao ${displayName(sledeca)} u drugom prozoru.`)]),
+            Cmd.batch([authCmd, Toast.info(`Prijavljeni ste kao ${displayName(next)} u drugom prozoru.`)]),
           ]
         },
       })
@@ -268,18 +266,21 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
 
     Logout: (): [Model, Cmd.Cmd<Msg>] => {
       if (model._tag !== 'Authenticated') return [model, Cmd.none]
-      return odjavi(model.location)
+      return signOut(model.location)
     },
 
-    IstekSesije: ({ istekMsg }): [Model, Cmd.Cmd<Msg>] => {
+    SessionExpiration: ({ expirationMsg }): [Model, Cmd.Cmd<Msg>] => {
       if (model._tag !== 'Authenticated') return [model, Cmd.none]
-      if (istekMsg._tag === 'Odjava') return odjavi(model.location)
-      const [istek, istekCmd] = IstekSesije.update(istekMsg, model.istekSesije)
-      if (IstekSesije.istekla(model.session, istek)) {
-        const [anonModel, anonCmd] = odjavi(model.location)
+      if (expirationMsg._tag === 'SignOut') return signOut(model.location)
+      const [expiration, expirationCmd] = SessionExpiration.update(expirationMsg, model.sessionExpiration)
+      if (SessionExpiration.expired(model.session, expiration)) {
+        const [anonModel, anonCmd] = signOut(model.location)
         return [anonModel, Cmd.batch([anonCmd, Toast.warning('Sesija je istekla. Prijavite se ponovo.')])]
       }
-      return [Model.Authenticated({ ...model, istekSesije: istek }), Cmd.map(istekSesije)(istekCmd)]
+      return [
+        Model.Authenticated({ ...model, sessionExpiration: expiration }),
+        Cmd.map(sessionExpiration)(expirationCmd),
+      ]
     },
 
     LogoutCompleted: (): [Model, Cmd.Cmd<Msg>] => [model, Cmd.none],
@@ -316,7 +317,7 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     },
   })
 
-const sesijaDrugogTaba: Sub.Sub<Msg> = LocalStorage.onChange(SESSION_KEY, Session, {
+const sessionFromOtherTab: Sub.Sub<Msg> = LocalStorage.onChange(SESSION_KEY, Session, {
   onSuccess: sessionChanged,
   onError: () => sessionChanged(Option.none()),
 })
@@ -324,11 +325,11 @@ const sesijaDrugogTaba: Sub.Sub<Msg> = LocalStorage.onChange(SESSION_KEY, Sessio
 export const subscriptions = (model: Model): Sub.Sub<Msg> =>
   model._tag === 'Authenticated'
     ? Sub.batch([
-        sesijaDrugogTaba,
-        Sub.map(istekSesije)(IstekSesije.subscriptions()),
+        sessionFromOtherTab,
+        Sub.map(sessionExpiration)(SessionExpiration.subscriptions()),
         unloadGuard(screenIsDirty(model.screen)),
       ])
-    : sesijaDrugogTaba
+    : sessionFromOtherTab
 
 export const view =
   (model: Model): TeaReact.Html<Msg> =>
@@ -351,7 +352,7 @@ export const view =
           >
             {Html.map(screen)(screenView(toAuthorizationConfig(m.session), m.screen))(dispatch)}
           </Layout>
-          {Html.map(istekSesije)(IstekSesije.view(m.session, m.istekSesije))(dispatch)}
+          {Html.map(sessionExpiration)(SessionExpiration.view(m.session, m.sessionExpiration))(dispatch)}
         </>
       ),
     })

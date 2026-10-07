@@ -48,7 +48,6 @@ describe('polja', () => {
     expect(apply(changed(form({ ime: 'Mika' })), open()).value.ime).toBe('Mika')
   })
 
-  // Primenu izvodi ekran; filter samo javi da je zatrazena.
   it('slanje ne dira polja', () => {
     const typed = apply(changed(form({ ime: 'Mika' })), open())
     expect(apply(submitted(), typed).value.ime).toBe('Mika')
@@ -67,7 +66,6 @@ describe('polja', () => {
 })
 
 describe('komande', () => {
-  // Polja menjaju samo model; sa serverom prica jedino combo.
   it('rad sa poljima ne pokrece komandu', () => {
     const model = open()
     expect(init({}, undefined)[1]).toBe(Cmd.none)
@@ -85,7 +83,6 @@ describe('kategorija', () => {
     expect(open().value.kategorija).toBeNull()
   })
 
-  // Neko ti je poslao link: iz adrese se zna samo id, oznaku mora da donese BE.
   it('id iz adrese bez zapamcene vrednosti trazi taj slog', () => {
     const [model, cmd] = init({ kategorijaID: 3 }, undefined)
     expect(model.value.kategorija).toBeNull()
@@ -113,7 +110,6 @@ describe('kategorija', () => {
     expect(ocisceno.kategorijaCombo).toStrictEqual(Combo.empty())
   })
 
-  // Back/forward: vrednost je vec u istoriji, pa BE nema sta da radi.
   it('zapamcena vrednost iz istorije preskace poziv', () => {
     const [model, cmd] = init({ kategorijaID: 3 }, { kategorija })
     expect(model.value.kategorija).toStrictEqual(kategorija)
@@ -130,7 +126,6 @@ describe('kategorija', () => {
     expect(init({ kategorijaID: 3 }, { nesto: 'drugo' })[0].value.kategorija).toBeNull()
   })
 
-  // Kroz stranice i sortiranje vrednost putuje modelom, isto bez poziva.
   it('prethodni model cuva vrednost kroz navigaciju', () => {
     const [previous] = init({ kategorijaID: 3 }, { kategorija })
     const [model, cmd] = init({ kategorijaID: 3 }, undefined, previous)
@@ -177,7 +172,6 @@ const stanje = FastCheck.oneof(
 )
 
 describe('svojstva', () => {
-  // Zapamcena kategorija sa drugim id-em bi ispisala naziv sloga koji adresa ne trazi.
   it('kategorija iz stanja se uzima samo kad joj se id poklapa sa adresom', () => {
     FastCheck.assert(
       FastCheck.property(FastCheck.nat(), stanje, (kategorijaID, state) => {
@@ -206,8 +200,6 @@ describe('svojstva', () => {
     )
   })
 
-  // Filter ume da napise samo `contains`, pa rucno upisan operator iz adrese ne prezivi
-  // ponovnu pretragu. Namerno je tako — ovde stoji da se ne bi otkrilo kao iznenadjenje.
   it('operator iz adrese se pri ponovnoj pretrazi svodi na contains', () => {
     FastCheck.assert(
       FastCheck.property(Arbitrary.make(ioStringOperator), FastCheck.string({ minLength: 1 }), (operator, tekst) => {

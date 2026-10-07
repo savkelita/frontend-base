@@ -113,8 +113,8 @@ Ovo je najcesca tiha greska pri pisanju novog domena. Pravilo pre poruke, uvek.
   title="Kreiranje vozaca"
   submitLabel="Sacuvaj"
   isSubmitting={model.isSubmitting}
-  submitDisabled={!izmenjeno}
-  dirty={!sameForm(EMPTY, model.value)}
+  submitDisabled={!isDirty(model)}
+  dirty={isDirty(model)}
   onSubmit={() => dispatch(submitted())}
   onClose={() => dispatch(closed())}
 >
@@ -122,21 +122,101 @@ Ovo je najcesca tiha greska pri pisanju novog domena. Pravilo pre poruke, uvek.
 
 **`ConfirmDialog`** — potvrda, koristi se za brisanje.
 
+### `Outcome` — kako dijalog javlja da je gotov
+
+`update` dijaloga **ne vraca `[Model, Cmd]`** nego `Outcome`, iz `common/form/outcome.ts`:
+
+```ts
+export type Outcome<Model, Msg, A> = Tagged.TaggedEnum<{
+  Active: { readonly model: Model; readonly cmd: Cmd.Cmd<Msg> }
+  Closed: {}
+  Done: { readonly value: A }
+}>
+```
+
+Dete u potpisu kaze cime se zavrsava, pa `kreiranje` vraca `ObjekatIdentifikator`, `brisanje`
+vraca `Vozac`, a `azuriranje` nema sta da vrati pa je `void`:
+
+```ts
+export type Result = Outcome.Outcome<Model, Msg, ObjekatIdentifikator>
+
+Saved: ({ identifikator }): Result => Outcome.done(identifikator),
+Closed: (): Result => Outcome.closed(),
+SaveFailed: ({ error }): Result => Outcome.active({ ...model, error: Option.some(error) }),
+```
+
+Roditelj presavija i **ne pominje nijednu poruku deteta**:
+
+```ts
+KreiranjeMsg: ({ msg }): [Model, Cmd.Cmd<Msg>] => {
+  if (Option.isNone(model.kreiranje)) return [model, Cmd.none]
+  return Outcome.match(Kreiranje.update(msg, model.kreiranje.value), {
+    Active: ({ model: kreiranje, cmd }) => [{ ...model, kreiranje: Option.some(kreiranje) }, Cmd.map(kreiranjeMsg)(cmd)],
+    Closed: () => [{ ...model, kreiranje: Option.none() }, Cmd.none],
+    Done: ({ value: { id } }) => /* reload + toast */,
+  })
+},
+```
+
+**Zasto ovako.** Ranije je roditelj presretao po tagu (`if (msg._tag === 'Saved')`) pre nego sto
+prosledi. Iz toga su sledile tri stvari: sest grana u decoj `update` funkciji se nikad nije
+izvrsilo, roditelj je znao privatna imena detetovih poruka, i **nigde u tipu nije pisalo koje su
+poruke terminalne** — nova takva poruka ne bi nista srusila, dijalog bi samo ostao otvoren. Sada
+ruzi kompajliranje dok je ne obradis.
+
+`Outcome` je **samo za decu sa zivotnim ciklusom**, dakle dijaloge. Ekrani i dalje vracaju
+`[Model, Cmd]`.
+
+U testu dijaloga ide lokalni pomocnik koji suzava na `Active`:
+
+```ts
+const aktivan = (result: Result) => {
+  if (result._tag !== 'Active') throw new Error(`ocekivan Active, a stigao ${result._tag}`)
+  return result
+}
+```
+
 ### `dirty`
 
-`dirty` ukljucuje dve zastite: `UnloadGuard` (potvrda pri zatvaranju kartice) i potvrdu pri
-zatvaranju dijaloga. Racuna se poredjenjem sa polaznom vrednoscu preko `Equivalence`:
+Nesacuvane izmene se brane na dva mesta: potvrdom pri zatvaranju dijaloga i zadrzavanjem pri
+zatvaranju kartice. Prvo racuna sam dijalog, drugo je pretplata rutera.
+
+Model izlaze `isDirty`, poredjenjem sa polaznom vrednoscu preko `Equivalence`:
 
 ```ts
 export const sameForm: Equivalence.Equivalence<FormValue> = Equivalence.struct({
   ime: Equivalence.strict<Name.Form>(),
   kategorije: Equivalence.mapInput(Equivalence.array(Equivalence.number), ids),
 })
+
+export const isDirty = (model: Model): boolean => !sameForm(EMPTY, model.value)
 ```
 
 Kod kreiranja se poredi sa `EMPTY`, kod azuriranja sa `toForm(model.original)`.
 
 Redosled visestrukog izbora nije izmena — zato `ids` sortira pre poredjenja.
+
+#### Cuvar odlaska sa strane
+
+`beforeunload` je **jedna stvar za celu aplikaciju**, pa je ne drzi dijalog nego ruter. Dete samo
+odgovara na pitanje, roditelj slaze odgovore, ruter pali jednu pretplatu:
+
+```ts
+// ekran
+export const isDirty = (model: Model): boolean =>
+  Option.exists(model.kreiranje, Kreiranje.isDirty) || Option.exists(model.azuriranje, Azuriranje.isDirty)
+
+// router/subscriptions
+unloadGuard(screenIsDirty(model.screen))
+```
+
+`unloadGuard(true)` je `Sub.fromCallback` pod stalnim kljucem, `unloadGuard(false)` je `Sub.none`.
+Runtime vodi pretplate po kljucu i pusta finalizer kad kljuc nestane, pa se `removeEventListener`
+desi sam — nema `useEffect`-a i nema komponente u prikazu.
+
+**Ne dizi `Sub` kroz stablo kad dete ne emituje nijednu poruku.** `Sub.map` nad takvim tokom je
+ceremonija, a pretplata po dijalogu radi samo zato sto dele kljuc. Novi modul sa formom dopise
+`isDirty` u svoj model i jedan red u `screenIsDirty` — to je sve.
 
 ### Dijalog nad dijalogom
 

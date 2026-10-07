@@ -37,7 +37,7 @@ tako da se cita jednom:
 
 | | Sta | Ko to zove |
 |---|---|---|
-| 1 | `RouteQuery`, `route`, `FUNKCIONALNOSTI` | ruter |
+| 1 | `RouteQuery`, `route`, `PERMISSIONS` | ruter |
 | 2 | `POCETNA_*` konstante, ako ekran ima podrazumevanu pretragu | `init` |
 | 3 | `toRequest`, `load` | server |
 | 4 | `state`, `goTo` | adresa |
@@ -58,7 +58,7 @@ se vidi na prvi pogled.
 const RouteQuery = pretragaQuery(Api.ioVozacCriteria, Api.ioVozacOrder)
 
 export const route = Router.path('/sifarnici/vozaci').query(RouteQuery)
-export const FUNKCIONALNOSTI: ReadonlyArray<Funkcionalnost> = ['PretragaVozaca']
+export const PERMISSIONS: ReadonlyArray<Permission> = ['PretragaVozaca']
 ```
 
 Ruta i lista potrebnih funkcionalnosti stoje **uz ekran**, ne u routeru. Router ih samo pokupi.

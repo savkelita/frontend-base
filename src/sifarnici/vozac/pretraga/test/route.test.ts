@@ -9,8 +9,6 @@ import type { init } from '../index'
 
 type Query = Parameters<typeof init>[0]
 
-// Podrazumevani generator daje & = ? # % + i razmak, ali ostaje u ASCII-ju.
-// Vozaci se zovu Secerovic i Djordjevic, pa i to mora da prodje kroz adresu.
 const tekst = FastCheck.oneof(
   FastCheck.string(),
   FastCheck.string({ unit: 'grapheme' }),

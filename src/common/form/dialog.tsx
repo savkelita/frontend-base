@@ -87,20 +87,20 @@ export const FormDialog = ({
   children,
 }: FormDialogProps): ReactNode => {
   const styles = useStyles()
-  const [potvrda, setPotvrda] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
-  const zatvori = () => (dirty ? setPotvrda(true) : onClose())
+  const close = () => (dirty ? setConfirming(true) : onClose())
 
   return (
     <>
-      <Dialog open modalType="modal" onOpenChange={(_event, data) => !data.open && zatvori()}>
+      <Dialog open modalType="modal" onOpenChange={(_event, data) => !data.open && close()}>
         <DialogSurface className={styles.surface}>
-          {potvrda && (
+          {confirming && (
             <ConfirmDialog
               title="Odustajanje od izmena"
               confirmLabel="Odustani"
               onConfirm={onClose}
-              onCancel={() => setPotvrda(false)}
+              onCancel={() => setConfirming(false)}
             >
               Uneli ste izmene koje nisu sacuvane. Ako odustanete, bice izgubljene.
             </ConfirmDialog>
@@ -121,7 +121,7 @@ export const FormDialog = ({
                 <Button appearance="primary" type="submit" disabled={isSubmitting || submitDisabled}>
                   {isSubmitting ? <Spinner size="extra-small" /> : submitLabel}
                 </Button>
-                <Button appearance="secondary" type="button" disabled={isSubmitting} onClick={zatvori}>
+                <Button appearance="secondary" type="button" disabled={isSubmitting} onClick={close}>
                   Odustani
                 </Button>
               </DialogActions>

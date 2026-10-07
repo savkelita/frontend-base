@@ -2,7 +2,7 @@ import { Data as Tagged, Equivalence, Option, Schema } from 'effect'
 import type * as Combo from '../../../common/domain/combo'
 import * as Email from '../../../common/domain/email'
 import * as Name from '../../../common/domain/name'
-import * as Telefon from '../../../common/domain/telefon'
+import * as Phone from '../../../common/domain/phone'
 import type { ApiError } from '../../../common/error'
 import type { VozacInfo } from '../../api'
 import * as Kategorija from '../../domain/kategorija-vozaca'
@@ -13,7 +13,7 @@ export type FormValue = {
   readonly prezime: Name.Form
   readonly imeZaPrikaz: Name.Form
   readonly email: Email.Form
-  readonly telefon: Telefon.Form
+  readonly telefon: Phone.Form
   readonly kategorije: Kategorija.FormMulti
   readonly stanje: StanjeVozaca.Form
 }
@@ -24,7 +24,7 @@ export const vForm = () =>
     prezime: Name.vForm,
     imeZaPrikaz: Name.vForm,
     email: Schema.NullOr(Email.vForm),
-    telefon: Schema.NullOr(Telefon.vForm),
+    telefon: Schema.NullOr(Phone.vForm),
     kategorije: Kategorija.vFormMulti,
     stanje: StanjeVozaca.vForm,
   })
@@ -49,7 +49,7 @@ export const sameForm: Equivalence.Equivalence<FormValue> = Equivalence.struct({
   prezime: Equivalence.strict<Name.Form>(),
   imeZaPrikaz: Equivalence.strict<Name.Form>(),
   email: Equivalence.strict<Email.Form>(),
-  telefon: Equivalence.strict<Telefon.Form>(),
+  telefon: Equivalence.strict<Phone.Form>(),
   stanje: Equivalence.strict<StanjeVozaca.Form>(),
   kategorije: Equivalence.mapInput(Equivalence.array(Equivalence.number), ids),
 })

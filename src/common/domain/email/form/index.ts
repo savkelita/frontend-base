@@ -14,9 +14,9 @@ export const vForm = Schema.Trim.pipe(
   Schema.pattern(PATTERN),
   Annotation.template(textField),
   Annotation.message((value: Form) => {
-    const uneto = value === null ? '' : value.trim()
-    if (uneto === '') return 'Podatak je obavezan'
-    if (uneto.length > MAX_LENGTH) return `Unesena vrednost ne sme biti duza od ${MAX_LENGTH} karaktera`
-    return PATTERN.test(uneto) ? undefined : 'Podatak nije validan'
+    const entered = value === null ? '' : value.trim()
+    if (entered === '') return 'Podatak je obavezan'
+    if (entered.length > MAX_LENGTH) return `Unesena vrednost ne sme biti duza od ${MAX_LENGTH} karaktera`
+    return PATTERN.test(entered) ? undefined : 'Podatak nije validan'
   }),
 )

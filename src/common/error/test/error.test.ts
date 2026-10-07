@@ -43,11 +43,10 @@ describe('parseErrors', () => {
   })
 
   it('prima poruku duzu od 255 karaktera', () => {
-    const dugacka = 'x'.repeat(400)
-    expect(parseErrors(body([{ ...business, message: dugacka }]))).toHaveLength(1)
+    const long = 'x'.repeat(400)
+    expect(parseErrors(body([{ ...business, message: long }]))).toHaveLength(1)
   })
 
-  // Validacija salje listu, a odbijeno ovlascenje jedan objekat; oba su ista stvar za prikaz.
   it('cita i jedan objekat, ne samo listu', () => {
     expect(parseErrors(body(business))).toStrictEqual([business])
   })
@@ -60,7 +59,7 @@ describe('parseErrors', () => {
       ['nepoznat `type`, van liste', body({ type: 'NESTO', message: 'x' })],
       ['fali obavezno polje', body([{ type: 'SYSTEM', code: 'SYS01' }])],
       ['nepoznat severity', body([{ ...business, severity: 'FATAL' }])],
-    ])('%s', (_naziv, raw) => {
+    ])('%s', (_label, raw) => {
       expect(parseErrors(raw)).toStrictEqual([])
     })
   })
@@ -77,16 +76,15 @@ describe('mapHttpError', () => {
     expect(error._tag === 'Unauthorized' && error.errors).toStrictEqual([])
   })
 
-  // Server na 401 kaze da li je pogresna lozinka ili nedostaje pravo; ta poruka je bolja od nase.
   it('401 zadrzava poruku servera', () => {
-    const odbijeno = {
+    const rejected = {
       type: 'BUSINESS',
       code: 'AUTH01',
       messageCode: 'ERR_LOZINKA',
       message: 'Pogresno korisnicko ime ili lozinka',
       severity: 'ERROR',
     }
-    const error = mapHttpError({ _tag: 'BadStatus', status: 401, body: body(odbijeno) })
+    const error = mapHttpError({ _tag: 'BadStatus', status: 401, body: body(rejected) })
     expect(error._tag === 'Unauthorized' && error.errors.map(e => e.message)).toStrictEqual([
       'Pogresno korisnicko ime ili lozinka',
     ])
@@ -102,8 +100,8 @@ describe('mapHttpError', () => {
     ['NetworkError', { _tag: 'NetworkError', error: 'x' } as const, 'NetworkError'],
     ['BadBody', { _tag: 'BadBody', error: 'x' } as const, 'BadResponse'],
     ['BadRequestBody', { _tag: 'BadRequestBody', error: 'x' } as const, 'BadRequestPayload'],
-  ])('%s -> %s', (_naziv, error, ocekivano) => {
-    expect(mapHttpError(error)._tag).toBe(ocekivano)
+  ])('%s -> %s', (_label, error, expected) => {
+    expect(mapHttpError(error)._tag).toBe(expected)
   })
 
   it.each([
@@ -114,7 +112,7 @@ describe('mapHttpError', () => {
     [503, 'Unavailable'],
     [504, 'Timeout'],
     [418, 'UnexpectedStatus'],
-  ])('status %i -> %s', (status, ocekivano) => {
-    expect(mapHttpError({ _tag: 'BadStatus', status, body: '' })._tag).toBe(ocekivano)
+  ])('status %i -> %s', (status, expected) => {
+    expect(mapHttpError({ _tag: 'BadStatus', status, body: '' })._tag).toBe(expected)
   })
 })

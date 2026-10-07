@@ -2,7 +2,7 @@ import { makeStyles, tokens } from '@fluentui/react-components'
 import { DatePicker } from '@fluentui/react-datepicker-compat'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
-import { changed, kalendar, type DateForm } from './date-field'
+import { changed, calendar, type DateForm } from './date-field'
 import { FormField } from './form-field'
 
 export interface DateRangeFieldOptions {
@@ -40,7 +40,7 @@ const DateRangeView = ({ l }: { l: Locals<DateRangeForm | null, DateRangeFieldOp
   }
 
   const common = {
-    ...kalendar,
+    ...calendar,
     disabled: l.disabled,
     allowTextInput: l.allowTextInput ?? true,
     ...(l.minDate === undefined ? {} : { minDate: l.minDate }),

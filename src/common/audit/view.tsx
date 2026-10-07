@@ -1,7 +1,7 @@
 import { Caption1Strong, Caption2, CardHeader, Tooltip, makeStyles, tokens } from '@fluentui/react-components'
 import { DocumentAdd20Regular, DocumentEdit20Regular, PersonClock20Regular } from '@fluentui/react-icons'
 import * as DateTime from '../domain/date-time'
-import { promenjen, renderUser, type Audit } from './audit'
+import { changed, renderUser, type Audit } from './audit'
 
 const useStyles = makeStyles({
   stack: {
@@ -35,7 +35,7 @@ export const AuditCell = ({ audit }: { readonly audit: Audit }) => {
               header={<Caption1Strong>Kreirao/la {renderUser(audit.korisnikKreirao)}</Caption1Strong>}
               description={<Caption2>Datum kreiranja {datum(audit.datumKreiranja)}</Caption2>}
             />
-            {promenjen(audit) && (
+            {changed(audit) && (
               <CardHeader
                 image={<DocumentEdit20Regular />}
                 header={<Caption1Strong>Izmenio/la {renderUser(audit.korisnikPromenio)}</Caption1Strong>}

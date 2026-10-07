@@ -2,14 +2,14 @@ import { Schema } from 'effect'
 import * as Annotation from 'effect-form/Annotation'
 import { fileField, type FileForm } from '../../field/file-field'
 
-export type { FileFieldOptions as FieldOptions, Fajl as Value } from '../../field/file-field'
+export type { FileFieldOptions as FieldOptions, UploadedFile as Value } from '../../field/file-field'
 export { MAX_BYTES, extension, formatSize } from '../../field/file-field'
 
 export type Form = FileForm
 
 export const ioValue = Schema.Struct({
-  naziv: Schema.String,
-  sadrzaj: Schema.String,
+  name: Schema.String,
+  content: Schema.String,
 })
 
 export const vForm = ioValue.pipe(

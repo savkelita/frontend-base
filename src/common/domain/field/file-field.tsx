@@ -14,12 +14,12 @@ import type { Locals } from 'effect-form/Locals'
 import { useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { FormField } from './form-field'
 
-export type Fajl = {
-  readonly naziv: string
-  readonly sadrzaj: string
+export type UploadedFile = {
+  readonly name: string
+  readonly content: string
 }
 
-export type FileForm = Fajl | null
+export type FileForm = UploadedFile | null
 
 export interface FileFieldOptions {
   readonly accept?: string
@@ -29,23 +29,23 @@ export interface FileFieldOptions {
 
 export const MAX_BYTES = 5 * 1024 * 1024
 
-export const extension = (naziv: string): string => naziv.slice(naziv.lastIndexOf('.') + 1).toLowerCase()
+export const extension = (name: string): string => name.slice(name.lastIndexOf('.') + 1).toLowerCase()
 
-export const isAccepted = (accept: string | undefined, naziv: string): boolean => {
+export const isAccepted = (accept: string | undefined, name: string): boolean => {
   if (accept === undefined) return true
   const extensions = accept
     .split(',')
     .map(part => part.trim().toLowerCase())
     .filter(part => part.startsWith('.'))
-  return extensions.length === 0 || extensions.includes(`.${extension(naziv)}`)
+  return extensions.length === 0 || extensions.includes(`.${extension(name)}`)
 }
 
 export const formatSize = (bytes: number): string =>
   bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 
-export const base64Bytes = (sadrzaj: string): number => {
-  const padding = sadrzaj.endsWith('==') ? 2 : sadrzaj.endsWith('=') ? 1 : 0
-  return Math.max(0, Math.floor((sadrzaj.length * 3) / 4) - padding)
+export const base64Bytes = (content: string): number => {
+  const padding = content.endsWith('==') ? 2 : content.endsWith('=') ? 1 : 0
+  return Math.max(0, Math.floor((content.length * 3) / 4) - padding)
 }
 
 const readBase64 = (file: File): Promise<string> =>
@@ -125,12 +125,12 @@ const EmptyContent = ({
 }
 
 const SelectedContent = ({
-  fajl,
+  file,
   disabled,
   onReplace,
   onRemove,
 }: {
-  readonly fajl: Fajl
+  readonly file: UploadedFile
   readonly disabled: boolean
   readonly onReplace: () => void
   readonly onRemove: () => void
@@ -139,8 +139,8 @@ const SelectedContent = ({
   return (
     <>
       <DocumentRegular className={styles.icon} />
-      <Body1 className={styles.fileName}>{fajl.naziv}</Body1>
-      <Caption1>{formatSize(base64Bytes(fajl.sadrzaj))}</Caption1>
+      <Body1 className={styles.fileName}>{file.name}</Body1>
+      <Caption1>{formatSize(base64Bytes(file.content))}</Caption1>
       <div className={styles.actions}>
         <Button size="small" icon={<ArrowSyncRegular />} disabled={disabled} onClick={onReplace}>
           Zameni
@@ -180,7 +180,7 @@ const FileView = ({
     if (file.size > maxBytes) return setRejection(`Najveca dozvoljena velicina je ${formatSize(maxBytes)}`)
     setRejection(undefined)
     readBase64(file).then(
-      sadrzaj => onChange({ naziv: file.name, sadrzaj }),
+      content => onChange({ name: file.name, content }),
       () => setRejection('Fajl nije moguce procitati'),
     )
   }
@@ -213,7 +213,7 @@ const FileView = ({
         {value === null ? (
           <EmptyContent maxBytes={maxBytes} placeholder={placeholder} />
         ) : (
-          <SelectedContent fajl={value} disabled={disabled} onReplace={open} onRemove={remove} />
+          <SelectedContent file={value} disabled={disabled} onReplace={open} onRemove={remove} />
         )}
       </Card>
 

@@ -5,8 +5,8 @@ const KEY = 'unload-guard'
 export const unloadGuard = (dirty: boolean): Sub.Sub<never> =>
   dirty
     ? Sub.fromCallback<never>(() => {
-        const upozori = (event: BeforeUnloadEvent) => event.preventDefault()
-        window.addEventListener('beforeunload', upozori)
-        return () => window.removeEventListener('beforeunload', upozori)
+        const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+        window.addEventListener('beforeunload', warn)
+        return () => window.removeEventListener('beforeunload', warn)
       }, KEY)
     : Sub.none

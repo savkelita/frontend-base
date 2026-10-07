@@ -6,7 +6,7 @@ import * as Navigation from 'tea-effect/Navigation'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Router from 'tea-effect/Router'
-import type { AuthorizationConfig, Funkcionalnost } from '../../../auth/types'
+import type { AuthorizationConfig, Permission } from '../../../auth/types'
 import { AuditCell } from '../../../common/audit/view'
 import { mapHttpError } from '../../../common/error'
 import * as Outcome from '../../../common/form/outcome'
@@ -62,7 +62,7 @@ const RouteQuery = pretragaQuery(Api.ioVozacCriteria, Api.ioVozacOrder)
 
 export const route = Router.path('/sifarnici/vozaci').query(RouteQuery)
 
-export const FUNKCIONALNOSTI: ReadonlyArray<Funkcionalnost> = ['PretragaVozaca']
+export const PERMISSIONS: ReadonlyArray<Permission> = ['PretragaVozaca']
 
 const toRequest = (model: Model): PretragaRequest<VozacCriteria, VozacOrder> => ({
   criteria: model.criteria,

@@ -41,7 +41,6 @@ const sluzba = { id: 7, naziv: 'Sluzba za IT' }
 const pera = { id: 9, ime: 'Pera', prezime: 'Peric', imeZaPrikaz: 'PPeric' }
 
 describe('marka i model idu kao tekst, ne kao id', () => {
-  // BE za ove dve kombinacije vraca samo naziv, i kriterijum je isto naziv.
   it('kriterijum iz adrese vraca vrednost u polje', () => {
     const model = open({ markaVozila: ['eq', 'Skoda'], modelVozila: ['eq', 'Octavia'] })
     expect(model.value.markaVozila).toStrictEqual(skoda)
@@ -54,7 +53,6 @@ describe('marka i model idu kao tekst, ne kao id', () => {
     )
   })
 
-  // Ceo podatak je u adresi, pa nema sta da se pamti niti da se dovlaci sa servera.
   it('ne trazi se od servera i ne ide u stanje istorije', () => {
     expect(init({ markaVozila: ['eq', 'Skoda'] }, undefined)[1]).toBe(Cmd.none)
     expect(toState(form({ markaVozila: skoda }))).toStrictEqual({
@@ -80,7 +78,6 @@ describe('model zavisi od marke', () => {
     expect(apply(markaMsg(Combo.selected([{ marka: 'Fiat' }])), saModelom()).value.modelVozila).toBeNull()
   })
 
-  // Ucitana lista pripada staroj marki, pa i ona mora da padne.
   it('promena marke prazni i listu modela', () => {
     const otvorena = apply(modelMsg(Combo.opened()), saModelom())
     expect(otvorena.modelCombo).not.toStrictEqual(Combo.empty())
@@ -158,7 +155,6 @@ describe('ponistavanje', () => {
 describe('datumski opseg', () => {
   const opseg = [dan(2020, 1, 1), dan(2020, 12, 31)] as const
 
-  // Tilda je razdvojnik opsega; u adresi je URLSearchParams zapise kao %7E, sto BE dekoduje nazad.
   it('oba datuma idu kao jedan between kriterijum', () => {
     expect(query(form({ datumPrveRegistracije: opseg }))).toBe(
       'datumPrveRegistracije=between&datumPrveRegistracije=2020-01-01%7E2020-12-31',
@@ -169,7 +165,6 @@ describe('datumski opseg', () => {
     ])
   })
 
-  // Jedan kraj je isto pretraga: operator se bira prema tome sta je popunjeno.
   it('polovina opsega salje granicu', () => {
     expect(query(form({ datumPrveRegistracije: [dan(2020, 1, 1), null] }))).toBe(
       'datumPrveRegistracije=after_or_same&datumPrveRegistracije=2020-01-01',
@@ -188,7 +183,6 @@ describe('datumski opseg', () => {
     ).toStrictEqual([dan(2020, 1, 1), null])
   })
 
-  // Prazno polje je jedno jedino: `null`. Par praznina ne postoji, pa nema dve praznine da se razilaze.
   it('ponistavanje vraca oba polja na prazno', () => {
     const popunjeno = apply(changed(form({ datumPrveRegistracije: opseg })), open())
     expect(apply(cleared(), popunjeno).value.datumPrveRegistracije).toBeNull()
@@ -201,7 +195,6 @@ describe('dostavlja mesecnu km', () => {
     expect(query(form({ dostavljaMesecnuKm: true }))).toBe('dostavljaMesecnuKm=true')
   })
 
-  // Ne sme da se pobrka sa praznim poljem: "ne dostavlja" je pretraga kao i svaka druga.
   it('ne je kriterijum, prazno nije', () => {
     expect(query(form({ dostavljaMesecnuKm: false }))).toBe('dostavljaMesecnuKm=false')
     expect(query(form({ dostavljaMesecnuKm: null }))).toBe('')

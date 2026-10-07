@@ -54,7 +54,6 @@ const ready = (): Model => update(loaded(request(), page([vozilo(1, 'BG123AA')],
 const change = (model: Model, fields: Partial<Filter.FormValue>) =>
   filterMsg(Filter.changed({ ...model.filterModel.value, ...fields }))
 
-// Ako ugnjezdena pretraga ikada dodirne adresu, ovde ce se videti.
 const pushedUrls = async (cmd: Cmd.Cmd<unknown>): Promise<ReadonlyArray<string>> => {
   const pushed: Array<string> = []
   vi.stubGlobal('window', {
@@ -86,7 +85,6 @@ describe('otvaranje', () => {
   })
 })
 
-// Ovo je razlika u odnosu na ekransku pretragu: tamo sve ide kroz Navigation.pushUrl.
 describe('adresa se ne dira', () => {
   it('primena filtera ne menja adresu', async () => {
     const otkucano = update(change(open(), { registarskaOznaka: 'BG' }), open())[0]
@@ -105,7 +103,6 @@ describe('adresa se ne dira', () => {
   })
 })
 
-// Posledica: sortiranje i strana menjaju model odmah, jer nema adrese da to uradi umesto njih.
 describe('model nosi stanje pretrage', () => {
   it('sortiranje upisuje u model i vraca na prvu stranu', () => {
     const naDrugoj = update(pageChanged(LIMIT), ready())[0]
@@ -158,7 +155,6 @@ describe('zahtev', () => {
     expect(rows(next.data).map(v => v.id)).toStrictEqual([1])
   })
 
-  // Isti cuvar kao na ekranu: model se ovde ne pravi iznova, pa je jos vazniji.
   it('odbacuje odgovor koji pripada drugom kriterijumu', () => {
     const [next] = update(loaded(request({ criteria: { vozacID: 9 } }), page([vozilo(1, 'BG123AA')], 1)), open())
     expect(rows(next.data)).toStrictEqual([])
@@ -201,7 +197,6 @@ describe('izbor reda', () => {
     expect(update(selectionChanged([vozilo(1, 'BG123AA')]), ucitava)[0].selected).toStrictEqual([])
   })
 
-  // Red sa stare strane nema smisla na novoj.
   it('izbor pada na promenu strane i filtera', () => {
     const izabrano = update(selectionChanged([vozilo(1, 'BG123AA')]), ready())[0]
     expect(update(pageChanged(LIMIT), izabrano)[0].selected).toStrictEqual([])

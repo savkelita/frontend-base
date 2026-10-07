@@ -17,7 +17,6 @@ const choices = <K extends Keys>(keys: K, only?: ReadonlyArray<Value<K>>): Reado
 
 export const ioValue = <K extends Keys>(keys: K) => Schema.Literal(...(Object.keys(keys) as ReadonlyArray<Value<K>>))
 
-/** `only` suzava ponudu u vreme izvrsavanja; tip vrednosti ostaje ceo skup. */
 export const vForm = <K extends Keys>(keys: K, only?: ReadonlyArray<Value<K>>) => {
   const list = choices(keys, only)
   return Schema.Literal(...list.map(c => c.value)).pipe(
@@ -26,7 +25,6 @@ export const vForm = <K extends Keys>(keys: K, only?: ReadonlyArray<Value<K>>) =
   )
 }
 
-/** Isti skup, vise izabranih. Opciono polje se pise kao `Schema.NullOr(Enum.vFormMulti(...))`. */
 export const vFormMulti = <K extends Keys>(keys: K) => {
   const list = choices(keys)
   return Schema.Array(Schema.Literal(...list.map(c => c.value))).pipe(

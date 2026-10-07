@@ -36,7 +36,7 @@ je vredniji od uklonjenog mrtvog export-a.
 | `code10` | Kratka sifra | 10 |
 | `code30` | Duza sifra | 30 |
 | `email` | E-posta | 80 + obrazac |
-| `telefon` | Telefon | `3816` + 7-8 cifara |
+| `phone` | Telefon | `PREFIX` + 7-8 cifara |
 | `number` | Broj | `vForm(decimals, maxIntegerDigits)` |
 | `int` | Ceo broj | 0 decimala, 10 cifara |
 | `decimal` | Decimalni broj | 2 decimale, 16 cifara |
@@ -46,6 +46,7 @@ je vredniji od uklonjenog mrtvog export-a.
 | `date-time` | Datum i vreme | samo kodek (`api/`), nema polje |
 | `enum` | Zatvorena lista | mehanizam, vidi nize |
 | `combo` | Lista sa servera | mehanizam, vidi nize |
+| `file` | Dokument (upload) | `MAX_BYTES`, `accept` |
 
 Duzine nisu izmisljene — dolaze iz backend-a. Ako polje na serveru ima drugu duzinu, koristi se
 `Text.vForm(n)` direktno, ne pravi se novi modul zbog jednog polja.
@@ -64,6 +65,32 @@ export const vForm = Text.vForm(MAX_LENGTH)
 Podela na `form/` i `api/` postoji da bi se kodek koristio i tamo gde nema React-a:
 `common/pretraga/predicate.ts` uvozi `date/api` zbog `toYmd` / `fromYmd`, a ne sme da povuce Fluent
 sa sobom.
+
+### Novo polje ide kroz `FormField`
+
+Polje nikad ne pise `<Field>` samo. `common/domain/field/form-field.tsx` drzi labelu, `required`,
+`validationState` i poruku:
+
+```tsx
+export const textField = (l: Locals<TextForm, TextFieldOptions>): ReactNode => (
+  <FormField l={l}>
+    <Input id={l.id} name={l.name} autoComplete={l.autoComplete ?? 'off'} ... />
+  </FormField>
+)
+```
+
+Dve stvari koje `FormField` resava, a rucno pisan `<Field>` ne:
+
+- **`htmlFor` mora da pokazuje na `l.id`.** Fluent uvek crta `<label for="field-N__control">` i svoj
+  id dodeljuje kontroli samo ako ga vec nema. Posto polja prosledjuju `id={l.id}`, nas id pobedi, a
+  `for` ostane da pokazuje u prazno — pregledac to prijavljuje kao gresku i autofill prestaje da
+  radi. `FormField` zato salje `label={{ children: l.label, htmlFor: l.id }}`.
+- **`autocomplete` se gasi podrazumevano.** Kriterijum pretrage ili tudji e-mail nisu licni podaci
+  onoga ko je prijavljen. Jedino prijava trazi suprotno i to kaze izricito
+  (`autoComplete: 'username'`, `'current-password'`).
+
+`field/test/form-field.test.ts` iscrta svaki tip polja i trazi da svako `for` pogodi element koji
+sme da nosi labelu.
 
 ## Enum
 

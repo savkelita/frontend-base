@@ -38,7 +38,6 @@ describe('okvir pretrage', () => {
     expect(markup.indexOf('AKCIJE')).toBeLessThan(markup.indexOf('TABELA'))
   })
 
-  // Neuspeh pretrage je stanje podataka, pa ga crta tabela; okvir o njemu ne zna nista.
   it('okvir ne crta greske', () => {
     expect(draw()).not.toContain('MessageBar')
   })

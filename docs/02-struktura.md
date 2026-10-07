@@ -9,10 +9,10 @@ src/
 ├── navigation/             levi meni
 ├── login/                  prijava
 ├── home/                   pocetna
-├── auth/                   sesija, funkcionalnosti, uloge
+├── auth/                   sesija, ovlascenja, uloge
 │   ├── api/
 │   ├── domain/uloga/
-│   ├── istek-sesije/       otkucaj, upozorenje pred kraj, odjava
+│   ├── session-expiration/ otkucaj, upozorenje pred kraj, odjava
 │   ├── session.ts
 │   └── types.ts
 ├── common/                 sve sto deli vise oblasti
@@ -97,7 +97,7 @@ u njen unutrasnji fajl.
 U `common/` ide ono sto je **ponovljivo i generalno**: mehanizam, ne konkretno polje.
 
 - `common/domain/text` — svaki tekstualni podatak sa ogranicenom duzinom. Da.
-- `common/domain/telefon` — pravilo koje vazi za ceo backend. Da.
+- `common/domain/phone` — pravilo koje vazi za ceo backend. Da.
 - `registarskaOznaka` — polje jednog ekrana. Ne; to je `Text.vForm(...)` na licu mesta.
 
 Kada se dvoumis: dok postoji jedan korisnik, ostaje na ekranu. Kada se pojavi drugi sa istim

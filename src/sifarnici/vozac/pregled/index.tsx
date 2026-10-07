@@ -6,7 +6,7 @@ import * as Http from 'tea-effect/Http'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Router from 'tea-effect/Router'
-import { hasAllFunkcionalnosti, type AuthorizationConfig, type Funkcionalnost } from '../../../auth/types'
+import { hasAllPermissions, type AuthorizationConfig, type Permission } from '../../../auth/types'
 import { mapHttpError, reportError } from '../../../common/error'
 import { ErrorView } from '../../../common/error/view'
 import * as Api from '../../api'
@@ -21,9 +21,9 @@ export type { Msg }
 
 export const route = Router.path('/sifarnici/vozaci/:id', { id: Router.IntFromString }).end()
 
-export const FUNKCIONALNOSTI: ReadonlyArray<Funkcionalnost> = ['PretragaVozaca']
+export const PERMISSIONS: ReadonlyArray<Permission> = ['PretragaVozaca']
 
-const isAuthorized = (config: AuthorizationConfig): boolean => hasAllFunkcionalnosti(config, FUNKCIONALNOSTI)
+const isAuthorized = (config: AuthorizationConfig): boolean => hasAllPermissions(config, PERMISSIONS)
 
 export const url = (id: number): string => Router.format(route, { id })
 
@@ -70,14 +70,14 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
   })
 
 const useStyles = makeStyles({
-  ekran: {
+  screen: {
     display: 'flex',
     flexDirection: 'column',
     rowGap: tokens.spacingVerticalL,
     padding: tokens.spacingHorizontalXXL,
     minHeight: '100%',
   },
-  zaglavlje: {
+  header: {
     display: 'flex',
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -87,11 +87,11 @@ const useStyles = makeStyles({
     padding: tokens.spacingVerticalM,
     flexShrink: 0,
   },
-  podatak: {
+  entry: {
     display: 'flex',
     flexDirection: 'column',
   },
-  poruka: {
+  message: {
     display: 'flex',
     justifyContent: 'center',
     padding: tokens.spacingVerticalXXL,
@@ -101,7 +101,7 @@ const useStyles = makeStyles({
 const Podatak = ({ oznaka, vrednost }: { oznaka: string; vrednost: string }) => {
   const styles = useStyles()
   return (
-    <div className={styles.podatak}>
+    <div className={styles.entry}>
       <Body1>{vrednost === '' ? '-' : vrednost}</Body1>
       <Caption1>{oznaka}</Caption1>
     </div>
@@ -111,7 +111,7 @@ const Podatak = ({ oznaka, vrednost }: { oznaka: string; vrednost: string }) => 
 const Zaglavlje = ({ vozac }: { vozac: VozacInfo }) => {
   const styles = useStyles()
   return (
-    <Card className={styles.zaglavlje}>
+    <Card className={styles.header}>
       <Title3>{vozac.imeZaPrikaz}</Title3>
       <Podatak oznaka="E-mail" vrednost={vozac.email ?? ''} />
       <Podatak oznaka="Telefon" vrednost={vozac.telefon ?? ''} />
@@ -125,10 +125,10 @@ const PregledView = ({ model, dispatch }: { model: Model; dispatch: Platform.Dis
   const styles = useStyles()
 
   return (
-    <div className={styles.ekran}>
+    <div className={styles.screen}>
       {Model.$match(model, {
         Loading: () => (
-          <div className={styles.poruka}>
+          <div className={styles.message}>
             <Spinner size="small" labelPosition="below" label="Preuzimam podatke..." />
           </div>
         ),

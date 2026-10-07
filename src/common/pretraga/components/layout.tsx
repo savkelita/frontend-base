@@ -46,7 +46,7 @@ const useStyles = makeStyles({
     flexGrow: 1,
     minHeight: 0,
   },
-  sekcija: {
+  section: {
     display: 'flex',
     flexDirection: 'column',
     rowGap: tokens.spacingVerticalM,
@@ -54,14 +54,14 @@ const useStyles = makeStyles({
     flexGrow: 1,
     minHeight: 0,
   },
-  sekcijaAkcije: {
+  sectionActions: {
     display: 'flex',
     justifyContent: 'flex-end',
     flexWrap: 'wrap',
     columnGap: tokens.spacingHorizontalS,
     rowGap: tokens.spacingVerticalS,
   },
-  sekcijaTabela: {
+  sectionTable: {
     display: 'flex',
     flexDirection: 'column',
     flexGrow: 1,
@@ -95,11 +95,11 @@ export const PretragaSection = ({ title, actions, filter, table, paging }: Pretr
   const styles = useStyles()
 
   return (
-    <section className={styles.sekcija}>
+    <section className={styles.section}>
       <Subtitle2>{title}</Subtitle2>
       {filter}
-      {actions !== undefined && <div className={styles.sekcijaAkcije}>{actions}</div>}
-      <div className={styles.sekcijaTabela}>{table}</div>
+      {actions !== undefined && <div className={styles.sectionActions}>{actions}</div>}
+      <div className={styles.sectionTable}>{table}</div>
       {paging}
     </section>
   )

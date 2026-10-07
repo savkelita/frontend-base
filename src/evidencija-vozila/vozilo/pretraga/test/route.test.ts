@@ -10,7 +10,6 @@ import type { init } from '../index'
 
 type Query = Parameters<typeof init>[0]
 
-// Registarska oznaka ume da nosi i crticu i razmak, a korisnik ume da otkuca sta stigne.
 const tekst = FastCheck.oneof(
   FastCheck.string(),
   FastCheck.string({ unit: 'grapheme' }),

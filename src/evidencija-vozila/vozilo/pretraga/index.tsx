@@ -5,7 +5,7 @@ import * as Navigation from 'tea-effect/Navigation'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Router from 'tea-effect/Router'
-import type { Funkcionalnost } from '../../../auth/types'
+import type { Permission } from '../../../auth/types'
 import { AuditCell } from '../../../common/audit/view'
 import * as DateDomain from '../../../common/domain/date'
 import { mapHttpError } from '../../../common/error'
@@ -40,7 +40,7 @@ const RouteQuery = pretragaQuery(Api.ioVoziloCriteria, Api.ioVoziloOrder)
 
 export const route = Router.path('/evidencija-vozila/vozila').query(RouteQuery)
 
-export const FUNKCIONALNOSTI: ReadonlyArray<Funkcionalnost> = ['PretragaVozila']
+export const PERMISSIONS: ReadonlyArray<Permission> = ['PretragaVozila']
 
 const POCETNA_KRITERIJUM: VoziloCriteria = { stanje: ['eq', 'AKTIVAN'] }
 

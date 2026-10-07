@@ -5,7 +5,7 @@ import * as Cmd from 'tea-effect/Cmd'
 import * as Http from 'tea-effect/Http'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
-import { hasAllFunkcionalnosti, type AuthorizationConfig, type Funkcionalnost } from '../../../auth/types'
+import { hasAllPermissions, type AuthorizationConfig, type Permission } from '../../../auth/types'
 import { mapHttpError, reportError } from '../../../common/error'
 import { ErrorView } from '../../../common/error/view'
 import { ConfirmDialog } from '../../../common/form/dialog'
@@ -18,9 +18,9 @@ import { Msg, closed, deleteFailed, deleted, submitted } from './msg'
 export * from './model'
 export * from './msg'
 
-const FUNKCIONALNOSTI: ReadonlyArray<Funkcionalnost> = ['BrisanjeVozaca']
+const PERMISSIONS: ReadonlyArray<Permission> = ['BrisanjeVozaca']
 
-const isAuthorized = (config: AuthorizationConfig): boolean => hasAllFunkcionalnosti(config, FUNKCIONALNOSTI)
+const isAuthorized = (config: AuthorizationConfig): boolean => hasAllPermissions(config, PERMISSIONS)
 
 export const button =
   <M,>(config: AuthorizationConfig, start: (vozac: Vozac) => M, vozac: Vozac | undefined): TeaReact.Html<M> =>

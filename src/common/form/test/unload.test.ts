@@ -4,20 +4,20 @@ import * as Sub from 'tea-effect/Sub'
 import { describe, expect, it } from 'vitest'
 import { unloadGuard } from '../unload'
 
-const napustaSe = (): boolean => {
+const leaves = (): boolean => {
   const event = new Event('beforeunload', { cancelable: true })
   window.dispatchEvent(event)
   return !event.defaultPrevented
 }
 
-const tik = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
+const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
 
-const pokreni = async (sub: Sub.Sub<never>): Promise<() => Promise<void>> => {
+const run = async (sub: Sub.Sub<never>): Promise<() => Promise<void>> => {
   const fiber = Effect.runFork(Effect.scoped(Stream.runDrain(sub)))
-  await tik()
+  await tick()
   return async () => {
     await Effect.runPromise(Fiber.interrupt(fiber))
-    await tik()
+    await tick()
   }
 }
 
@@ -27,15 +27,14 @@ describe('cuvar odlaska sa strane', () => {
   })
 
   it('sa izmenama odlazak trazi potvrdu', async () => {
-    const stani = await pokreni(unloadGuard(true))
-    expect(napustaSe()).toBe(false)
-    await stani()
+    const stop = await run(unloadGuard(true))
+    expect(leaves()).toBe(false)
+    await stop()
   })
 
-  // Bez ovoga bi zatvoren dijalog nastavio da zaustavlja odlazak sa strane.
   it('gasenjem pretplate osluskivac nestaje', async () => {
-    const stani = await pokreni(unloadGuard(true))
-    await stani()
-    expect(napustaSe()).toBe(true)
+    const stop = await run(unloadGuard(true))
+    await stop()
+    expect(leaves()).toBe(true)
   })
 })

@@ -1,8 +1,8 @@
 import { Data, Option } from 'effect'
 import type * as LocalStorage from 'tea-effect/LocalStorage'
 import type * as Navigation from 'tea-effect/Navigation'
-import type * as IstekSesije from '../auth/istek-sesije'
 import type { Session } from '../auth/session'
+import type * as SessionExpiration from '../auth/session-expiration'
 import type * as Login from '../login'
 import type * as Nav from '../navigation'
 import type { ScreenMsg } from './screen-msg'
@@ -16,7 +16,7 @@ export type Msg = Data.TaggedEnum<{
   SessionLoadError: { readonly error: LocalStorage.LocalStorageError }
   SessionChanged: { readonly session: Option.Option<Session> }
   Login: { readonly loginMsg: Login.Msg }
-  IstekSesije: { readonly istekMsg: IstekSesije.Msg }
+  SessionExpiration: { readonly expirationMsg: SessionExpiration.Msg }
   Logout: {}
   LogoutCompleted: {}
 }>
@@ -31,6 +31,6 @@ export const sessionLoaded = (session: Option.Option<Session>): Msg => Msg.Sessi
 export const sessionLoadError = (error: LocalStorage.LocalStorageError): Msg => Msg.SessionLoadError({ error })
 export const sessionChanged = (session: Option.Option<Session>): Msg => Msg.SessionChanged({ session })
 export const login = (loginMsg: Login.Msg): Msg => Msg.Login({ loginMsg })
-export const istekSesije = (istekMsg: IstekSesije.Msg): Msg => Msg.IstekSesije({ istekMsg })
+export const sessionExpiration = (expirationMsg: SessionExpiration.Msg): Msg => Msg.SessionExpiration({ expirationMsg })
 export const logout = (): Msg => Msg.Logout()
 export const logoutCompleted = (): Msg => Msg.LogoutCompleted()

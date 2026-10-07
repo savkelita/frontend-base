@@ -23,17 +23,15 @@ describe('memoize', () => {
     expect(f({ id: 1 })).not.toBe(f({ id: 2 }))
   })
 
-  // Ovo je bila zamerka na keš od jednog mesta: naizmenicni kljucevi su se mlatili,
-  // svaki poziv je promasivao i memo granica ispod je tiho prestajala da radi.
   it('naizmenicni kljucevi se ne izbacuju', () => {
     const { f, calls } = counted(id => ({ id }))
-    const prvi = { id: 1 }
-    const drugi = { id: 2 }
+    const first = { id: 1 }
+    const second = { id: 2 }
 
-    f(prvi)
-    f(drugi)
-    f(prvi)
-    f(drugi)
+    f(first)
+    f(second)
+    f(first)
+    f(second)
 
     expect(calls()).toBe(2)
   })

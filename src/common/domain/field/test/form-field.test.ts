@@ -7,9 +7,9 @@ import * as DateDomain from '../../date'
 import * as DateRange from '../../date-range'
 import * as Email from '../../email'
 import * as Enum from '../../enum'
-import * as Fajl from '../../fajl'
+import * as FileDomain from '../../file'
 import * as Name from '../../name'
-import * as Telefon from '../../telefon'
+import * as Telefon from '../../phone'
 
 const LABELABLE = ['button', 'input', 'meter', 'output', 'progress', 'select', 'textarea']
 
@@ -28,7 +28,7 @@ const labelFor = (markup: string): string | undefined => markup.match(/<label[^>
 const owner = (markup: string, id: string): string | undefined =>
   markup.match(new RegExp(`<([a-z]+)(?=[^>]*\\bid="${id}")`))?.[1]
 
-const POLJA: ReadonlyArray<readonly [string, Schema.Schema.Any]> = [
+const FIELDS: ReadonlyArray<readonly [string, Schema.Schema.Any]> = [
   ['tekst', Name.vForm],
   ['e-mail', Email.vForm],
   ['telefon', Telefon.vForm],
@@ -37,12 +37,12 @@ const POLJA: ReadonlyArray<readonly [string, Schema.Schema.Any]> = [
   ['da/ne', BooleanDomain.vForm],
   ['sifarnik', Enum.vForm({ a: 'A', b: 'B' })],
   ['sifarnik sa vise izbora', Enum.vFormMulti({ a: 'A', b: 'B' })],
-  ['fajl', Fajl.vForm],
+  ['fajl', FileDomain.vForm],
 ]
 
 describe('veza labele i kontrole', () => {
-  for (const [naziv, schema] of POLJA) {
-    it(`${naziv}: for pokazuje na kontrolu koja sme da nosi labelu`, () => {
+  for (const [label, schema] of FIELDS) {
+    it(`${label}: for pokazuje na kontrolu koja sme da nosi labelu`, () => {
       const markup = draw(schema)
       const target = labelFor(markup)
       expect(target).toBeDefined()

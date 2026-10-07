@@ -2,19 +2,19 @@ import { Schema } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { render, validate, type Options } from '../../../form'
-import * as Fajl from '../../fajl'
+import * as FileDomain from '../../file'
 import { extension, formatSize, isAccepted } from '../file-field'
 
-type Value = { readonly x: Fajl.Form }
+type Value = { readonly x: FileDomain.Form }
 
-const vForm = () => Schema.Struct({ x: Fajl.vForm })
+const vForm = () => Schema.Struct({ x: FileDomain.vForm })
 
-const draw = (value: Fajl.Form, field: Fajl.FieldOptions = {}) => {
+const draw = (value: FileDomain.Form, field: FileDomain.FieldOptions = {}) => {
   const options: Options<Value> = { template: l => l.inputs.x, fields: { x: { label: 'Dokument', ...field } } }
   return renderToStaticMarkup(render({ schema: vForm(), value: { x: value }, onChange: () => {}, options }) as never)
 }
 
-const fajl = (naziv: string): Fajl.Value => ({ naziv, sadrzaj: 'AAAA' })
+const file = (name: string): FileDomain.Value => ({ name, content: 'AAAA' })
 
 describe('extension', () => {
   it('uzima poslednji deo posle tacke, malim slovima', () => {
@@ -37,7 +37,6 @@ describe('isAcceptednje formata', () => {
     expect(isAccepted('.pdf,.docx', 'slika.png')).toBe(false)
   })
 
-  // Pregledac ume da filtrira po MIME tipu, provera ovde ne ume — zato ne odbija.
   it('mime tip se prepusta pregledacu', () => {
     expect(isAccepted('image/*', 'slika.png')).toBe(true)
   })
@@ -62,13 +61,12 @@ describe('validacija', () => {
   })
 
   it('izabran fajl prolazi', () => {
-    expect(validate(vForm, { x: fajl('ugovor.pdf') }).isValid).toBe(true)
+    expect(validate(vForm, { x: file('ugovor.pdf') }).isValid).toBe(true)
   })
 
-  // Opciono polje se pise kao NullOr, isto kao svako drugo.
   it('opciono polje prolazi i prazno', () => {
-    const opciono = () => Schema.Struct({ x: Schema.NullOr(Fajl.vForm) })
-    expect(validate(opciono, { x: null }).isValid).toBe(true)
+    const optional = () => Schema.Struct({ x: Schema.NullOr(FileDomain.vForm) })
+    expect(validate(optional, { x: null }).isValid).toBe(true)
   })
 })
 
@@ -92,9 +90,8 @@ describe('prikaz', () => {
     expect(draw(null, { accept: '.pdf' })).toContain('accept=".pdf"')
   })
 
-  // Kutija ostaje ista, menja se samo sadrzaj — zato forma ne poskoci.
   it('izabran fajl pokazuje naziv i obe radnje', () => {
-    const markup = draw(fajl('ugovor.pdf'))
+    const markup = draw(file('ugovor.pdf'))
     expect(markup).toContain('ugovor.pdf')
     expect(markup).toContain('Zameni')
     expect(markup).toContain('Ukloni')
@@ -102,17 +99,15 @@ describe('prikaz', () => {
   })
 
   it('velicina se cita iz sadrzaja, bez dodatnog polja', () => {
-    expect(draw({ naziv: 'ugovor.pdf', sadrzaj: 'A'.repeat(4 * 1024) })).toContain('3 KB')
+    expect(draw({ name: 'ugovor.pdf', content: 'A'.repeat(4 * 1024) })).toContain('3 KB')
   })
 
-  // Prazna kutija je dugme; kad fajl postoji, radnje su prava dugmad u njoj.
   it('kutija je klikabilna samo dok je prazna', () => {
     expect(draw(null)).toContain('role="button"')
-    expect(draw(fajl('ugovor.pdf'))).not.toContain('role="button"')
+    expect(draw(file('ugovor.pdf'))).not.toContain('role="button"')
   })
 
-  // Sadrzaj je base64 i ume da bude ogroman — u DOM-u nema sta da trazi.
   it('sadrzaj se ne ispisuje', () => {
-    expect(draw({ naziv: 'ugovor.pdf', sadrzaj: 'TAJNIBASE64' })).not.toContain('TAJNIBASE64')
+    expect(draw({ name: 'ugovor.pdf', content: 'TAJNIBASE64' })).not.toContain('TAJNIBASE64')
   })
 })

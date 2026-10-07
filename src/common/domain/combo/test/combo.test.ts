@@ -14,14 +14,14 @@ const kategorija = (id: number, oznaka: string): KategorijaVozaca => ({ id, ozna
 const list = (model: Model<KategorijaVozaca>): ReadonlyArray<KategorijaVozaca> =>
   model.data === null ? [] : rows(model.data)
 
-const ukupno = (model: Model<KategorijaVozaca>): number => (model.data === null ? 0 : total(model.data))
+const counted = (model: Model<KategorijaVozaca>): number => (model.data === null ? 0 : total(model.data))
 
 const step = (msg: Parameters<typeof update<KategorijaVozaca>>[1], model: Model<KategorijaVozaca>) =>
   update(search, msg, model)
 
-const listed = (count: number, ukupno = count): Model<KategorijaVozaca> => {
+const listed = (count: number, total = count): Model<KategorijaVozaca> => {
   const model = step(opened(), empty<KategorijaVozaca>())[0]
-  const page = { rows: Array.from({ length: count }, (_, i) => kategorija(i + 1, `K${i + 1}`)), total: ukupno }
+  const page = { rows: Array.from({ length: count }, (_, i) => kategorija(i + 1, `K${i + 1}`)), total: total }
   return step(received(toRequest(null, 0), page), model)[0]
 }
 
@@ -33,7 +33,6 @@ describe('otvaranje', () => {
     expect(cmd).not.toBe(Cmd.none)
   })
 
-  // Ovo je bila zamerka na stari combo: svako otvaranje je ponovo zvalo BE.
   it('ponovno otvaranje ne zove server', () => {
     const [model, cmd] = step(opened(), step(closed(), listed(3))[0])
     expect(model.open).toBe(true)
@@ -49,7 +48,6 @@ describe('kucanje', () => {
     expect(cmd).not.toBe(Cmd.none)
   })
 
-  // Zakasneli otkucaj nema sta da trazi — korisnik je u medjuvremenu vec pisao dalje.
   it('presticen otkucaj otpada', () => {
     const first = step(typed('b'), empty<KategorijaVozaca>())[0]
     const second = step(typed('be'), first)[0]
@@ -78,7 +76,6 @@ describe('odgovor', () => {
     expect(list(model).map(k => k.oznaka)).toStrictEqual(['K1', 'K2'])
   })
 
-  // Isti cuvar kao u tabeli: odgovor koji ne pripada tekucem upitu se ne uzima.
   it('odbacuje odgovor drugog upita', () => {
     const model = step(opened(), empty<KategorijaVozaca>())[0]
     const [next] = step(received(toRequest('be', 0), { rows: [kategorija(1, 'K1')], total: 1 }), model)
@@ -96,7 +93,7 @@ describe('ucitaj jos', () => {
     const model = step(more(), listed(LIMIT, 25))[0]
     const [next] = step(received(toRequest(null, LIMIT), { rows: [kategorija(99, 'K99')], total: 25 }), model)
     expect(list(next)).toHaveLength(LIMIT + 1)
-    expect(ukupno(next)).toBe(25)
+    expect(counted(next)).toBe(25)
   })
 
   it('kad je sve ucitano nema sta da se trazi', () => {
@@ -116,7 +113,6 @@ describe('inicijalizacija po id-u', () => {
     expect(cmd).toBe(Cmd.none)
   })
 
-  // Lista se ne dira: ona se puni tek kad korisnik otvori padajuci deo.
   it('sa id-om trazi taj slog, ali listu ne popunjava', () => {
     const [value, model, cmd] = init<KategorijaVozaca>(3, [], search)
     expect(value).toBeNull()
@@ -124,7 +120,6 @@ describe('inicijalizacija po id-u', () => {
     expect(cmd).not.toBe(Cmd.none)
   })
 
-  // Vec poznata vrednost stedi poziv; redosled kandidata je redosled prvenstva.
   it('poznata vrednost sa tim id-em preskace poziv', () => {
     const [value, , cmd] = init<KategorijaVozaca>(3, [null, kategorija], search)
     expect(value).toStrictEqual(kategorija)

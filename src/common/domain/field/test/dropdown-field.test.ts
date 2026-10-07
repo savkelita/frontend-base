@@ -21,8 +21,6 @@ const draw = <A, I, R>(schema: Schema.Schema<A, I, R>, x: unknown) => {
 }
 
 describe('dropdown-field', () => {
-  // Fluent prijavljuje gresku iz `useEffect`-a, koji pod SSR-om ne izvrsi — zato se
-  // proverava sama odluka, a ne iscrtani HTML.
   it('should not pass clearable in multiselect mode', () => {
     expect(clearing({ multiselect: true })).toEqual({})
     expect(clearing({ multiselect: true, clearable: true })).toEqual({})

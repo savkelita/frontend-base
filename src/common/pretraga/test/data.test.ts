@@ -19,7 +19,6 @@ describe('data', () => {
     expect(isLoading(data)).toBe(false)
   })
 
-  // Bez ovoga tabela na svaku sledecu stranu zatreperi u prazno.
   it('sledeci zahtev zadrzava zatecenu stranu dok stize odgovor', () => {
     const data = next(Data.Ready({ page }))
     expect(isLoading(data)).toBe(true)

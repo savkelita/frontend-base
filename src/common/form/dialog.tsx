@@ -55,7 +55,7 @@ export const ConfirmDialog = ({
   const styles = useStyles()
 
   return (
-    <Dialog open modalType="alert">
+    <Dialog open modalType="alert" onOpenChange={(_event, data) => !data.open && !isSubmitting && onCancel()}>
       <DialogSurface backdrop={{ appearance: 'dimmed' }}>
         <DialogBody>
           <DialogTitle>{title}</DialogTitle>

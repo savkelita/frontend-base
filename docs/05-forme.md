@@ -120,7 +120,8 @@ Ovo je najcesca tiha greska pri pisanju novog domena. Pravilo pre poruke, uvek.
 >
 ```
 
-**`ConfirmDialog`** — potvrda, koristi se za brisanje.
+**`ConfirmDialog`** — potvrda, koristi se za brisanje. `onCancel` pokriva i `Esc`, ne samo dugme
+`Nazad`; dok je `isSubmitting`, `Esc` ne radi nista, kao i oba dugmeta.
 
 ### `UpdateResult` — kako dijalog javlja da je gotov
 

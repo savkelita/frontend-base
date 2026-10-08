@@ -23,13 +23,14 @@ import { memo, useMemo, type ReactNode } from 'react'
 import { reportError } from '../../error'
 import { ErrorView } from '../../error/view'
 import { Data, isLoading, rows } from '../data'
-import type { Direction, Sort } from '../sort'
+import { sortRows, type ColumnOrder, type Direction, type Sort } from '../sort'
 
 export type Column<R, O extends string = string> = {
   readonly id: string
   readonly header: string
   readonly render: (row: R) => ReactNode
   readonly attribute?: O
+  readonly order?: ColumnOrder<R>
   readonly width?: number
   readonly truncate?: boolean
 }
@@ -38,9 +39,10 @@ export type TableProps<R, O extends string = string> = {
   readonly columns: ReadonlyArray<Column<R, O>>
   readonly data: Data<R>
   readonly rowId: (row: R) => TableRowId
-  readonly selected: ReadonlyArray<R>
-  readonly onSelect: (rows: ReadonlyArray<R>) => void
-  readonly selectionMode?: 'single' | 'multiselect'
+  readonly selected?: ReadonlyArray<R>
+  readonly onSelect?: (rows: ReadonlyArray<R>) => void
+  readonly selectionMode?: 'single' | 'multiselect' | 'none'
+  readonly emptyText?: string
   readonly onRetry: () => void
   readonly sort: Sort<O> | null
   readonly onSort?: ((sort: Sort<O>) => void) | undefined
@@ -90,7 +92,10 @@ const useStyles = makeStyles({
   },
 })
 
-const serverSorted = (_a: unknown, _b: unknown): number => 0
+const alreadySorted = (_a: unknown, _b: unknown): number => 0
+
+const sortKeyOf = <R, O extends string>(column: Column<R, O>): O | undefined =>
+  column.attribute ?? (column.order === undefined ? undefined : (column.id as O))
 
 const toSortDirection = (direction: Direction): SortDirection => (direction === 'ASC' ? 'ascending' : 'descending')
 
@@ -100,24 +105,26 @@ const TableView = <R, O extends string = string>({
   columns,
   data,
   rowId,
-  selected,
+  selected = [],
   onSelect,
   selectionMode = 'single',
+  emptyText = 'Nema rezultata za zadati kriterijum',
   onRetry,
   sort,
   onSort,
 }: TableProps<R, O>) => {
   const styles = useStyles()
 
-  const items = rows(data)
+  const items = useMemo(() => sortRows(rows(data), sort, columns), [data, sort, columns])
   const loading = isLoading(data)
+  const selectable = selectionMode !== 'none' && onSelect !== undefined
 
   const definitions: ReadonlyArray<TableColumnDefinition<R>> = useMemo(
     () =>
       columns.map(column =>
         createTableColumn<R>({
           columnId: column.id,
-          ...(column.attribute === undefined ? {} : { compare: serverSorted }),
+          ...(sortKeyOf(column) === undefined ? {} : { compare: alreadySorted }),
           renderHeaderCell: () => column.header,
           renderCell: row => (
             <TableCellLayout truncate={column.truncate !== false}>{column.render(row)}</TableCellLayout>
@@ -137,19 +144,19 @@ const TableView = <R, O extends string = string>({
     [columns],
   )
 
-  const attributeOf = useMemo(() => new Map<string, O | undefined>(columns.map(c => [c.id, c.attribute])), [columns])
+  const keyOf = useMemo(() => new Map<string, O | undefined>(columns.map(c => [c.id, sortKeyOf(c)])), [columns])
 
   const onSortChange: DataGridProps['onSortChange'] = (_event, nextSort) => {
-    const attribute = attributeOf.get(String(nextSort.sortColumn))
+    const attribute = keyOf.get(String(nextSort.sortColumn))
     if (attribute === undefined || onSort === undefined) return
     onSort({ attribute, direction: toDirection(nextSort.sortDirection) })
   }
 
   const onSelectionChange: DataGridProps['onSelectionChange'] = (_event, selection) => {
-    onSelect(items.filter(r => selection.selectedItems.has(rowId(r))))
+    onSelect?.(items.filter(r => selection.selectedItems.has(rowId(r))))
   }
 
-  const sortedColumn = columns.find(c => c.attribute === sort?.attribute)?.id
+  const sortedColumn = columns.find(c => sortKeyOf(c) === sort?.attribute)?.id
 
   return (
     <div className={styles.frame} aria-busy={loading}>
@@ -159,9 +166,9 @@ const TableView = <R, O extends string = string>({
           items={[...items]}
           columns={[...definitions]}
           getRowId={item => rowId(item as R)}
-          selectionMode={selectionMode}
+          {...(selectable ? { selectionMode: selectionMode as 'single' | 'multiselect' } : {})}
           selectedItems={selected.map(rowId)}
-          onSelectionChange={loading ? undefined : onSelectionChange}
+          onSelectionChange={loading || !selectable ? undefined : onSelectionChange}
           sortable={onSort !== undefined}
           sortState={{
             sortColumn: sortedColumn,
@@ -198,7 +205,7 @@ const TableView = <R, O extends string = string>({
         Ready: ({ page }) =>
           page.rows.length > 0 ? null : (
             <div className={styles.layer}>
-              <Text>Nema rezultata za zadati kriterijum</Text>
+              <Text>{emptyText}</Text>
             </div>
           ),
         Failed: ({ error }) => (

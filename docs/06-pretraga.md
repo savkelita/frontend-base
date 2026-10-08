@@ -388,6 +388,85 @@ kao i na ekranu.
 `PretragaSection` je odeljak unutar njega. Tabela raste do dna, uz `minHeight` koji drzi prazno
 stanje — ono se crta kroz apsolutno pozicioniran sloj, pa bez visine nema gde.
 
+## Lista bez pretrage
+
+Kad server vrati gotovu listu — bez strana, bez kriterijuma — ekranu ne treba ni ruta ni filter.
+**Nema posebne komponente: to je ista `Table`**, bez `Paging`-a i sa redosledom koji se racuna kod
+nas umesto na serveru.
+
+```tsx
+<Table
+  columns={KOLONE}
+  data={model.vozila}
+  rowId={vozilo => vozilo.id}
+  onRetry={() => dispatch(retry())}
+  selectionMode="none"
+  emptyText="Vozac nema vozila"
+  sort={model.sort}
+  onSort={sort => dispatch(sorted(sort))}
+/>
+```
+
+Ulaz je i dalje `Data<T>`, pa su tri stanja — ucitavanje, greska sa `Pokusaj ponovo`, prazna lista —
+ista kao u pretrazi.
+
+### Sortiranje ide kroz model, kao i sve ostalo
+
+Redosled se racuna lokalno, ali se **ne cuva lokalno**. Klik na zaglavlje je poruka, `update` menja
+model, prikaz se ponovo iscrta:
+
+```ts
+Sorted: ({ sort }): [Model, Cmd.Cmd<Msg>] => [{ ...model, sort }, Cmd.none],
+```
+
+Jedina razlika prema ekranu pretrage je sto ovde nema `reload` — podaci su vec tu, menja se samo
+njihov redosled. **Komponenta ne drzi `useState`.** Da ga drzi, redosled bi se gubio pri svakom
+remount-u, ne bi se mogao testirati kao cist `update`, i isti pojam bi imao dva mesta: model na
+ekranu pretrage, komponentu ovde.
+
+Kolona kaze cime se poredi, preko Effect-ovog
+[`Order`](https://effect.website/docs/behaviour/order):
+
+```ts
+{ id: 'registarskaOznaka', header: 'Registarska oznaka', render: v => v.oznaka, order: byText(v => v.oznaka) }
+```
+
+`common/pretraga/sort.ts` daje gotove: `byText`, `byNumber`, `byDate` (po trenutku) i `byBoolean`.
+Svaki je tipizovan, pa `byNumber(v => v.oznaka)` ne prolazi kompajler. Kolona sa `order` sortira se
+kod nas; kolona sa `attribute` salje redosled serveru. Jedna kolona bira jedno.
+
+**Tekst ide kroz `Intl.Collator('sr-Latn')`, i to nije sitnica.** Poredjenje po kodnim tackama —
+sto radi i `Order.string` — oba pisma poredja pogresno: u latinici Č, Ć, Đ, Š i Ž padaju iza Z, a u
+cirilici Ђ, Ј, Љ, Њ, Ћ i Џ ispred А, jer u Unicode-u stoje pre nje. Lokalizacija mora da bude bas
+`sr-Latn`: `sr` je cirilicna i latinicu salje na podrazumevanu kolaciju, gde je Č samo „C sa
+kvacicom", pa dobijes `Ćiric Čolic Cvetic`. `sr-Latn` ispravno poredja **oba** pisma. Nasi tekstovi
+jesu bez dijakritike (pravilo 9), ali podaci sa servera nisu — vozaci se zovu Secerovic i Djordjevic.
+
+Sam redosled je kompozicija, ne rucno pisano poredjenje:
+
+```ts
+Order.combine(
+  Order.mapInput(Order.boolean, column.blank),
+  direction === 'ASC' ? column.value : Order.reverse(column.value),
+)
+```
+
+Odatle slede dve stvari koje vrede znati. **Prazne vrednosti idu na kraj u oba smera** — prazno je
+zasebna osa koja se ne obrce; da je samo `Order.reverse(sve)`, u opadajucem redosledu bi prazna
+polja isplivala na vrh. I **redosled se komponuje**: kolona sme da nosi svoj `ColumnOrder` sa dva
+kljuca, gde drugi razresava izjednacene.
+
+### Selekcija i prazan tekst
+
+`selectionMode="none"` sklanja kolonu za izbor reda i tada `selected` / `onSelect` ne trebaju. Ako
+lista ima akcije nad izabranim redom, ukljuci izbor kao na ekranu pretrage — on ide u model, jer o
+njemu odlucuju dugmad van tabele.
+
+`emptyText` je podrazumevano `Nema rezultata za zadati kriterijum`; lista bez kriterijuma zadaje
+svoj.
+
+Za okvir sa naslovom i akcijama posluzi `PretragaSection` bez `paging`-a.
+
 ## Dijalozi nad pretragom
 
 `kreiranje`, `azuriranje` i `brisanje` su zasebni moduli koje pretraga drzi u `Option`-u. Svaki od

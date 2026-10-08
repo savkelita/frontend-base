@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import type { Order } from './sort'
+import type { OrderPair } from './sort'
 
 export type CriteriaValue = string | number | boolean | ReadonlyArray<string | number> | undefined
 
@@ -7,7 +7,7 @@ export type Criteria = Readonly<Record<string, CriteriaValue>>
 
 export type PretragaRequest<C extends Criteria, O extends string> = {
   readonly criteria: C
-  readonly order_: ReadonlyArray<Order<O>>
+  readonly order_: ReadonlyArray<OrderPair<O>>
   readonly limit_?: number
   readonly offset_?: number
   readonly lop_?: 'AND' | 'OR'
@@ -68,7 +68,7 @@ const sameCriteria = (a: Criteria, b: Criteria): boolean => {
   return true
 }
 
-const sameOrder = <O extends string>(a: ReadonlyArray<Order<O>>, b: ReadonlyArray<Order<O>>): boolean =>
+const sameOrder = <O extends string>(a: ReadonlyArray<OrderPair<O>>, b: ReadonlyArray<OrderPair<O>>): boolean =>
   a.length === b.length && a.every(([attribute, direction], i) => attribute === b[i]?.[0] && direction === b[i]?.[1])
 
 export const sameRequest = <C extends Criteria, O extends string>(

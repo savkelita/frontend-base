@@ -6,7 +6,7 @@ export type PretragaLayoutProps = {
   readonly actions?: ReactNode
   readonly filter?: ReactNode
   readonly table: ReactNode
-  readonly paging: ReactNode
+  readonly paging?: ReactNode
 }
 
 export type PretragaSectionProps = PretragaLayoutProps

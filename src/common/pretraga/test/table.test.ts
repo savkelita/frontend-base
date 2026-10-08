@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../error'
 import { Table, type Column } from '../components/table'
 import { Data } from '../data'
+import { byText } from '../sort'
 
 type Row = { readonly id: number; readonly naziv: string; readonly broj: number }
 
@@ -123,5 +124,42 @@ describe('sirina kolona', () => {
 
   it('ruckica ima pristupacno ime', () => {
     expect(draw()).toContain('aria-label="Resize column"')
+  })
+})
+
+describe('lista bez pretrage', () => {
+  const SORTABILNE: ReadonlyArray<Column<Row>> = [
+    { id: 'naziv', header: 'Naziv', render: row => row.naziv, order: byText(row => row.naziv) },
+  ]
+
+  const redosled = (markup: string): ReadonlyArray<string> =>
+    ROWS.map(row => [row.naziv, markup.indexOf(row.naziv)] as const)
+      .filter(([, at]) => at >= 0)
+      .toSorted((a, b) => a[1] - b[1])
+      .map(([naziv]) => naziv)
+
+  it('bez selekcije nema kolone za izbor reda', () => {
+    const markup = draw({ selectionMode: 'none' })
+    expect(markup).not.toContain('fui-DataGridSelectionCell')
+    expect(markup).not.toContain('type="radio"')
+  })
+
+  it('kolona sa redosledom je klikabilna iako server ne sortira', () => {
+    expect(draw({ columns: SORTABILNE })).toContain('aria-sort')
+  })
+
+  it('bez zadatog redosleda redovi ostaju kako su stigli', () => {
+    expect(redosled(draw({ columns: SORTABILNE }))).toStrictEqual(['Prvi', 'Drugi'])
+  })
+
+  it('zadat redosled preredja redove jos u prikazu', () => {
+    const markup = draw({ columns: SORTABILNE, sort: { attribute: 'naziv', direction: 'ASC' } })
+    expect(redosled(markup)).toStrictEqual(['Drugi', 'Prvi'])
+  })
+
+  it('prazna lista moze da zada svoj tekst', () => {
+    const markup = draw({ data: ready([]), emptyText: 'Vozac nema vozila' })
+    expect(markup).toContain('Vozac nema vozila')
+    expect(markup).not.toContain('kriterijum')
   })
 })

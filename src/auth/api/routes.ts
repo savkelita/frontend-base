@@ -1,54 +1,12 @@
-import { pipe } from 'effect'
 import * as Http from 'tea-effect/Http'
-import * as Task from 'tea-effect/Task'
-import { env } from '../../common/env'
-import type { ApiError } from '../../common/http'
-import { mapHttpError } from '../../common/http'
-import type { Session } from '../session'
-import { LoginRequest, LoginResponse, RefreshRequest, RefreshResponse } from './types'
-import type { Credentials, RefreshResult } from './types'
+import { expectNoContent, post } from '../../common/http/request'
+import type * as Uloga from '../domain/uloga'
+import { IdentifikujCmd, IdentifikujResponse, LoginCmd, LoginResponse } from './types'
 
-// -------------------------------------------------------------------------------------
-// Constants
-// -------------------------------------------------------------------------------------
+export const identifikuj = (cmd: IdentifikujCmd): Http.Request<typeof IdentifikujResponse.Type> =>
+  post('/api/administracija/identifikuj', Http.jsonBody(IdentifikujCmd, cmd), Http.expectJson(IdentifikujResponse))
 
-const EXPIRES_IN_MINS = 5
-const HARDCODED_PERMISSIONS: ReadonlyArray<string> = ['home.view', 'products.view']
+export const login = (uloga: Uloga.Value): Http.Request<LoginResponse> =>
+  post('/api/administracija/login', Http.jsonBody(LoginCmd, { uloga }), Http.expectJson(LoginResponse))
 
-// -------------------------------------------------------------------------------------
-// Login
-// -------------------------------------------------------------------------------------
-
-export const loginRequest = (credentials: Credentials): Http.Request<typeof LoginResponse.Type> =>
-  Http.post(
-    `${env.apiBaseUrl}/auth/login`,
-    Http.jsonBody(LoginRequest, {
-      username: credentials.username,
-      password: credentials.password,
-      expiresInMins: EXPIRES_IN_MINS,
-    }),
-    Http.expectJson(LoginResponse),
-  )
-
-export const toSession = (response: typeof LoginResponse.Type): Session => ({
-  accessToken: response.accessToken,
-  refreshToken: response.refreshToken,
-  username: response.username,
-  permissions: [...HARDCODED_PERMISSIONS],
-})
-
-// -------------------------------------------------------------------------------------
-// Refresh
-// -------------------------------------------------------------------------------------
-
-export const refresh = (refreshToken: string): Task.Task<RefreshResult, ApiError> =>
-  pipe(
-    Http.toTask(
-      Http.post(
-        `${env.apiBaseUrl}/auth/refresh`,
-        Http.jsonBody(RefreshRequest, { refreshToken, expiresInMins: EXPIRES_IN_MINS }),
-        Http.expectJson(RefreshResponse),
-      ),
-    ),
-    Task.mapError(mapHttpError),
-  )
+export const logout: Http.Request<void> = post('/api/administracija/logout', Http.emptyBody, expectNoContent)

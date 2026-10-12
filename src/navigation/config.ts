@@ -1,26 +1,21 @@
 import * as Router from 'tea-effect/Router'
-import type { AuthorizationConfig } from '../auth/types'
-import { hasAllPermissions, emptyAuthorization } from '../auth/types'
+import type { AuthorizationConfig, Permission } from '../auth/types'
+import { emptyAuthorization, hasAllPermissions } from '../auth/types'
 import { routes } from '../router/route'
 import { NavigationEntry, navigationLink, navigationGroup } from './types'
 
-// -------------------------------------------------------------------------------------
-// Configuration: Declare all navigation items here
-// -------------------------------------------------------------------------------------
-
 const allEntries: ReadonlyArray<NavigationEntry> = [
-  navigationLink('home', 'Home', Router.format(routes.home, {}), { requiredPermissions: ['home.view'] }),
-  navigationLink('products', 'Products', Router.format(routes.products, {}), {
-    requiredPermissions: ['products.view'],
+  navigationLink('home', 'Home', Router.format(routes.home, {})),
+  navigationLink('vozaci', 'Vozaci', Router.format(routes.vozaci, {}), {
+    requiredPermissions: ['PretragaVozaca'],
+  }),
+  navigationLink('vozila', 'Vozila', Router.format(routes.vozila, {}), {
+    requiredPermissions: ['PretragaVozila'],
   }),
 ]
 
-// -------------------------------------------------------------------------------------
-// Authorization filtering
-// -------------------------------------------------------------------------------------
-
-const isPermitted = (config: AuthorizationConfig, permissions: ReadonlyArray<string>): boolean =>
-  permissions.length === 0 || hasAllPermissions(config, permissions)
+const isPermitted = (config: AuthorizationConfig, required: ReadonlyArray<Permission>): boolean =>
+  hasAllPermissions(config, required)
 
 const filterEntries = (
   config: AuthorizationConfig,
@@ -43,10 +38,6 @@ const filterEntries = (
       },
     }),
   )
-
-// -------------------------------------------------------------------------------------
-// Builders
-// -------------------------------------------------------------------------------------
 
 export const buildNavigation = (config: AuthorizationConfig): ReadonlyArray<NavigationEntry> =>
   filterEntries(config, allEntries)

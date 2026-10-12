@@ -1,10 +1,11 @@
 import { FluentProvider, webLightTheme } from '@fluentui/react-components'
-import { createRoot } from 'react-dom/client'
 import { Effect } from 'effect'
+import { createRoot } from 'react-dom/client'
 import * as Navigation from 'tea-effect/Navigation'
 import * as TeaReact from 'tea-effect/React'
-import * as App from './router'
 import { defaultGlobalStyles } from './common/theme'
+import { ToastHost } from './common/toast/view'
+import * as App from './router'
 
 const container = document.getElementById('root')!
 const root = createRoot(container)
@@ -12,8 +13,9 @@ const root = createRoot(container)
 const Element = ({ dom }: { dom: TeaReact.Dom }) => {
   defaultGlobalStyles()
   return (
-    <FluentProvider style={{ height: '100%' }} theme={webLightTheme}>
+    <FluentProvider theme={webLightTheme}>
       {dom}
+      <ToastHost />
     </FluentProvider>
   )
 }

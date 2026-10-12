@@ -1,17 +1,16 @@
 # frontend-base
 
-Base project for admin/dashboard applications using the
+Base project for admin applications using the
 [tea-effect](https://github.com/savkelita/tea-effect) architecture.
 
-## Tech Stack
+> **Developer documentation lives in [docs/](docs/README.md)** (Serbian). It is the source of truth
+> for how work is done here: module layout, naming, API conventions, domain types, forms, search
+> screens, routes, authorization, testing, and step-by-step recipes. Read it before writing code.
 
-- **Architecture**: tea-effect (The Elm Architecture + Effect-TS)
-- **UI**: React 18 + FluentUI 9
-- **Language**: TypeScript 5.7
-- **Build**: Webpack 5 + Babel
-- **Linting**: ESLint 9 (flat config) + Prettier 3
-- **Testing**: Vitest + @effect/vitest
-- **Git Hooks**: Husky + lint-staged + commitlint
+## Requirements
+
+- **Node 20 or newer** (developed on 24)
+- **Yarn 1.22** (classic)
 
 ## Getting Started
 
@@ -22,72 +21,87 @@ yarn start
 
 Open https://localhost:3000
 
+## Tech Stack
+
+- **Architecture**: tea-effect (The Elm Architecture + Effect)
+- **Forms**: [effect-form](https://www.npmjs.com/package/effect-form) — the schema carries the widget
+- **UI**: React 18 + Fluent UI 9
+- **Language**: TypeScript 5
+- **Build**: Webpack 5 + Babel
+- **Linting**: ESLint 9 (flat config) + Prettier 3
+- **Testing**: Vitest, `@effect/vitest` for `TestClock`, property tests through `effect`'s `FastCheck`
+- **Git hooks**: Husky + lint-staged + commitlint
+
+## Before You Call It Done
+
+```sh
+yarn checkts && yarn lint && yarn test:unit
+```
+
+Continuous integration runs on Azure Pipelines. The pre-commit hook runs lint-staged (ESLint +
+Prettier) and `tsc`; that is not a substitute for the command above.
+
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
 | `yarn start` | Dev server at https://localhost:3000 |
-| `yarn build` | Production build to dist/ |
+| `yarn build` | Production build to `dist/` |
 | `yarn checkts` | TypeScript type checking |
 | `yarn lint` | ESLint check |
 | `yarn test:unit` | Run unit tests (Vitest) |
 | `yarn test:watch` | Run tests in watch mode |
-| `yarn test` | Full verification: prettier + checkts + unit tests |
+| `yarn test` | prettier + checkts + unit tests |
 | `yarn fix-lint` | Auto-fix ESLint issues |
 | `yarn fix-prettier` | Auto-fix formatting |
 
 ## Backend Proxy
 
-Dev server proxies `/api/*` requests to the backend. Configure with environment variables:
+The dev server proxies `/api/*` to the backend, forwarding the `/api` prefix as-is because backend
+routes already include it. Defaults to `192.168.36.234:8080`:
 
 ```sh
-# Default: https://localhost:8080
 APIHOST=192.168.1.10 APIPORT=9090 yarn start
 ```
 
-The proxy strips the `/api` prefix by default - `/api/users` becomes `/users` on the backend.
-If your backend routes include `/api`, remove the `pathRewrite` in `webpack/webpack.dev.js`.
+`apiBaseUrl` is deliberately empty so requests go to the dev server origin and through the proxy —
+the session is a cookie and must stay same-origin.
 
 ## Project Structure
 
 ```
 src/
-├── index.tsx                # Entry point (FluentProvider + tea-effect)
-├── common/
-│   ├── theme/index.ts       # CSS reset / global styles
-│   └── env/index.ts         # Type-safe environment variables
-├── home/                    # Home page (placeholder)
-│   ├── model.ts
-│   ├── msg.ts
-│   └── index.tsx
-├── navigation/              # Side drawer navigation
-│   ├── types.ts             # NavigationEntry tagged enum
-│   ├── config.ts            # Nav items declaration
-│   ├── model.ts
-│   ├── msg.ts
-│   └── index.tsx
-└── router/                  # Top-level orchestrator
-    ├── route.ts             # Route definitions
-    ├── screen-model.ts      # Screen tagged enum (all page models)
-    ├── screen-msg.ts        # Screen messages (all page messages)
-    ├── selected-nav.ts      # Screen -> nav highlighting
-    ├── model.ts
-    ├── msg.ts
-    ├── components/
-    │   ├── layout.tsx       # App shell (header, drawer, content)
-    │   └── not-found-view.tsx
-    └── index.tsx            # init, update, view, subscriptions
+├── index.tsx               Entry point (FluentProvider + tea-effect)
+├── router/                 Top-level orchestrator: routes, screens, session, layout
+├── navigation/             Side drawer navigation
+├── login/                  Two-step sign-in (identify, then pick role)
+├── home/                   Home page
+├── auth/                   Session, permissions, roles, expiration
+├── common/                 Shared building blocks
+│   ├── audit/              Audit schema + table cell
+│   ├── domain/             Domain types and form fields
+│   ├── env/                Type-safe environment variables
+│   ├── error/              ApiError, message mapping, view
+│   ├── form/               effect-form wrapper + dialogs
+│   ├── http/               XSRF-aware get/post, ObjekatIdentifikator
+│   ├── memo/               Identity-keyed memoize
+│   ├── pretraga/           Operators, predicates, filter fields, sorting, paging, table
+│   ├── theme/              Global styles
+│   └── toast/              Notifications as Cmd
+├── testing/                What tests use (DOM harness); not part of the application
+├── sifarnici/              Reference data (vozac: search, CRUD, detail with a nested list)
+└── evidencija-vozila/      Vehicle records (vozilo: search with a rich filter)
 ```
 
 ## TEA Module Pattern
 
-Every feature module follows this structure:
+Every stateful module has exactly three files:
 
 | File | Purpose |
 |------|---------|
 | `model.ts` | Readonly state types (record or tagged union) |
 | `msg.ts` | Message types and constructors using `Data.taggedEnum` |
-| `index.tsx` | Exports: `init`, `update`, `view` (optionally `subscriptions`) |
+| `index.tsx` | Exports `init`, `update`, `view` (optionally `subscriptions`) |
 
 ```
 Model -> View -> Msg -> Update -> Model
@@ -98,37 +112,30 @@ Model -> View -> Msg -> Update -> Model
 - `view(model)` returns `Html<Msg>`
 - Side effects are described as `Cmd`, never performed directly
 
-## Adding a New Page
+See [docs/01-arhitektura.md](docs/01-arhitektura.md).
 
-1. Create `src/<feature>/model.ts`, `msg.ts`, `index.tsx`
-2. Add route in `src/router/route.ts`
-3. Add screen variant in `src/router/screen-model.ts` and `screen-msg.ts`
-4. Wire into `startScreen`, `updateScreen`, `screenView` in `src/router/index.tsx`
-5. Add navigation entry in `src/navigation/config.ts`
-6. Update `src/router/selected-nav.ts` for nav highlighting
+## Adding a Screen
 
-## Git Conventions
-
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (enforced by commitlint):
-
-```
-feat: add user list page
-fix: resolve navigation drawer toggle
-refactor: extract shared layout component
-test: add update tests for home module
-chore: update dependencies
-```
-
-Pre-commit hook runs lint-staged (ESLint + Prettier) and TypeScript check to prevent bad commits.
+Six steps, all but the last caught by the compiler:
+[docs/07-rute-i-autorizacija.md](docs/07-rute-i-autorizacija.md#dodavanje-rute). Do not invent a new
+shape — copy the nearest existing screen and change it.
 
 ## Environment Variables
 
-Defined in `src/common/env/index.ts` and injected via Webpack `DefinePlugin`.
+`src/common/env/index.ts` is the only place `process.env` is read. A new variable goes in three
+places: the `Env` type, `webpack/webpack.dev.js` and `webpack/webpack.prod.js`. See
+[docs/09-konvencije.md](docs/09-konvencije.md#promenljive-okruzenja).
 
-To add a new variable:
-1. Update the `Env` type in `src/common/env/index.ts`
-2. Add the value in both `webpack/webpack.dev.js` and `webpack/webpack.prod.js`
+## Git Conventions
 
-## License
+[Conventional Commits](https://www.conventionalcommits.org/), enforced by commitlint:
 
-MIT
+```
+feat: pretraga vozila
+fix: datum se gubi na pretrazi
+refactor: enum domeni na jednu mapu
+test: property test rute za vozace
+chore(deps): podigni pakete u okviru postojecih opsega
+```
+
+Hooks are not skipped (`--no-verify`). A failing hook fails for a reason.

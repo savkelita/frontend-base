@@ -8,32 +8,23 @@ import {
   NavSubItem,
   NavItem,
 } from '@fluentui/react-components'
-import { Option } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import type { AuthorizationConfig } from '../auth/types'
+import { buildNavigation } from './config'
 import type { Model } from './model'
 import { Msg, toggleDrawer, authorizationChanged } from './msg'
 import { NavigationEntry } from './types'
-import { buildNavigation } from './config'
 
 export type { Model }
 export type { Msg }
 export { toggleDrawer, authorizationChanged }
 
-// -------------------------------------------------------------------------------------
-// Init
-// -------------------------------------------------------------------------------------
-
 export const init = (config: AuthorizationConfig): [Model, Cmd.Cmd<Msg>] => [
   { entries: buildNavigation(config), isOpen: true, openCategories: [] },
   Cmd.none,
 ]
-
-// -------------------------------------------------------------------------------------
-// Update
-// -------------------------------------------------------------------------------------
 
 export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
   Msg.$match(msg, {
@@ -50,10 +41,6 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
       Cmd.none,
     ],
   })
-
-// -------------------------------------------------------------------------------------
-// View
-// -------------------------------------------------------------------------------------
 
 const renderEntry = (entry: NavigationEntry) =>
   NavigationEntry.$match(entry, {
@@ -82,15 +69,11 @@ const renderEntry = (entry: NavigationEntry) =>
   })
 
 export const view =
-  (model: Model, selectedValue: string, selectedCategoryValue: Option.Option<string>): TeaReact.Html<Msg> =>
+  (model: Model, selectedValue: string): TeaReact.Html<Msg> =>
   (_dispatch: Platform.Dispatch<Msg>) => (
     <NavDrawer type="inline" open={model.isOpen}>
       <NavDrawerBody>
-        <Nav
-          selectedValue={selectedValue}
-          selectedCategoryValue={Option.getOrUndefined(selectedCategoryValue)}
-          openCategories={[...model.openCategories]}
-        >
+        <Nav selectedValue={selectedValue} openCategories={[...model.openCategories]}>
           {model.entries.map(renderEntry)}
         </Nav>
       </NavDrawerBody>

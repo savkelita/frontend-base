@@ -1,9 +1,9 @@
 const webpack = require('webpack')
 const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin')
 
-const apiHost = process.env.APIHOST || 'localhost'
+const apiHost = process.env.APIHOST || '192.168.36.234'
 const apiPort = process.env.APIPORT || 8080
-const apiUrl = `https://${apiHost}:${apiPort}`
+const apiUrl = `http://${apiHost}:${apiPort}`
 
 console.log('\x1b[34m%s\x1b[0m', `Using API on: ${apiUrl}`)
 
@@ -21,13 +21,11 @@ module.exports = {
     },
     proxy: [
       {
-        // /api/* requests are forwarded to the backend
-        // pathRewrite strips /api prefix - remove this if your backend routes include /api
+        // Backend routes already include /api, so the prefix is forwarded as-is.
         context: ['/api'],
         target: apiUrl,
         secure: false,
         changeOrigin: true,
-        pathRewrite: { '^/api': '' },
       },
     ],
   },
@@ -35,7 +33,9 @@ module.exports = {
     new ReactRefreshWebpackPlugin(),
     new webpack.DefinePlugin({
       'process.env.basename': JSON.stringify('/'),
-      'process.env.apiBaseUrl': JSON.stringify('https://dummyjson.com'),
+      // Prazno da zahtevi idu na origin dev servera i kroz proxy iznad: sesija je
+      // kolacic, pa mora da ostane isti origin — inace trazi CORS i SameSite=None.
+      'process.env.apiBaseUrl': JSON.stringify(''),
     }),
   ],
 }

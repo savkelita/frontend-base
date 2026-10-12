@@ -65,7 +65,7 @@ export default tseslint.config(
         {
           groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
           'newlines-between': 'never',
-          alphabetize: { order: 'ignore' },
+          alphabetize: { order: 'asc', caseInsensitive: true },
         },
       ],
       'import-x/newline-after-import': 'error',

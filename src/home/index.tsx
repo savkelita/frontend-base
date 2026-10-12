@@ -1,4 +1,4 @@
-import { Title1, Text, Card, CardHeader, Button, tokens } from '@fluentui/react-components'
+import { Title1, Text, Card, CardHeader, Button, makeStyles, tokens } from '@fluentui/react-components'
 import { AddRegular, SubtractRegular, ArrowResetRegular } from '@fluentui/react-icons'
 import * as Cmd from 'tea-effect/Cmd'
 import type * as Platform from 'tea-effect/Platform'
@@ -18,26 +18,40 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
     Reset: (): [Model, Cmd.Cmd<Msg>] => [{ ...model, count: 0 }, Cmd.none],
   })
 
+const useStyles = makeStyles({
+  screen: {
+    padding: tokens.spacingHorizontalXXL,
+  },
+})
+
+const HomeView = ({ model, dispatch }: { model: Model; dispatch: Platform.Dispatch<Msg> }) => {
+  const styles = useStyles()
+
+  return (
+    <div className={styles.screen}>
+      <Card>
+        <CardHeader header={<Title1>Home</Title1>} />
+        <Text>Welcome to the frontend-base scaffold using the tea-effect architecture.</Text>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: tokens.spacingHorizontalM,
+            marginTop: tokens.spacingVerticalM,
+          }}
+        >
+          <Button icon={<SubtractRegular />} onClick={() => dispatch(decrement())} />
+          <Text size={500} weight="semibold">
+            {model.count}
+          </Text>
+          <Button icon={<AddRegular />} onClick={() => dispatch(increment())} />
+          <Button icon={<ArrowResetRegular />} appearance="subtle" onClick={() => dispatch(reset())} />
+        </div>
+      </Card>
+    </div>
+  )
+}
+
 export const view =
   (model: Model): TeaReact.Html<Msg> =>
-  (dispatch: Platform.Dispatch<Msg>) => (
-    <Card>
-      <CardHeader header={<Title1>Home</Title1>} />
-      <Text>Welcome to the frontend-base scaffold using the tea-effect architecture.</Text>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: tokens.spacingHorizontalM,
-          marginTop: tokens.spacingVerticalM,
-        }}
-      >
-        <Button icon={<SubtractRegular />} onClick={() => dispatch(decrement())} />
-        <Text size={500} weight="semibold">
-          {model.count}
-        </Text>
-        <Button icon={<AddRegular />} onClick={() => dispatch(increment())} />
-        <Button icon={<ArrowResetRegular />} appearance="subtle" onClick={() => dispatch(reset())} />
-      </div>
-    </Card>
-  )
+  (dispatch: Platform.Dispatch<Msg>) => <HomeView model={model} dispatch={dispatch} />

@@ -1,0 +1,574 @@
+# Pretraga
+
+Ekran pretrage je najcesci ekran u aplikaciji i najvise je standardizovan.
+
+## Jedno pravilo iznad svih
+
+**Adresa je pretraga.** Svaka promena strane, sortiranja ili filtera je promena URL-a, a ne promena
+modela. Model se zatim gradi iz nove adrese.
+
+```
+klik na kolonu -> Sorted -> Navigation.pushUrl(...) -> UrlChanged -> init(query, state, previous)
+```
+
+Posledice koje se dobijaju besplatno: nazad i napred rade, adresa se moze poslati kolegi, osvezavanje
+stranice ne gubi pretragu, i ne postoji stanje koje se razislo sa adresom.
+
+Zato u `update`-u ne postoji "primeni filter na model". Postoji samo `goTo`.
+
+## Fajlovi
+
+```
+pretraga/
+├── index.tsx        ruta, kriterijumi, ucitavanje, tabela, dijalozi
+├── model.ts         Model + LIMIT
+├── msg.ts           Msg
+├── filter/
+│   ├── index.tsx    init/update/toCriteria/toState/view
+│   ├── model.ts     FormValue + vForm + Model
+│   └── msg.ts       Msg
+└── test/
+```
+
+## Redosled u `index.tsx`
+
+Fajl nema natpise sekcija, pa redosled **jeste** organizacija. Isti je na svakom ekranu pretrage,
+tako da se cita jednom:
+
+| | Sta | Ko to zove |
+|---|---|---|
+| 1 | `RouteQuery`, `route`, `PERMISSIONS` | ruter |
+| 2 | `POCETNA_*` konstante, ako ekran ima podrazumevanu pretragu | `init` |
+| 3 | `toRequest`, `load` | server |
+| 4 | `state`, `goTo` | adresa |
+| 5 | `init`, `reload`, `update` | petlja |
+| 6 | `rowId` i pomocne za celije, `dispatchers`, `columns`, `<Ekran>View`, `view` | prikaz |
+
+Prelom je izmedju 5 i 6: **iznad `update` nema nista iz Reacta, ispod nema nista iz TEA petlje.**
+`export const view` je uvek poslednji.
+
+Grane `update`-a idu redom kojim ih `msg.ts` deklarise: prvo sedam iz kostura
+(`Loaded`, `Failed`, `Sorted`, `PageChanged`, `SelectionChanged`, `Retry`, `FilterMsg`), pa parovi
+`StartX` / `XMsg` po jednom dijalogu. Kostur je tako doslovno isti tekst na svim ekranima i razlika
+se vidi na prvi pogled.
+
+## Ruta i upit
+
+```ts
+const RouteQuery = pretragaQuery(Api.ioVozacCriteria, Api.ioVozacOrder)
+
+export const route = Router.path('/sifarnici/vozaci').query(RouteQuery)
+export const PERMISSIONS: ReadonlyArray<Permission> = ['PretragaVozaca']
+```
+
+Ruta i lista potrebnih funkcionalnosti stoje **uz ekran**, ne u routeru. Router ih samo pokupi.
+
+Upit se **ne pise rukom**. `pretragaQuery` uzima semu kriterijuma iz API sloja i dodaje `offset`,
+`order` i `dir`:
+
+```ts
+export const pretragaQuery = <F extends Schema.Struct.Fields & { [K in keyof Paging]?: never }, O extends string>(
+  criteria: Schema.Struct<F>,
+  order: Schema.Schema<O, O>,
+) =>
+  Schema.Struct({
+    offset: Schema.optional(Router.IntFromString),
+    order: Schema.optional(order),
+    dir: Schema.optional(ioDirection),
+    ...criteria.fields,
+  })
+```
+
+Novo polje se dodaje **samo u `ioVozacCriteria`** i adresa ga odmah zna. Kad su bila dva spiska,
+zaborav na jednoj strani niko nije primecivao: `fromRouteQuery` vraca `Omit<Q, keyof Paging>`, a to
+se uredno dodeljuje kriterijumu sa opcionim poljima u oba smera, pa kompajler cuti dok se polje na
+svaku promenu strane tiho prazni.
+
+`[K in keyof Paging]?: never` u potpisu znaci da kriterijum ne sme da se zove `offset`, `order` ili
+`dir`. Bez toga bi pregazio paging, a adresa bi izgledala ispravno.
+
+`offset`, `order` i `dir` su strana i sortiranje; sve ostalo su kriterijumi. `fromRouteQuery` to
+razdvaja bez rucnog nabrajanja:
+
+```ts
+const { offset, sort, criteria } = fromRouteQuery(query)
+```
+
+a `toRouteQuery` sastavlja nazad, izostavljajuci prvu stranu i nezadato sortiranje da adresa ostane
+citljiva:
+
+```ts
+Navigation.pushUrl(Router.format(route, toRouteQuery(offset, sort, criteria)), state)
+```
+
+## Model
+
+```ts
+export const LIMIT = 5
+
+export type Model = {
+  readonly offset: number
+  readonly sort: Sort<VozacOrder> | null
+  readonly criteria: VozacCriteria
+  readonly data: Data<Vozac>
+  readonly selected: ReadonlyArray<Vozac>
+  readonly filterModel: Filter.Model
+  readonly kreiranje: Option.Option<Kreiranje.Model>
+  readonly azuriranje: Option.Option<Azuriranje.Model>
+  readonly brisanje: Option.Option<Brisanje.Model>
+}
+```
+
+`offset`, `sort` i `criteria` su ogledalo adrese. `Option.none()` znaci da dijalog nije otvoren.
+
+### `Data<A>`
+
+```ts
+Data<A> = Loading { previous: Page<A> | null } | Ready { page } | Failed { error }
+```
+
+`Loading` nosi prethodnu stranu, pa tabela ne treperi tokom ponovnog ucitavanja. `next(data)`
+prelazi u `Loading` cuvajuci ono sto je vec prikazano; `initial()` je prvo ucitavanje bez icega.
+
+Pomocne: `rows`, `total`, `page`, `isLoading`.
+
+## Ucitavanje i zakasneli odgovori
+
+```ts
+const toRequest = (model: Model): PretragaRequest<VozacCriteria, VozacOrder> => ({
+  criteria: model.criteria,
+  order_: toOrder(model.sort),
+  limit_: LIMIT,
+  offset_: model.offset,
+})
+
+const load = (model: Model): Cmd.Cmd<Msg> => {
+  const request = toRequest(model)
+  return Http.send(Api.pretraziVozac(request), {
+    onSuccess: response => loaded(request, { rows: response.result, total: response.total_ }),
+    onError: error => failed(request, mapHttpError(error)),
+  })
+}
+```
+
+Poruka nosi **zahtev koji ju je izazvao**. Pri prijemu se poredi sa onim sto model trenutno trazi:
+
+```ts
+Loaded: ({ request, page }) =>
+  sameRequest(toRequest(model), request) ? [{ ...model, data: Data.Ready({ page }) }, Cmd.none] : [model, Cmd.none],
+```
+
+Bez toga bi sporiji stariji odgovor pregazio noviji. Ovo nije opciono ni na jednom ekranu.
+
+## `update`
+
+Sedam poruka cini kostur:
+
+| Poruka | Sta radi |
+|---|---|
+| `Loaded` / `Failed` | Upisuju rezultat ako je `sameRequest` |
+| `Sorted` | `goTo(0, sort, ...)` — sortiranje vraca na prvu stranu |
+| `PageChanged` | `goTo(offset, ...)` |
+| `SelectionChanged` | Ignorise se dok traje ucitavanje |
+| `Retry` | `reload` |
+| `FilterMsg` | Prosledjuje filteru; na `Submitted` dodatno `goTo(0, ...)` |
+
+```ts
+FilterMsg: ({ msg: msgFilter }) => {
+  const [filterModel, filterCmd] = Filter.update(msgFilter, model.filterModel)
+  const cmd = Cmd.map(filterMsg)(filterCmd)
+  return msgFilter._tag === 'Submitted'
+    ? [{ ...model, filterModel },
+       Cmd.batch([cmd, goTo(0, model.sort, Filter.toCriteria(filterModel.value), Filter.toState(filterModel.value))])]
+    : [{ ...model, filterModel }, cmd]
+}
+```
+
+Filter nikad sam ne menja adresu. On javi `Submitted`, ekran odluci.
+
+## Filter
+
+Filter ima tri zadatka: da drzi vrednosti, da ih pretvori u kriterijume, i da ih vrati nazad kada se
+ekran obnavlja iz adrese.
+
+### Polje filtera nije polje forme
+
+Polje u dijalogu i polje u fioci nisu ista stvar:
+
+| | forma | filter |
+|---|---|---|
+| prazno polje | greska, ako je obavezno | "ne filtriraj po tome" |
+| duzina, obrazac | validira se | ne proverava se, server ce reci |
+| sta nosi | vrednost | vrednost **i operator** |
+
+Zato filter ne koristi domenska polja (`Name.vForm`, `Int.vForm`) nego cetiri modula iz
+`common/pretraga`:
+
+| Modul | `vForm(...)` | Sta korisnik vidi |
+|---|---|---|
+| `filter-text` | `vForm(operatori?)` | dugme operatora + polje za unos |
+| `filter-enum` | `vForm(KEYS, operatori?, dozvoljene?)` | dugme operatora + padajuca lista |
+| `filter-number` | `vForm(decimale?, operatori?)` | dugme operatora + broj, uz `between` dva |
+| `filter-date` | `vForm()` | dva polja za datum, bez dugmeta |
+
+```ts
+export type FormValue = {
+  readonly registarskaOznaka: TextFilter.Form
+  readonly stanje: EnumFilter.Form<VoziloStanje.Value>
+  readonly datumIsticanjaRegistracije: DateFilter.Form
+}
+
+export const vForm = () =>
+  Schema.Struct({
+    registarskaOznaka: TextFilter.vForm(OZNAKA_OPERATORI),
+    stanje: EnumFilter.vForm(VoziloStanje.KEYS),
+    datumIsticanjaRegistracije: DateFilter.vForm(),
+  })
+```
+
+`Schema.NullOr` se ovde ne pise — modul ga nosi, jer prazno polje u filteru nije izuzetak nego
+pravilo.
+
+### Operator bira korisnik, iz onoga sto ruta prima
+
+Podrazumevano polje nudi sve operatore svog tipa. Kad `vForm` dobije uzi spisak, meni nudi tacno
+njega — i isti spisak stoji u kriterijumu, pa se meni i adresa ne mogu razici:
+
+```ts
+registarskaOznaka: Schema.optional(ioStringPredicateOf(OZNAKA_OPERATORI)),   // api/types.ts
+registarskaOznaka: TextFilter.vForm(OZNAKA_OPERATORI),                       // filter/model.ts
+```
+
+Zasto spisak uopste postoji i zasto je operator van njega 404:
+[03 API sloj](03-api.md#suzenje-je-brava-a-brava-je-404). Jedan operator u spisku znaci da dugmeta
+nema — nema sta da se bira.
+
+Enum sa `in` menja i kontrolu: dok je operator `in` lista je visestruka, a cim se izabere `eq` ili
+`neq` ostaje prva izabrana vrednost. Datum nema meni; operator se izvodi iz toga koji je kraj
+popunjen:
+
+| od | do | operator |
+|---|---|---|
+| ima | ima | `between` |
+| ima | — | `after_or_same` |
+| — | ima | `before_or_same` |
+
+Zato se i ne proverava da je "od" pre "do". Oba kraja su nezavisna, a jedan popunjen je smislen
+upit.
+
+### Oba smera
+
+```ts
+export const toCriteria = (value: FormValue): VoziloCriteria => ({
+  registarskaOznaka: TextFilter.toCriteria(value.registarskaOznaka),
+  stanje: EnumFilter.toCriteria(value.stanje),
+  datumIsticanjaRegistracije: DateFilter.toCriteria(value.datumIsticanjaRegistracije),
+})
+```
+
+`toCriteria` vraca `undefined` za prazno polje, sto je tacno ono sto kriterijum ocekuje. Prazno je i
+polje u kome stoji samo operator, i polje sa `between` kome fali drugi kraj.
+
+U povratku iz adrese tekst i enum **ne treba prevoditi** — vrednost kriterijuma jeste vrednost
+polja. Datum i broj se prevode, jer polje drzi `Date` odnosno otkucan tekst (`1.234,50`), a zica
+nosi `2026-01-15` odnosno `1234.5`:
+
+```ts
+export const init = (criteria: VoziloCriteria): Model => ({
+  value: {
+    registarskaOznaka: criteria.registarskaOznaka ?? null,
+    stanje: criteria.stanje ?? null,
+    datumIsticanjaRegistracije: DateFilter.fromCriteria(criteria.datumIsticanjaRegistracije),
+  },
+})
+```
+
+Combo je treci slucaj: adresa nosi identifikator, a polje trazi ceo objekat.
+
+### Zasto `state`
+
+Adresa nosi `kategorijaID`, ali ne i naziv kategorije. Da bi combo posle povratka `Nazad` prikazao
+labelu a ne prazno polje, ceo izabrani objekat se salje uz `pushUrl` kao `history.state`:
+
+```ts
+export const ioState = Schema.Struct({ kategorija: Schema.NullOr(Kategorija.ioValue) })
+export const toState = (value: FormValue): State => ({ kategorija: value.kategorija })
+const fromState = stateValue(ioState)
+```
+
+`stateValue` dekodira `unknown` u `State | undefined` — `history.state` nije pouzdan izvor i sme da
+bude bilo sta.
+
+Tri izvora vrednosti, tim redom: `history.state`, prethodni model ekrana, pa server. `Combo.init`
+proba prva dva i salje zahtev samo ako oba zakazu.
+
+### Prikaz filtera
+
+```ts
+const fields = (model: Model, dispatch: Platform.Dispatch<Msg>) =>
+  Form.render({ schema: vForm(), value: model.value, onChange: value => dispatch(changed(value)),
+                options: options(model, dispatch), issues: [] })
+
+export const view = (model: Model): TeaReact.Html<Msg> => filterView(model, fields, toggled, submitted, cleared)
+export const button = (model: Model): TeaReact.Html<Msg> => filterButton(model.isOpen, toggled)
+```
+
+`issues` je uvek `[]`. **Filter se ne validira.** Prazno polje znaci "ne filtriraj po tome", a
+besmislen upit vraca prazan rezultat — sto je tacan odgovor, ne greska.
+
+Jedini izuzetak je obavezan kriterijum: polje bez kojeg se ne sme pretrazivati. Tada polje izlazi iz
+`Schema.NullOr`, filter dobija `showErrors`, `issues` dolaze iz `Form.visibleIssues`, a gola adresa
+prestaje da bude pretraga. Ceo postupak:
+[10 Recepti — Obavezan kriterijum pretrage](10-recepti.md#obavezan-kriterijum-pretrage).
+
+Obavezno polje je zato **domensko polje** (`Name.vForm`), bez izbora operatora: filter moduli nose
+`Schema.NullOr` u sebi i iz njega se ne izlazi spolja. Kad zatreba obavezno polje **sa** operatorom,
+dopunjuje se filter modul — ne zaobilazi se na ekranu rucno sklopljenom semom.
+
+`filterView` daje fioku, dugmad `Pretrazi` / `Ponisti` i memoizaciju. `fields`, `toggled`,
+`submitted` i `cleared` su konstante na nivou modula, pa poredjenje props-a staje na modelu filtera.
+
+Polja stoje u pravom `<form>`-u, a `Pretrazi` je njegovo `type="submit"` dugme, vezano preko
+`form={id}` jer stoji u podnozju fioke. Zato **Enter u polju pokrece pretragu** — to radi pregledac,
+nema naseg rukovaoca tastaturom. Fluent-ove liste i datum vec zovu `preventDefault` na Enter, pa tamo
+Enter bira stavku ili potvrdjuje datum i ne salje formu.
+
+## Prikaz ekrana
+
+```tsx
+<PretragaLayout
+  title="Vozaci"
+  actions={<>{Kreiranje.button(...)}{Azuriranje.button(...)}{Brisanje.button(...)}{Filter.button(...)}</>}
+  filter={Html.map(filterMsg)(Filter.view(model.filterModel))(dispatch)}
+  table={<Table columns={columns} data={model.data} rowId={rowId} selected={model.selected}
+                onSelect={selectRow} onRetry={retryLoad} sort={model.sort} onSort={changeSort} />}
+  paging={<Paging data={model.data} offset={model.offset} limit={LIMIT} onOffset={changeOffset} />}
+/>
+```
+
+Kolona sa `attribute` je sortirajuca; bez njega nije. `attribute` mora biti clan `Order` tipa, sto
+znaci da kompajler ne dozvoljava sortiranje po necemu sto backend ne podrzava.
+
+```ts
+const columns: ReadonlyArray<Column<Vozac, VozacOrder>> = [
+  { id: 'audit', header: '', width: 52, truncate: false, render: v => <AuditCell audit={v.audit} /> },
+  { id: 'ime', header: 'Ime', attribute: 'ime', render: v => v.ime },
+  { id: 'kategorije', header: 'Kategorije', render: v => v.kategorije.map(k => k.oznaka).join(', ') },
+]
+```
+
+## Podrazumevana pretraga
+
+Prazna adresa sme da znaci nesto drugo od "sve". Vozila na praznom URL-u traze samo aktivna:
+
+```ts
+const prazna = Object.keys(query).length === 0
+const criteria = prazna ? POCETNA_KRITERIJUM : zadato
+const sort = prazna ? POCETNI_SORT : sortIzAdrese
+```
+
+Cim korisnik nesto promeni, adresa vise nije prazna i podrazumevano vise ne vazi.
+
+Ovo nije isto sto i obavezan kriterijum. Ovde prazna adresa jeste pretraga, samo suzena. Kod
+obaveznog kriterijuma prazna adresa uopste nije pretraga.
+
+## Ugnjezdena pretraga
+
+Pravilo "adresa je pretraga" vazi za **ekran**. Lista koja zivi unutar nekog pregleda — vozila
+jednog vozaca, zaduzenja jednog vozila — nije ekran i **ne sme da dira adresu**. Dva takva filtera
+na istoj strani bi se otimala oko istog URL-a, a `Nazad` bi ponistavao suzavanje podliste umesto
+da vrati korisnika odakle je dosao.
+
+Granica je ovakva:
+
+| | nosi ga |
+|---|---|
+| koji ekran gledas, nad cim | adresa |
+| kako si suzio podlistu unutar njega | model |
+
+Uzor: `src/sifarnici/vozac/pregled/vozila/`.
+
+### Model je isti, menjaju se tri grane
+
+```ts
+export type Model = {
+  readonly vozacID: number
+  readonly offset: number
+  readonly sort: Sort<VoziloOrder> | null
+  readonly criteria: VoziloCriteria
+  readonly data: Data<Vozilo>
+  readonly selected: ReadonlyArray<Vozilo>
+  readonly filterModel: Filter.Model
+}
+```
+
+Isti kostur kao na ekranu, plus identifikator roditelja. Razlika je samo u tome ko pamti promenu:
+
+```ts
+// ekran                                   // ugnjezdeno
+Sorted:      goTo(0, sort, …)              reload({ ...model, offset: 0, sort, selected: [] })
+PageChanged: goTo(offset, …)               reload({ ...model, offset, selected: [] })
+Submitted:   goTo(0, …, criteria)          reload({ ...model, offset: 0, criteria, selected: [] })
+```
+
+Nema `goTo`, nema `Navigation.pushUrl`, nema `fromRouteQuery`. Od celog `common/pretraga` jedino
+`query.ts` zna za adresu; `Data`, `sameRequest`, predikati, `Table` i `Paging` koriste se
+neizmenjeni.
+
+`sameRequest` ostaje i ovde, i **vazniji je nego na ekranu**: tamo ruter na svaku promenu adrese
+pravi nov model, a ovde isti model zivi kroz sve promene, pa zakasneli odgovor ima u sta da upadne.
+
+### Roditelj se dodaje u zahtevu, ne u filteru
+
+```ts
+const toRequest = (model: Model): PretragaRequest<VoziloCriteria, VoziloOrder> => ({
+  criteria: { ...model.criteria, vozacID: model.vozacID },
+  order_: toOrder(model.sort),
+  limit_: LIMIT,
+  offset_: model.offset,
+})
+```
+
+Korisnik ga ne menja, pa mu nije mesto medju poljima filtera. Posto ulazi u `criteria`, `sameRequest`
+ga automatski poredi.
+
+### Filter je traka, ne fioka
+
+Fioka se izvlaci sa strane i ima `isOpen`; ugnjezdenom filteru to ne treba — uvek je vidljiv.
+
+```ts
+export const view = (model: Model): TeaReact.Html<Msg> => filterBar(model, fields, submitted, cleared)
+```
+
+`filterBar` rasporedjuje polja u red koji se prelama i sam dodaje `Pretrazi` / `Ponisti`. Ekran u
+`options.template` samo nabraja polja, bez CSS-a.
+
+Zato je i filter model manji: nema `isOpen`, nema `Toggled`, nema `ioState`/`toState`. Istorija
+pregledaca ovu pretragu ne pamti, pa nema sta da se vraca iz `history.state`. `update` filtera vraca
+go `Model`, ne par sa komandom — jedini razlog za komandu bi bio combo, a ako ga ima, vraca se par
+kao i na ekranu.
+
+### Raspored
+
+```tsx
+<PretragaSection
+  title="Vozila vozaca"
+  filter={Html.map(filterMsg)(Filter.view(model.filterModel))(dispatch)}
+  actions={<Button appearance="subtle" icon={<ArrowClockwiseRegular />} onClick={retryLoad}>Osvezi</Button>}
+  table={<Table … />}
+  paging={<Paging … />}
+/>
+```
+
+`PretragaSection` je par za `PretragaLayout` sa istim propovima: `PretragaLayout` je ceo ekran,
+`PretragaSection` je odeljak unutar njega. Tabela raste do dna, uz `minHeight` koji drzi prazno
+stanje — ono se crta kroz apsolutno pozicioniran sloj, pa bez visine nema gde.
+
+## Lista bez pretrage
+
+Kad server vrati gotovu listu — bez strana, bez kriterijuma — ekranu ne treba ni ruta ni filter.
+**Nema posebne komponente: to je ista `Table`**, bez `Paging`-a i sa redosledom koji se racuna kod
+nas umesto na serveru.
+
+```tsx
+<Table
+  columns={KOLONE}
+  data={model.vozila}
+  rowId={vozilo => vozilo.id}
+  onRetry={() => dispatch(retry())}
+  selectionMode="none"
+  emptyText="Vozac nema vozila"
+  sort={model.sort}
+  onSort={sort => dispatch(sorted(sort))}
+/>
+```
+
+Ulaz je i dalje `Data<T>`, pa su tri stanja — ucitavanje, greska sa `Pokusaj ponovo`, prazna lista —
+ista kao u pretrazi.
+
+### Sortiranje ide kroz model, kao i sve ostalo
+
+Redosled se racuna lokalno, ali se **ne cuva lokalno**. Klik na zaglavlje je poruka, `update` menja
+model, prikaz se ponovo iscrta:
+
+```ts
+Sorted: ({ sort }): [Model, Cmd.Cmd<Msg>] => [{ ...model, sort }, Cmd.none],
+```
+
+Jedina razlika prema ekranu pretrage je sto ovde nema `reload` — podaci su vec tu, menja se samo
+njihov redosled. **Komponenta ne drzi `useState`.** Da ga drzi, redosled bi se gubio pri svakom
+remount-u, ne bi se mogao testirati kao cist `update`, i isti pojam bi imao dva mesta: model na
+ekranu pretrage, komponentu ovde.
+
+Kolona kaze cime se poredi, preko Effect-ovog
+[`Order`](https://effect.website/docs/behaviour/order):
+
+```ts
+{ id: 'registarskaOznaka', header: 'Registarska oznaka', render: v => v.oznaka, order: byText(v => v.oznaka) }
+```
+
+`common/pretraga/sort.ts` daje gotove: `byText`, `byNumber`, `byDate` (po trenutku) i `byBoolean`.
+Svaki je tipizovan, pa `byNumber(v => v.oznaka)` ne prolazi kompajler. Kolona sa `order` sortira se
+kod nas; kolona sa `attribute` salje redosled serveru. Jedna kolona bira jedno.
+
+**Tekst ide kroz `Intl.Collator('sr-Latn')`, i to nije sitnica.** Poredjenje po kodnim tackama —
+sto radi i `Order.string` — oba pisma poredja pogresno: u latinici Č, Ć, Đ, Š i Ž padaju iza Z, a u
+cirilici Ђ, Ј, Љ, Њ, Ћ i Џ ispred А, jer u Unicode-u stoje pre nje. Lokalizacija mora da bude bas
+`sr-Latn`: `sr` je cirilicna i latinicu salje na podrazumevanu kolaciju, gde je Č samo „C sa
+kvacicom", pa dobijes `Ćiric Čolic Cvetic`. `sr-Latn` ispravno poredja **oba** pisma. Nasi tekstovi
+jesu bez dijakritike (pravilo 9), ali podaci sa servera nisu — vozaci se zovu Secerovic i Djordjevic.
+
+Sam redosled je kompozicija, ne rucno pisano poredjenje:
+
+```ts
+Order.combine(
+  Order.mapInput(Order.boolean, column.blank),
+  direction === 'ASC' ? column.value : Order.reverse(column.value),
+)
+```
+
+Odatle slede dve stvari koje vrede znati. **Prazne vrednosti idu na kraj u oba smera** — prazno je
+zasebna osa koja se ne obrce; da je samo `Order.reverse(sve)`, u opadajucem redosledu bi prazna
+polja isplivala na vrh. I **redosled se komponuje**: kolona sme da nosi svoj `ColumnOrder` sa dva
+kljuca, gde drugi razresava izjednacene.
+
+### Selekcija i prazan tekst
+
+`selectionMode="none"` sklanja kolonu za izbor reda i tada `selected` / `onSelect` ne trebaju. Ako
+lista ima akcije nad izabranim redom, ukljuci izbor kao na ekranu pretrage — on ide u model, jer o
+njemu odlucuju dugmad van tabele.
+
+`emptyText` je podrazumevano `Nema rezultata za zadati kriterijum`; lista bez kriterijuma zadaje
+svoj.
+
+Za okvir sa naslovom i akcijama posluzi `PretragaSection` bez `paging`-a.
+
+## Dijalozi nad pretragom
+
+`kreiranje`, `azuriranje` i `brisanje` su zasebni moduli koje pretraga drzi u `Option`-u. Svaki od
+njih izvozi `button(config, ...)` koji sam proverava autorizaciju i vraca `null` ako je nema.
+
+```ts
+KreiranjeMsg: ({ msg }) => {
+  if (Option.isNone(model.kreiranje)) return [model, Cmd.none]
+  if (msg._tag === 'Closed') return [{ ...model, kreiranje: Option.none() }, Cmd.none]
+  if (msg._tag === 'Saved') {
+    const [next, cmd] = reload({ ...model, kreiranje: Option.none() })
+    return [next, Cmd.batch([cmd, Toast.success('Vozac je sacuvan.',
+      { action: { label: 'Otvori', msg: () => startAzuriranje(msg.identifikator.id) } })])]
+  }
+  const [kreiranje, cmd] = Kreiranje.update(msg, model.kreiranje.value)
+  return [{ ...model, kreiranje: Option.some(kreiranje) }, Cmd.map(kreiranjeMsg)(cmd)]
+}
+```
+
+Obrazac je uvek isti: prazan `Option` — ignorisi; `Closed` — zatvori; ishod (`Saved` / `Deleted`) —
+zatvori, osvezi, javi; sve ostalo — prosledi.
+
+## Sta jos nije generalizovano
+
+Kostur ekrana (`toRequest`, `load`, `goTo`, `Loaded`, `Failed`, `Sorted`, `PageChanged`,
+`FilterMsg`) ponavlja se izmedju ekrana i **namerno nije izvucen**. Dok postoje dve pretrage, zajednicki
+skelet bi bio pogadjanje. Kada ih bude pet-sest i bude jasno gde se stvarno razilaze, onda se izvlaci.
+
+Do tada: kopiraj postojeci ekran i menjaj, ne izmisljaj novi oblik.

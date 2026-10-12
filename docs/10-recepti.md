@@ -723,7 +723,9 @@ export type Form = Text.Form
 export const vForm = Text.vForm(MAX_LENGTH)
 ```
 
-Ako ima sopstveni widget, on ide u `common/domain/field/<ime>-field.tsx` i vezuje se anotacijom:
+Ako ima sopstveni widget, on ide u `common/domain/field/<ime>-field.tsx`, svoje opcije izvozi kao
+`<Ime>FieldOptions`, dopisuje se u mapu u `field/options.ts` — inace njegove opcije ne prolaze
+kompajler — i vezuje se anotacijom:
 
 ```ts
 export const vForm = Schema.String.pipe(

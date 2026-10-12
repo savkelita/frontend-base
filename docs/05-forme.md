@@ -73,6 +73,55 @@ const options = (styles, model, dispatch): Form.Options<FormValue> => ({
 - `template` je raspored. Svako polje se pojavljuje tacno jednom.
 - `fields` je konfiguracija polja. Combo polje ovde dobija svoj model i kanal poruka.
 
+### Sta sme u `fields`
+
+Dva kljuca dolaze od biblioteke i vaze za svako polje:
+
+| Kljuc | Sta radi |
+|---|---|
+| `label` | natpis; bez njega se izvodi iz imena polja |
+| `disabled` | gasi **to jedno** polje — celu formu gasi `ctx.disabled` |
+
+Uz njih, kontejner (`Schema.Struct`) ima jos `template` i `fields` za svoju decu.
+
+effect-form ima i `attrs` i `config`, dva slobodna recnika koja stizu u `locals.attrs` i
+`locals.config`, za widget koji trazi nesto nepredvidjeno. Nijedno nase polje ih ne cita, pa ih nas
+tip i ne nudi; polju koje nesto trazi dopisuje se imenovana opcija, ne recnik.
+
+Sve ostalo zavisi od polja i cita ga njegov widget iz `Locals`:
+
+| Polje | Opcije |
+|---|---|
+| tekst | `type` (`text` / `password` / `email`), `autoComplete`, `autoFocus`, `placeholder` |
+| broj | `autoFocus`, `placeholder` |
+| enum | `clearable`, `placeholder` |
+| boolean | `yes`, `no`, `placeholder` |
+| datum | `minDate`, `maxDate`, `allowTextInput`, `placeholder` |
+| opseg datuma | `minDate`, `maxDate`, `allowTextInput` |
+| combo i multi combo | **`model`**, **`onMsg`**, `placeholder` |
+| dokument | `accept`, `maxBytes`, `placeholder` |
+
+Tekstualno, brojcano i enum polje primaju i `className`, ali to je za slaganje kontrole u red
+unutar polja filtera — ekran ga ne zadaje.
+
+**Spisak se ne pamti napamet.** `Form.Options<FormValue>` (`common/domain/field/options.ts`) svakom
+polju pridruzuje tacno njegove opcije, prema tipu vrednosti tog polja. IDE nudi bas njih, a pogresno
+ime pada na kompajleru:
+
+```ts
+fields: {
+  ime: { label: 'Ime', placehlder: 'Pera' },   // 'placehlder' ne postoji. Jesi li mislio 'placeholder'?
+  kategorija: { label: 'Kategorija' },         // nedostaju 'model' i 'onMsg'
+}
+```
+
+Druga greska vredi vise od prve: ranije je combo bez `model`-a prolazio kompajler i rusio se tek pri
+crtanju.
+
+Jedno ogranicenje: tekst i broj se po tipu vrednosti ne razlikuju, oba su `string | null`. Posto su
+opcije broja podskup opcija teksta, tekstualno polje time ne gubi nista, a brojcano dodatno prima
+`type` i `autoComplete`, koje njegov widget ne cita. Sve ostalo je tacno.
+
 ## Validacija
 
 ```ts

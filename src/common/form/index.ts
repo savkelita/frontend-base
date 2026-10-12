@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 
 export const { render } = EffectForm.make<ReactNode>()
 
-export type Options<V> = EffectForm.FieldOptions<ReactNode, V>
+export type { FieldOptions, Options } from '../domain/field/options'
 
 export type VForm<A, I, R, V> = (form: V) => Schema.Schema<A, I, R>
 

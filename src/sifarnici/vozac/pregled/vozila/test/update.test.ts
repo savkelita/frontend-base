@@ -87,7 +87,7 @@ describe('otvaranje', () => {
 
 describe('adresa se ne dira', () => {
   it('primena filtera ne menja adresu', async () => {
-    const otkucano = update(change(open(), { registarskaOznaka: 'BG' }), open())[0]
+    const otkucano = update(change(open(), { registarskaOznaka: ['contains', 'BG'] }), open())[0]
     const [, cmd] = update(filterMsg(Filter.submitted()), otkucano)
     expect(await pushedUrls(cmd)).toStrictEqual([])
   })
@@ -120,21 +120,21 @@ describe('model nosi stanje pretrage', () => {
 
   it('primena filtera upisuje kriterijum i vraca na prvu stranu', () => {
     const naDrugoj = update(pageChanged(LIMIT), ready())[0]
-    const otkucano = update(change(naDrugoj, { registarskaOznaka: 'BG' }), naDrugoj)[0]
+    const otkucano = update(change(naDrugoj, { registarskaOznaka: ['contains', 'BG'] }), naDrugoj)[0]
     const [model] = update(filterMsg(Filter.submitted()), otkucano)
     expect(model.criteria.registarskaOznaka).toStrictEqual(['contains', 'BG'])
     expect(model.offset).toBe(0)
   })
 
   it('kucanje menja samo polja, ne i primenjen kriterijum', () => {
-    const [model, cmd] = update(change(ready(), { registarskaOznaka: 'BG' }), ready())
-    expect(model.filterModel.value.registarskaOznaka).toBe('BG')
+    const [model, cmd] = update(change(ready(), { registarskaOznaka: ['contains', 'BG'] }), ready())
+    expect(model.filterModel.value.registarskaOznaka).toStrictEqual(['contains', 'BG'])
     expect(model.criteria).toStrictEqual({})
     expect(cmd).toBe(Cmd.none)
   })
 
   it('ponistavanje prazni polja, ali ne pretrazuje', () => {
-    const otkucano = update(change(ready(), { registarskaOznaka: 'BG' }), ready())[0]
+    const otkucano = update(change(ready(), { registarskaOznaka: ['contains', 'BG'] }), ready())[0]
     const [model, cmd] = update(filterMsg(Filter.cleared()), otkucano)
     expect(model.filterModel.value.registarskaOznaka).toBeNull()
     expect(cmd).toBe(Cmd.none)
@@ -143,7 +143,7 @@ describe('model nosi stanje pretrage', () => {
 
 describe('zahtev', () => {
   it('vozac je uvek u kriterijumu, i posle filtera', () => {
-    const otkucano = update(change(ready(), { registarskaOznaka: 'BG' }), ready())[0]
+    const otkucano = update(change(ready(), { registarskaOznaka: ['contains', 'BG'] }), ready())[0]
     const [model] = update(filterMsg(Filter.submitted()), otkucano)
     const [next] = update(
       loaded(

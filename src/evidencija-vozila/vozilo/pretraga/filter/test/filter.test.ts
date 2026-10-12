@@ -3,6 +3,7 @@ import * as Cmd from 'tea-effect/Cmd'
 import { describe, expect, it } from 'vitest'
 import * as Combo from '../../../../../common/domain/combo'
 import { toQuery } from '../../../../../common/pretraga'
+import * as DateFilter from '../../../../../common/pretraga/filter-date'
 import * as ModelVozila from '../../../../../sifarnici/domain/model-vozila'
 import {
   changed,
@@ -141,7 +142,7 @@ describe('kombo polja koja nose id', () => {
 describe('ponistavanje', () => {
   it('vraca sva polja i sve combo modele na pocetak', () => {
     const popunjeno = apply(
-      changed(form({ registarskaOznaka: 'BG', stanje: 'PASIVAN' })),
+      changed(form({ registarskaOznaka: ['contains', 'BG'], stanje: ['eq', 'PASIVAN'] })),
       apply(vozacMsg(Combo.selected([pera])), apply(markaMsg(Combo.selected([skoda])), open())),
     )
     const ocisceno = apply(cleared(), popunjeno)
@@ -153,7 +154,7 @@ describe('ponistavanje', () => {
 })
 
 describe('datumski opseg', () => {
-  const opseg = [dan(2020, 1, 1), dan(2020, 12, 31)] as const
+  const opseg = DateFilter.fromEnds([dan(2020, 1, 1), dan(2020, 12, 31)])
 
   it('oba datuma idu kao jedan between kriterijum', () => {
     expect(query(form({ datumPrveRegistracije: opseg }))).toBe(
@@ -166,10 +167,10 @@ describe('datumski opseg', () => {
   })
 
   it('polovina opsega salje granicu', () => {
-    expect(query(form({ datumPrveRegistracije: [dan(2020, 1, 1), null] }))).toBe(
+    expect(query(form({ datumPrveRegistracije: DateFilter.fromEnds([dan(2020, 1, 1), null]) }))).toBe(
       'datumPrveRegistracije=after_or_same&datumPrveRegistracije=2020-01-01',
     )
-    expect(query(form({ datumPrveRegistracije: [null, dan(2020, 12, 31)] }))).toBe(
+    expect(query(form({ datumPrveRegistracije: DateFilter.fromEnds([null, dan(2020, 12, 31)]) }))).toBe(
       'datumPrveRegistracije=before_or_same&datumPrveRegistracije=2020-12-31',
     )
   })
@@ -177,10 +178,10 @@ describe('datumski opseg', () => {
   it('kriterijum iz adrese vraca datume u polje', () => {
     expect(
       open({ datumIsticanjaRegistracije: ['between', '2020-01-01~2020-12-31'] }).value.datumIsticanjaRegistracije,
-    ).toStrictEqual([dan(2020, 1, 1), dan(2020, 12, 31)])
+    ).toStrictEqual(['between', dan(2020, 1, 1), dan(2020, 12, 31)])
     expect(
       open({ datumIsticanjaRegistracije: ['after_or_same', '2020-01-01'] }).value.datumIsticanjaRegistracije,
-    ).toStrictEqual([dan(2020, 1, 1), null])
+    ).toStrictEqual(['after_or_same', dan(2020, 1, 1)])
   })
 
   it('ponistavanje vraca oba polja na prazno', () => {
@@ -213,7 +214,15 @@ describe('kriterijum', () => {
   })
 
   it('registarska oznaka ide sa contains, enumi sa eq', () => {
-    expect(query(form({ registarskaOznaka: 'BG', stanje: 'AKTIVAN', istekRegistracije: 'ISTEKAO' }))).toBe(
+    expect(
+      query(
+        form({
+          registarskaOznaka: ['contains', 'BG'],
+          stanje: ['eq', 'AKTIVAN'],
+          istekRegistracije: ['eq', 'ISTEKAO'],
+        }),
+      ),
+    ).toBe(
       'registarskaOznaka=contains&registarskaOznaka=BG&stanje=eq&stanje=AKTIVAN&istekRegistracije=eq&istekRegistracije=ISTEKAO',
     )
   })

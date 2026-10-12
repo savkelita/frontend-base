@@ -1,6 +1,6 @@
 import * as Enum from '../../../common/domain/enum'
 
-const KEYS = {
+export const KEYS = {
   AKTIVAN: 'Aktivan',
   PASIVAN: 'Pasivan',
 }

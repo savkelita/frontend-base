@@ -91,7 +91,9 @@ describe('ugnjezdena pretraga zivi u modelu ekrana', () => {
   const otkucaj = (model: Model): Model => {
     if (model._tag !== 'Ready') throw new Error('ocekivan Ready')
     return update(
-      vozilaMsg(filterMsg(Filter.changed({ ...model.vozila.filterModel.value, registarskaOznaka: 'BG' }))),
+      vozilaMsg(
+        filterMsg(Filter.changed({ ...model.vozila.filterModel.value, registarskaOznaka: ['contains', 'BG'] })),
+      ),
       model,
     )[0]
   }

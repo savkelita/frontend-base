@@ -1,66 +1,29 @@
 // @vitest-environment happy-dom
-import { createElement, type ReactNode } from 'react'
-import { createRoot, type Root } from 'react-dom/client'
-import { act } from 'react-dom/test-utils'
+import { createElement } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { button, buttons, click, escape, mount, unmount } from '../../../testing/dom'
 import { ConfirmDialog, FormDialog } from '../dialog'
 
-Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-
-let container: HTMLDivElement | undefined
-let root: Root | undefined
-
-const mount = (element: ReactNode): void => {
-  container = document.createElement('div')
-  document.body.appendChild(container)
-  root = createRoot(container)
-  act(() => {
-    root?.render(element)
-  })
-}
-
-afterEach(() => {
-  act(() => {
-    root?.unmount()
-  })
-  container?.remove()
-  root = undefined
-  container = undefined
-})
-
-const click = (label: string): void => {
-  const button = [...document.querySelectorAll('button')].find(b => b.textContent === label)
-  if (button === undefined) throw new Error(`nema dugmeta "${label}", postoje: ${buttons().join(', ')}`)
-  act(() => {
-    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  })
-}
-
-const buttons = (): ReadonlyArray<string> => [...document.querySelectorAll('button')].map(b => b.textContent ?? '')
-
-const escape = (): void => {
-  const surfaces = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')]
-  const innermost = surfaces[surfaces.length - 1]
-  if (innermost === undefined) throw new Error('nema otvorenog dijaloga')
-  act(() => {
-    innermost.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-  })
-}
+afterEach(unmount)
 
 const asks = (): boolean => document.body.textContent?.includes('Uneli ste izmene') === true
 
 describe('ConfirmDialog', () => {
-  it('escape odustaje', () => {
-    const cancelled: Array<true> = []
+  const open = (isSubmitting: boolean, cancelled: Array<true>): void =>
     mount(
       createElement(ConfirmDialog, {
         title: 'Brisanje vozaca',
         confirmLabel: 'Obrisi',
+        isSubmitting,
         onConfirm: () => {},
         onCancel: () => cancelled.push(true),
         children: 'Da li ste sigurni?',
       }),
     )
+
+  it('escape odustaje', () => {
+    const cancelled: Array<true> = []
+    open(false, cancelled)
 
     escape()
 
@@ -69,16 +32,7 @@ describe('ConfirmDialog', () => {
 
   it('escape ne odustaje dok traje slanje', () => {
     const cancelled: Array<true> = []
-    mount(
-      createElement(ConfirmDialog, {
-        title: 'Brisanje vozaca',
-        confirmLabel: 'Obrisi',
-        isSubmitting: true,
-        onConfirm: () => {},
-        onCancel: () => cancelled.push(true),
-        children: 'Da li ste sigurni?',
-      }),
-    )
+    open(true, cancelled)
 
     escape()
 
@@ -104,7 +58,7 @@ describe('FormDialog', () => {
     const closed: Array<true> = []
     open(false, closed)
 
-    click('Odustani')
+    click(button('Odustani'))
 
     expect(asks()).toBe(false)
     expect(closed).toHaveLength(1)
@@ -114,7 +68,7 @@ describe('FormDialog', () => {
     const closed: Array<true> = []
     open(true, closed)
 
-    click('Odustani')
+    click(button('Odustani'))
 
     expect(asks()).toBe(true)
     expect(closed).toHaveLength(0)
@@ -123,7 +77,7 @@ describe('FormDialog', () => {
   it('escape na pitanju vraca na formu, ne zatvara dijalog', () => {
     const closed: Array<true> = []
     open(true, closed)
-    click('Odustani')
+    click(button('Odustani'))
 
     escape()
 

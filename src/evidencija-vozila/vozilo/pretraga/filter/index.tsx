@@ -4,8 +4,11 @@ import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Combo from '../../../../common/domain/combo'
 import * as Form from '../../../../common/form'
-import { contains, eq, predicateValue, range, rangeValue, stateValue } from '../../../../common/pretraga'
+import { eq, stateValue } from '../../../../common/pretraga'
 import { filterButton, filterView } from '../../../../common/pretraga/components/filter-drawer'
+import * as DateFilter from '../../../../common/pretraga/filter-date'
+import * as EnumFilter from '../../../../common/pretraga/filter-enum'
+import * as TextFilter from '../../../../common/pretraga/filter-text'
 import * as KorisnikVozila from '../../../../sifarnici/domain/korisnik-vozila'
 import * as MarkaVozila from '../../../../sifarnici/domain/marka-vozila'
 import * as ModelVozila from '../../../../sifarnici/domain/model-vozila'
@@ -91,18 +94,18 @@ export const init = (criteria: VoziloCriteria, state: unknown, previous?: Model)
   return [
     {
       value: {
-        registarskaOznaka: predicateValue(criteria.registarskaOznaka),
+        registarskaOznaka: criteria.registarskaOznaka ?? null,
         markaVozila: criteria.markaVozila === undefined ? null : MarkaVozila.fromText(criteria.markaVozila[1]),
         modelVozila: criteria.modelVozila === undefined ? null : ModelVozila.fromText(criteria.modelVozila[1]),
         vrstaGoriva,
         vrstaVozila,
         korisnikVozila,
         vozac,
-        datumPrveRegistracije: rangeValue(criteria.datumPrveRegistracije),
-        datumIsticanjaRegistracije: rangeValue(criteria.datumIsticanjaRegistracije),
+        datumPrveRegistracije: DateFilter.fromCriteria(criteria.datumPrveRegistracije),
+        datumIsticanjaRegistracije: DateFilter.fromCriteria(criteria.datumIsticanjaRegistracije),
         dostavljaMesecnuKm: criteria.dostavljaMesecnuKm ?? null,
-        stanje: predicateValue(criteria.stanje),
-        istekRegistracije: predicateValue(criteria.istekRegistracije),
+        stanje: criteria.stanje ?? null,
+        istekRegistracije: criteria.istekRegistracije ?? null,
       },
       isOpen: previous?.isOpen ?? true,
       markaCombo: Combo.empty<MarkaVozila.Value>(),
@@ -214,18 +217,18 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
   })
 
 export const toCriteria = (value: FormValue): VoziloCriteria => ({
-  registarskaOznaka: contains(value.registarskaOznaka),
+  registarskaOznaka: TextFilter.toCriteria(value.registarskaOznaka),
   markaVozila: eq(value.markaVozila?.marka ?? null),
   modelVozila: eq(value.modelVozila?.model ?? null),
   vrstaGorivaID: value.vrstaGoriva?.id,
   vrstaVozilaID: value.vrstaVozila?.id,
   korisnikVozilaID: value.korisnikVozila?.id,
   vozacID: value.vozac?.id,
-  datumPrveRegistracije: range(value.datumPrveRegistracije),
-  datumIsticanjaRegistracije: range(value.datumIsticanjaRegistracije),
+  datumPrveRegistracije: DateFilter.toCriteria(value.datumPrveRegistracije),
+  datumIsticanjaRegistracije: DateFilter.toCriteria(value.datumIsticanjaRegistracije),
   dostavljaMesecnuKm: value.dostavljaMesecnuKm ?? undefined,
-  stanje: eq(value.stanje),
-  istekRegistracije: eq(value.istekRegistracije),
+  stanje: EnumFilter.toCriteria(value.stanje),
+  istekRegistracije: EnumFilter.toCriteria(value.istekRegistracije),
 })
 
 const options = (model: Model, dispatch: Platform.Dispatch<Msg>): Form.Options<FormValue> => ({

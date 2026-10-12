@@ -1,6 +1,6 @@
 import * as Enum from '../../../common/domain/enum'
 
-const KEYS = {
+export const KEYS = {
   ISTEKAO: 'Istekao datum registracije',
   OD_1_DO_3_DANA: '1-3 dana',
   OD_4_DO_7_DANA: '4-7 dana',

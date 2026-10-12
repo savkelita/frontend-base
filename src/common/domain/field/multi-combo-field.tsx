@@ -14,6 +14,13 @@ export type MultiComboFieldOptions<A> = {
 }
 
 const useStyles = makeStyles({
+  combobox: {
+    width: '100%',
+  },
+  truncated: {
+    minWidth: 0,
+    textOverflow: 'ellipsis',
+  },
   control: {
     display: 'flex',
     flexDirection: 'column',
@@ -37,6 +44,8 @@ const MultiComboView = <A,>({
     <FormField l={l}>
       <div className={styles.control}>
         <Combobox
+          className={styles.combobox}
+          input={{ className: styles.truncated }}
           multiselect
           id={l.id}
           name={l.name}

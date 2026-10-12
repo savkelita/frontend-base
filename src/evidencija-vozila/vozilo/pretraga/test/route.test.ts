@@ -1,9 +1,17 @@
-import { Arbitrary, FastCheck, Option } from 'effect'
+import { Arbitrary, FastCheck, Option, Schema } from 'effect'
 import * as Router from 'tea-effect/Router'
 import { describe, expect, it } from 'vitest'
-import { ioDateOperator, ioDirection, ioEnumPredicate, ioStringOperator } from '../../../../common/pretraga'
+import {
+  ioDateOperator,
+  ioDirection,
+  ioEnumOperator,
+  ioStringOperator,
+  type EnumOperator,
+  type StringOperator,
+} from '../../../../common/pretraga'
+import { isList } from '../../../../common/pretraga/operator'
 import { routes } from '../../../../router/route'
-import { ioVoziloOrder } from '../../../api'
+import { OZNAKA_OPERATORI, ioVoziloOrder } from '../../../api'
 import * as IstekRegistracije from '../../../domain/istek-registracije'
 import * as VoziloStanje from '../../../domain/vozilo-stanje'
 import type { init } from '../index'
@@ -18,6 +26,15 @@ const tekst = FastCheck.oneof(
 
 const stringPredicate = FastCheck.tuple(Arbitrary.make(ioStringOperator), tekst)
 
+const stringPredicateOf = (operators: ReadonlyArray<StringOperator>) =>
+  FastCheck.tuple(FastCheck.constantFrom(...operators), tekst)
+const enumPredicate = <A>(value: Schema.Schema<A>): FastCheck.Arbitrary<readonly [EnumOperator, ...Array<A>]> =>
+  FastCheck.tuple(
+    Arbitrary.make(ioEnumOperator),
+    Arbitrary.make(value),
+    FastCheck.array(Arbitrary.make(value), { maxLength: 3 }),
+  ).map(([operator, first, rest]) => [operator, first, ...(isList(operator) ? rest : [])] as const)
+
 const datePredicate = FastCheck.tuple(Arbitrary.make(ioDateOperator), tekst)
 
 const upit: FastCheck.Arbitrary<Query> = FastCheck.record(
@@ -25,7 +42,7 @@ const upit: FastCheck.Arbitrary<Query> = FastCheck.record(
     offset: FastCheck.nat(),
     order: Arbitrary.make(ioVoziloOrder),
     dir: Arbitrary.make(ioDirection),
-    registarskaOznaka: stringPredicate,
+    registarskaOznaka: stringPredicateOf(OZNAKA_OPERATORI),
     markaVozila: stringPredicate,
     modelVozila: stringPredicate,
     vrstaGorivaID: FastCheck.nat(),
@@ -35,8 +52,8 @@ const upit: FastCheck.Arbitrary<Query> = FastCheck.record(
     datumPrveRegistracije: datePredicate,
     datumIsticanjaRegistracije: datePredicate,
     dostavljaMesecnuKm: FastCheck.boolean(),
-    stanje: Arbitrary.make(ioEnumPredicate(VoziloStanje.ioValue)),
-    istekRegistracije: Arbitrary.make(ioEnumPredicate(IstekRegistracije.ioValue)),
+    stanje: enumPredicate(VoziloStanje.ioValue),
+    istekRegistracije: enumPredicate(IstekRegistracije.ioValue),
   },
   { requiredKeys: [] },
 )

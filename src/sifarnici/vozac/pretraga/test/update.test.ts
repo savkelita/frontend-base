@@ -193,8 +193,14 @@ describe('prelazak na novu adresu unutar istog ekrana', () => {
   })
 
   it('polja filtera prate adresu, ne prethodni model', () => {
-    const otkucano = update(filterMsg(Filter.changed({ ...ready().filterModel.value, ime: 'Mika' })), ready())[0]
-    expect(init({ ime: ['contains', 'Pera'] }, undefined, otkucano)[0].filterModel.value.ime).toBe('Pera')
+    const otkucano = update(
+      filterMsg(Filter.changed({ ...ready().filterModel.value, ime: ['contains', 'Mika'] })),
+      ready(),
+    )[0]
+    expect(init({ ime: ['contains', 'Pera'] }, undefined, otkucano)[0].filterModel.value.ime).toStrictEqual([
+      'contains',
+      'Pera',
+    ])
   })
 })
 
@@ -210,8 +216,8 @@ describe('filter', () => {
   it('cita kriterijum iz adrese, a polja pocinju od njega', () => {
     const model = open({ ime: ['contains', 'Pera'], stanje: ['eq', 'AKTIVAN'] })
     expect(model.criteria.ime).toStrictEqual(['contains', 'Pera'])
-    expect(model.filterModel.value.ime).toBe('Pera')
-    expect(model.filterModel.value.stanje).toBe('AKTIVAN')
+    expect(model.filterModel.value.ime).toStrictEqual(['contains', 'Pera'])
+    expect(model.filterModel.value.stanje).toStrictEqual(['eq', 'AKTIVAN'])
   })
 
   it('kriterijum iz adrese ide u zahtev', () => {
@@ -234,8 +240,8 @@ describe('filter', () => {
 
   it('kucanje menja samo polja, ne i primenjen kriterijum', () => {
     const model = open({ ime: ['contains', 'Pera'] })
-    const [next, cmd] = update(change(model, { ime: 'Mika' }), model)
-    expect(next.filterModel.value.ime).toBe('Mika')
+    const [next, cmd] = update(change(model, { ime: ['contains', 'Mika'] }), model)
+    expect(next.filterModel.value.ime).toStrictEqual(['contains', 'Mika'])
     expect(next.criteria.ime).toStrictEqual(['contains', 'Pera'])
     expect(cmd).toBe(Cmd.none)
   })
@@ -250,7 +256,10 @@ describe('filter', () => {
 
   it('primena upisuje kriterijum u adresu i vraca na prvu stranu', async () => {
     const model = open({ offset: 100 })
-    const [, cmd] = update(filterMsg(Filter.submitted()), update(change(model, { ime: 'Pera' }), model)[0])
+    const [, cmd] = update(
+      filterMsg(Filter.submitted()),
+      update(change(model, { ime: ['contains', 'Pera'] }), model)[0],
+    )
     expect(await pushedUrls(cmd)).toStrictEqual(['/sifarnici/vozaci?ime=contains&ime=Pera'])
   })
 

@@ -1,7 +1,8 @@
-import { Arbitrary, FastCheck, Option } from 'effect'
+import { Arbitrary, FastCheck, Option, Schema } from 'effect'
 import * as Router from 'tea-effect/Router'
 import { describe, expect, it } from 'vitest'
-import { ioDirection, ioEnumPredicate, ioStringOperator } from '../../../../common/pretraga'
+import { ioDirection, ioEnumOperator, ioStringOperator, type EnumOperator } from '../../../../common/pretraga'
+import { isList } from '../../../../common/pretraga/operator'
 import { routes } from '../../../../router/route'
 import { ioVozacOrder } from '../../../api'
 import * as StanjeVozaca from '../../../domain/stanje-vozaca'
@@ -32,6 +33,12 @@ const tekst = FastCheck.oneof(
 )
 
 const stringPredicate = FastCheck.tuple(Arbitrary.make(ioStringOperator), tekst)
+const enumPredicate = <A>(value: Schema.Schema<A>): FastCheck.Arbitrary<readonly [EnumOperator, ...Array<A>]> =>
+  FastCheck.tuple(
+    Arbitrary.make(ioEnumOperator),
+    Arbitrary.make(value),
+    FastCheck.array(Arbitrary.make(value), { maxLength: 3 }),
+  ).map(([operator, first, rest]) => [operator, first, ...(isList(operator) ? rest : [])] as const)
 
 const upit: FastCheck.Arbitrary<Query> = FastCheck.record(
   {
@@ -44,7 +51,7 @@ const upit: FastCheck.Arbitrary<Query> = FastCheck.record(
     imeZaPrikaz: stringPredicate,
     email: stringPredicate,
     telefon: stringPredicate,
-    stanje: Arbitrary.make(ioEnumPredicate(StanjeVozaca.ioValue)),
+    stanje: enumPredicate(StanjeVozaca.ioValue),
   },
   { requiredKeys: [] },
 )

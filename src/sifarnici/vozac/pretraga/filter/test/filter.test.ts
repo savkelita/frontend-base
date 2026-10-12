@@ -36,25 +36,25 @@ describe('polja', () => {
 
   it('polja pocinju od primenjenog kriterijuma', () => {
     const model = open({ ime: ['contains', 'Pera'], stanje: ['eq', 'AKTIVAN'] })
-    expect(model.value.ime).toBe('Pera')
-    expect(model.value.stanje).toBe('AKTIVAN')
+    expect(model.value.ime).toStrictEqual(['contains', 'Pera'])
+    expect(model.value.stanje).toStrictEqual(['eq', 'AKTIVAN'])
   })
 
-  it('uzima vrednost predikata bez obzira na operator iz adrese', () => {
-    expect(open({ ime: ['starts_with', 'Pera'] }).value.ime).toBe('Pera')
+  it('operator iz adrese ostaje u polju', () => {
+    expect(open({ ime: ['starts_with', 'Pera'] }).value.ime).toStrictEqual(['starts_with', 'Pera'])
   })
 
   it('kucanje menja polje', () => {
-    expect(apply(changed(form({ ime: 'Mika' })), open()).value.ime).toBe('Mika')
+    expect(apply(changed(form({ ime: ['contains', 'Mika'] })), open()).value.ime).toStrictEqual(['contains', 'Mika'])
   })
 
   it('slanje ne dira polja', () => {
-    const typed = apply(changed(form({ ime: 'Mika' })), open())
-    expect(apply(submitted(), typed).value.ime).toBe('Mika')
+    const typed = apply(changed(form({ ime: ['contains', 'Mika'] })), open())
+    expect(apply(submitted(), typed).value.ime).toStrictEqual(['contains', 'Mika'])
   })
 
   it('ponistavanje prazni polja', () => {
-    const typed = apply(changed(form({ ime: 'Mika', stanje: 'PASIVAN' })), open())
+    const typed = apply(changed(form({ ime: ['contains', 'Mika'], stanje: ['eq', 'PASIVAN'] })), open())
     expect(apply(cleared(), typed).value).toStrictEqual(open().value)
   })
 
@@ -69,7 +69,7 @@ describe('komande', () => {
   it('rad sa poljima ne pokrece komandu', () => {
     const model = open()
     expect(init({}, undefined)[1]).toBe(Cmd.none)
-    expect(update(changed(form({ ime: 'Mika' })), model)[1]).toBe(Cmd.none)
+    expect(update(changed(form({ ime: ['contains', 'Mika'] })), model)[1]).toBe(Cmd.none)
     expect(update(submitted(), model)[1]).toBe(Cmd.none)
     expect(update(cleared(), model)[1]).toBe(Cmd.none)
     expect(update(toggled(), model)[1]).toBe(Cmd.none)
@@ -147,17 +147,19 @@ describe('kriterijum', () => {
     expect(query(form({}))).toBe('')
   })
 
-  it('tekst ide sa contains, stanje sa eq', () => {
-    expect(toCriteria(form({ ime: 'Pera' })).ime).toStrictEqual(['contains', 'Pera'])
-    expect(query(form({ ime: 'Pera', stanje: 'AKTIVAN' }))).toBe('ime=contains&ime=Pera&stanje=eq&stanje=AKTIVAN')
+  it('izabran operator ide u kriterijum', () => {
+    expect(toCriteria(form({ ime: ['contains', 'Pera'] })).ime).toStrictEqual(['contains', 'Pera'])
+    expect(query(form({ ime: ['contains', 'Pera'], stanje: ['eq', 'AKTIVAN'] }))).toBe(
+      'ime=contains&ime=Pera&stanje=eq&stanje=AKTIVAN',
+    )
   })
 
   it('prazan string se ponasa kao prazno polje', () => {
-    expect(query(form({ ime: '' }))).toBe('')
+    expect(query(form({ ime: ['contains', ''] }))).toBe('')
   })
 
   it('salje samo popunjena polja', () => {
-    expect(query(form({ telefon: '060' }))).toBe('telefon=contains&telefon=060')
+    expect(query(form({ telefon: ['contains', '060'] }))).toBe('telefon=contains&telefon=060')
   })
 })
 
@@ -200,12 +202,13 @@ describe('svojstva', () => {
     )
   })
 
-  it('operator iz adrese se pri ponovnoj pretrazi svodi na contains', () => {
+  it('operator iz adrese prezivi ponovnu pretragu, ne svodi se na contains', () => {
     FastCheck.assert(
       FastCheck.property(Arbitrary.make(ioStringOperator), FastCheck.string({ minLength: 1 }), (operator, tekst) => {
         const model = open({ ime: [operator, tekst] })
-        expect(model.value.ime).toBe(tekst)
-        expect(toCriteria(model.value).ime).toStrictEqual(['contains', tekst])
+        expect(model.value.ime).toStrictEqual([operator, tekst])
+        const sent = toCriteria(model.value).ime
+        expect(sent === undefined ? operator : sent[0]).toBe(operator)
       }),
     )
   })

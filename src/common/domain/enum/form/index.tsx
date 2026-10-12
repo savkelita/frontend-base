@@ -4,13 +4,13 @@ import { dropdownField, dropdownFieldMulti, type Choice } from '../../field/drop
 
 export type Keys = Readonly<Record<string, string>>
 
-type Value<K extends Keys> = keyof K & string
+export type Value<K extends Keys> = keyof K & string
 
 export type Form<A extends string> = A | null
 
 export type FormMulti<A extends string> = ReadonlyArray<A> | null
 
-const choices = <K extends Keys>(keys: K, only?: ReadonlyArray<Value<K>>): ReadonlyArray<Choice<Value<K>>> =>
+export const choices = <K extends Keys>(keys: K, only?: ReadonlyArray<Value<K>>): ReadonlyArray<Choice<Value<K>>> =>
   (Object.keys(keys) as ReadonlyArray<Value<K>>)
     .filter(value => only === undefined || only.includes(value))
     .map(value => ({ value, text: keys[value] }))

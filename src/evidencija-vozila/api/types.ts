@@ -1,7 +1,14 @@
 import { Schema } from 'effect'
 import { Audit } from '../../common/audit'
 import { ioValue as ioDate } from '../../common/domain/date/api'
-import { ioDatePredicate, ioEnumPredicate, ioId, ioStringPredicate } from '../../common/pretraga'
+import {
+  ioDatePredicate,
+  ioEnumPredicate,
+  ioId,
+  ioStringPredicate,
+  ioStringPredicateOf,
+  type StringOperator,
+} from '../../common/pretraga'
 import * as IstekRegistracije from '../domain/istek-registracije'
 import * as VoziloStanje from '../domain/vozilo-stanje'
 
@@ -43,8 +50,10 @@ export const ioVoziloOrder = Schema.Literal(
 
 export type VoziloOrder = typeof ioVoziloOrder.Type
 
+export const OZNAKA_OPERATORI: ReadonlyArray<StringOperator> = ['contains', 'starts_with']
+
 export const ioVoziloCriteria = Schema.Struct({
-  registarskaOznaka: Schema.optional(ioStringPredicate),
+  registarskaOznaka: Schema.optional(ioStringPredicateOf(OZNAKA_OPERATORI)),
   markaVozila: Schema.optional(ioStringPredicate),
   modelVozila: Schema.optional(ioStringPredicate),
   vrstaGorivaID: Schema.optional(ioId),

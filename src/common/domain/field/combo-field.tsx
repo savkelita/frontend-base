@@ -20,6 +20,13 @@ export type Render<A> = {
 }
 
 const useStyles = makeStyles({
+  combobox: {
+    width: '100%',
+  },
+  truncated: {
+    minWidth: 0,
+    textOverflow: 'ellipsis',
+  },
   message: {
     padding: tokens.spacingVerticalS,
   },
@@ -90,12 +97,15 @@ export const ComboListbox = <A,>({ model, onMsg, id, render }: ComboListboxProps
 }
 
 const ComboView = <A,>({ l, id, render }: { l: Locals<A | null, ComboFieldOptions<A>> } & Render<A>): ReactNode => {
+  const styles = useStyles()
   const { model, onMsg } = l
   const items = model.data === null ? [] : rows(model.data)
 
   return (
     <FormField l={l}>
       <Combobox
+        className={styles.combobox}
+        input={{ className: styles.truncated }}
         id={l.id}
         name={l.name}
         disabled={l.disabled}

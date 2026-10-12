@@ -1,45 +1,53 @@
 import { Schema } from 'effect'
 import { fromYmd, toYmd } from '../domain/date/api'
+import { DATE_OPERATORS, ENUM_OPERATORS, STRING_OPERATORS, type EnumOperator, type StringOperator } from './operator'
 
-const RANGE_SEPARATOR = '~'
+export const RANGE_SEPARATOR = '~'
 
-export const predicateValue = <A>(predicate: readonly [string, A] | undefined): A | null =>
-  predicate === undefined ? null : predicate[1]
+export const predicateValue = <A>(predicate: readonly [string, ...Array<A>] | undefined): A | null =>
+  predicate === undefined ? null : (predicate[1] ?? null)
 
 export const ioId = Schema.NumberFromString.pipe(Schema.int())
 
-export const ioStringOperator = Schema.Literal('eq', 'neq', 'contains', 'starts_with')
-export type StringOperator = typeof ioStringOperator.Type
-export const ioStringPredicate = Schema.Tuple(ioStringOperator, Schema.String)
+export const ioStringOperator = Schema.Literal(...STRING_OPERATORS)
+
+export const ioStringPredicateOf = (operators: ReadonlyArray<StringOperator> = STRING_OPERATORS) =>
+  Schema.Tuple(Schema.Literal(...operators), Schema.String)
+
+export const ioStringPredicate = ioStringPredicateOf()
 export type StringPredicate = typeof ioStringPredicate.Type
 
 export const contains = (value: string | null): StringPredicate | undefined =>
   value === null || value === '' ? undefined : ['contains', value]
 
-export const ioEnumOperator = Schema.Literal('eq', 'neq')
-export type EnumOperator = typeof ioEnumOperator.Type
-export const ioEnumPredicate = <A>(value: Schema.Schema<A>) => Schema.Tuple(ioEnumOperator, value)
-export type EnumPredicate<A> = readonly [EnumOperator, A]
+export const ioEnumOperator = Schema.Literal(...ENUM_OPERATORS)
 
-export const eq = <A extends string>(value: A | null): EnumPredicate<A> | undefined =>
+export const ioEnumPredicateOf = <A>(
+  value: Schema.Schema<A>,
+  operators: ReadonlyArray<EnumOperator> = ENUM_OPERATORS,
+) => Schema.Tuple([Schema.Literal(...operators)], value)
+
+export const ioEnumPredicate = <A>(value: Schema.Schema<A>) => ioEnumPredicateOf(value)
+export type EnumPredicate<A> = readonly [EnumOperator, ...Array<A>]
+
+export const eq = <A extends string>(value: A | null): readonly ['eq', A] | undefined =>
   value === null ? undefined : ['eq', value]
 
-export const ioDateOperator = Schema.Literal('eq', 'before', 'after', 'before_or_same', 'after_or_same', 'between')
-export type DateOperator = typeof ioDateOperator.Type
+export const ioDateOperator = Schema.Literal(...DATE_OPERATORS)
 export const ioDatePredicate = Schema.Tuple(ioDateOperator, Schema.String)
 export type DatePredicate = typeof ioDatePredicate.Type
 export type DateRange = readonly [Date | null, Date | null]
 
-const dan = (raw: string | undefined): Date | null => (raw === undefined ? null : fromYmd(raw))
+const day = (raw: string | undefined): Date | null => (raw === undefined ? null : fromYmd(raw))
 
-const opseg = (od: Date | null, doDatuma: Date | null): DateRange | null =>
-  od === null && doDatuma === null ? null : [od, doDatuma]
+const bounds = (from: Date | null, to: Date | null): DateRange | null =>
+  from === null && to === null ? null : [from, to]
 
 export const range = (value: DateRange | null): DatePredicate | undefined => {
-  const [od, doDatuma] = value ?? [null, null]
-  if (od !== null && doDatuma !== null) return ['between', `${toYmd(od)}${RANGE_SEPARATOR}${toYmd(doDatuma)}`]
-  if (od !== null) return ['after_or_same', toYmd(od)]
-  if (doDatuma !== null) return ['before_or_same', toYmd(doDatuma)]
+  const [from, to] = value ?? [null, null]
+  if (from !== null && to !== null) return ['between', `${toYmd(from)}${RANGE_SEPARATOR}${toYmd(to)}`]
+  if (from !== null) return ['after_or_same', toYmd(from)]
+  if (to !== null) return ['before_or_same', toYmd(to)]
   return undefined
 }
 
@@ -47,10 +55,10 @@ export const rangeValue = (predicate: DatePredicate | undefined): DateRange | nu
   if (predicate === undefined) return null
   const [operator, raw] = predicate
   if (operator === 'between') {
-    const [od, doDatuma] = raw.split(RANGE_SEPARATOR)
-    return opseg(dan(od), dan(doDatuma))
+    const [from, to] = raw.split(RANGE_SEPARATOR)
+    return bounds(day(from), day(to))
   }
-  if (operator === 'after_or_same') return opseg(dan(raw), null)
-  if (operator === 'before_or_same') return opseg(null, dan(raw))
+  if (operator === 'after_or_same') return bounds(day(raw), null)
+  if (operator === 'before_or_same') return bounds(null, day(raw))
   return null
 }

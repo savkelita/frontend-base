@@ -1,46 +1,48 @@
 import { Schema } from 'effect'
 import * as BooleanDomain from '../../../../common/domain/boolean'
-import * as Code30 from '../../../../common/domain/code30'
 import type * as Combo from '../../../../common/domain/combo'
-import * as DateRange from '../../../../common/domain/date-range'
+import * as DateFilter from '../../../../common/pretraga/filter-date'
+import * as EnumFilter from '../../../../common/pretraga/filter-enum'
+import * as TextFilter from '../../../../common/pretraga/filter-text'
 import * as KorisnikVozila from '../../../../sifarnici/domain/korisnik-vozila'
 import * as MarkaVozila from '../../../../sifarnici/domain/marka-vozila'
 import * as ModelVozila from '../../../../sifarnici/domain/model-vozila'
 import * as Vozac from '../../../../sifarnici/domain/vozac'
 import * as VrstaGoriva from '../../../../sifarnici/domain/vrsta-goriva'
 import * as VrstaVozila from '../../../../sifarnici/domain/vrsta-vozila'
+import * as Api from '../../../api'
 import * as IstekRegistracije from '../../../domain/istek-registracije'
 import * as VoziloStanje from '../../../domain/vozilo-stanje'
 
 export type FormValue = {
-  readonly registarskaOznaka: Code30.Form
+  readonly registarskaOznaka: TextFilter.Form
   readonly markaVozila: MarkaVozila.Form
   readonly modelVozila: ModelVozila.Form
   readonly vrstaGoriva: VrstaGoriva.Form
   readonly vrstaVozila: VrstaVozila.Form
   readonly korisnikVozila: KorisnikVozila.Form
   readonly vozac: Vozac.Form
-  readonly datumPrveRegistracije: DateRange.Form | null
-  readonly datumIsticanjaRegistracije: DateRange.Form | null
+  readonly datumPrveRegistracije: DateFilter.Form
+  readonly datumIsticanjaRegistracije: DateFilter.Form
   readonly dostavljaMesecnuKm: BooleanDomain.Form
-  readonly stanje: VoziloStanje.Form
-  readonly istekRegistracije: IstekRegistracije.Form
+  readonly stanje: EnumFilter.Form<VoziloStanje.Value>
+  readonly istekRegistracije: EnumFilter.Form<IstekRegistracije.Value>
 }
 
 export const vForm = () =>
   Schema.Struct({
-    registarskaOznaka: Schema.NullOr(Code30.vForm),
+    registarskaOznaka: TextFilter.vForm(Api.OZNAKA_OPERATORI),
     markaVozila: Schema.NullOr(MarkaVozila.vForm),
     modelVozila: Schema.NullOr(ModelVozila.vForm),
     vrstaGoriva: Schema.NullOr(VrstaGoriva.vForm),
     vrstaVozila: Schema.NullOr(VrstaVozila.vForm),
     korisnikVozila: Schema.NullOr(KorisnikVozila.vForm),
     vozac: Schema.NullOr(Vozac.vForm),
-    datumPrveRegistracije: Schema.NullOr(DateRange.vForm),
-    datumIsticanjaRegistracije: Schema.NullOr(DateRange.vForm),
+    datumPrveRegistracije: DateFilter.vForm(),
+    datumIsticanjaRegistracije: DateFilter.vForm(),
     dostavljaMesecnuKm: Schema.NullOr(BooleanDomain.vForm),
-    stanje: Schema.NullOr(VoziloStanje.vForm),
-    istekRegistracije: Schema.NullOr(IstekRegistracije.vForm),
+    stanje: EnumFilter.vForm(VoziloStanje.KEYS),
+    istekRegistracije: EnumFilter.vForm(IstekRegistracije.KEYS),
   })
 
 export type Model = {

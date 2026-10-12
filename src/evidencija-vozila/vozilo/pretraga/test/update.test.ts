@@ -4,6 +4,7 @@ import * as Router from 'tea-effect/Router'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../../common/error'
 import { isLoading, rows, total, type Page, type PretragaRequest } from '../../../../common/pretraga'
+import * as DateFilter from '../../../../common/pretraga/filter-date'
 import { routes } from '../../../../router/route'
 import type { Vozilo, VoziloCriteria, VoziloOrder } from '../../../api'
 import * as Filter from '../filter'
@@ -74,7 +75,7 @@ describe('otvaranje ekrana', () => {
     const [model, cmd] = init({}, undefined)
     expect(model.criteria).toStrictEqual(AKTIVNA)
     expect(model.sort).toStrictEqual({ attribute: 'registarskaOznaka', direction: 'ASC' })
-    expect(model.filterModel.value.stanje).toBe('AKTIVAN')
+    expect(model.filterModel.value.stanje).toStrictEqual(['eq', 'AKTIVAN'])
     expect(isLoading(model.data)).toBe(true)
     expect(cmd).not.toBe(Cmd.none)
   })
@@ -183,12 +184,12 @@ describe('prelazak na novu adresu unutar istog ekrana', () => {
 
   it('polja filtera prate adresu, ne prethodni model', () => {
     const otkucano = update(
-      filterMsg(Filter.changed({ ...ready().filterModel.value, registarskaOznaka: 'NS' })),
+      filterMsg(Filter.changed({ ...ready().filterModel.value, registarskaOznaka: ['contains', 'NS'] })),
       ready(),
     )[0]
     expect(
       init({ registarskaOznaka: ['contains', 'BG'] }, undefined, otkucano)[0].filterModel.value.registarskaOznaka,
-    ).toBe('BG')
+    ).toStrictEqual(['contains', 'BG'])
   })
 })
 
@@ -199,14 +200,14 @@ describe('filter', () => {
   it('cita kriterijum iz adrese, a polja pocinju od njega', () => {
     const model = open({ registarskaOznaka: ['contains', 'BG'], istekRegistracije: ['eq', 'ISTEKAO'] })
     expect(model.criteria.registarskaOznaka).toStrictEqual(['contains', 'BG'])
-    expect(model.filterModel.value.registarskaOznaka).toBe('BG')
-    expect(model.filterModel.value.istekRegistracije).toBe('ISTEKAO')
+    expect(model.filterModel.value.registarskaOznaka).toStrictEqual(['contains', 'BG'])
+    expect(model.filterModel.value.istekRegistracije).toStrictEqual(['eq', 'ISTEKAO'])
   })
 
   it('kucanje menja samo polja, ne i primenjen kriterijum', () => {
     const model = open({ registarskaOznaka: ['contains', 'BG'] })
-    const [next, cmd] = update(change(model, { registarskaOznaka: 'NS' }), model)
-    expect(next.filterModel.value.registarskaOznaka).toBe('NS')
+    const [next, cmd] = update(change(model, { registarskaOznaka: ['contains', 'NS'] }), model)
+    expect(next.filterModel.value.registarskaOznaka).toStrictEqual(['contains', 'NS'])
     expect(next.criteria.registarskaOznaka).toStrictEqual(['contains', 'BG'])
     expect(cmd).toBe(Cmd.none)
   })
@@ -221,9 +222,30 @@ describe('filter', () => {
 
   it('primena upisuje kriterijum u adresu i vraca na prvu stranu', async () => {
     const model = open({ offset: 100 })
-    const [, cmd] = update(filterMsg(Filter.submitted()), update(change(model, { registarskaOznaka: 'BG' }), model)[0])
+    const [, cmd] = update(
+      filterMsg(Filter.submitted()),
+      update(change(model, { registarskaOznaka: ['contains', 'BG'] }), model)[0],
+    )
     expect(await pushedUrls(cmd)).toStrictEqual([
       '/evidencija-vozila/vozila?registarskaOznaka=contains&registarskaOznaka=BG',
+    ])
+  })
+
+  it('izabran operator stize do adrese', async () => {
+    const model = open({ offset: 100 })
+    const [, cmd] = update(
+      filterMsg(Filter.submitted()),
+      update(change(model, { registarskaOznaka: ['starts_with', 'BG'] }), model)[0],
+    )
+    expect(await pushedUrls(cmd)).toStrictEqual([
+      '/evidencija-vozila/vozila?registarskaOznaka=starts_with&registarskaOznaka=BG',
+    ])
+  })
+
+  it('operator iz adrese ostaje u polju, ne pregazi ga podrazumevani', () => {
+    expect(open({ registarskaOznaka: ['starts_with', 'BG'] }).filterModel.value.registarskaOznaka).toStrictEqual([
+      'starts_with',
+      'BG',
     ])
   })
 
@@ -231,7 +253,7 @@ describe('filter', () => {
     const model = open()
     const [, cmd] = update(
       filterMsg(Filter.submitted()),
-      update(change(model, { datumPrveRegistracije: [new Date(2020, 0, 1), null] }), model)[0],
+      update(change(model, { datumPrveRegistracije: DateFilter.fromEnds([new Date(2020, 0, 1), null]) }), model)[0],
     )
     expect(await pushedUrls(cmd)).toStrictEqual([
       '/evidencija-vozila/vozila?order=registarskaOznaka&dir=ASC&datumPrveRegistracije=after_or_same&datumPrveRegistracije=2020-01-01&stanje=eq&stanje=AKTIVAN',

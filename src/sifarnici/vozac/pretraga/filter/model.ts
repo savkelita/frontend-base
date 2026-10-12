@@ -1,28 +1,29 @@
 import { Schema } from 'effect'
 import type * as Combo from '../../../../common/domain/combo'
-import * as Name from '../../../../common/domain/name'
+import * as EnumFilter from '../../../../common/pretraga/filter-enum'
+import * as TextFilter from '../../../../common/pretraga/filter-text'
 import * as Kategorija from '../../../domain/kategorija-vozaca'
 import * as StanjeVozaca from '../../../domain/stanje-vozaca'
 
 export type FormValue = {
-  readonly ime: Name.Form
-  readonly prezime: Name.Form
-  readonly imeZaPrikaz: Name.Form
-  readonly email: Name.Form
-  readonly telefon: Name.Form
+  readonly ime: TextFilter.Form
+  readonly prezime: TextFilter.Form
+  readonly imeZaPrikaz: TextFilter.Form
+  readonly email: TextFilter.Form
+  readonly telefon: TextFilter.Form
   readonly kategorija: Kategorija.Form
-  readonly stanje: StanjeVozaca.Form
+  readonly stanje: EnumFilter.Form<StanjeVozaca.Value>
 }
 
 export const vForm = () =>
   Schema.Struct({
-    ime: Schema.NullOr(Name.vForm),
-    prezime: Schema.NullOr(Name.vForm),
-    imeZaPrikaz: Schema.NullOr(Name.vForm),
-    email: Schema.NullOr(Name.vForm),
-    telefon: Schema.NullOr(Name.vForm),
+    ime: TextFilter.vForm(),
+    prezime: TextFilter.vForm(),
+    imeZaPrikaz: TextFilter.vForm(),
+    email: TextFilter.vForm(),
+    telefon: TextFilter.vForm(),
     kategorija: Schema.NullOr(Kategorija.vForm),
-    stanje: Schema.NullOr(StanjeVozaca.vForm),
+    stanje: EnumFilter.vForm(StanjeVozaca.KEYS),
   })
 
 export type Model = {

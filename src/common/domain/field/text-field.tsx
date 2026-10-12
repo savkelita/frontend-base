@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { FormField } from './form-field'
 
 export interface TextFieldOptions {
+  readonly className?: string
   readonly type?: 'text' | 'password' | 'email'
   readonly autoComplete?: string
   readonly autoFocus?: boolean
@@ -12,9 +13,10 @@ export interface TextFieldOptions {
 
 export type TextForm = string | null
 
-export const textField = (l: Locals<TextForm, TextFieldOptions>): ReactNode => (
-  <FormField l={l}>
+export const textControl = (l: Locals<TextForm, TextFieldOptions>): ReactNode => (
+  <>
     <Input
+      {...(l.className === undefined ? {} : { className: l.className })}
       id={l.id}
       name={l.name}
       type={l.type ?? 'text'}
@@ -25,5 +27,9 @@ export const textField = (l: Locals<TextForm, TextFieldOptions>): ReactNode => (
       {...(l.autoFocus === undefined ? {} : { autoFocus: l.autoFocus })}
       onChange={(_e, data) => l.onChange(data.value === '' ? null : data.value)}
     />
-  </FormField>
+  </>
+)
+
+export const textField = (l: Locals<TextForm, TextFieldOptions>): ReactNode => (
+  <FormField l={l}>{textControl(l)}</FormField>
 )

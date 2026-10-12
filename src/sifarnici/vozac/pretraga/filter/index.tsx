@@ -4,8 +4,10 @@ import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Combo from '../../../../common/domain/combo'
 import * as Form from '../../../../common/form'
-import { contains, eq, predicateValue, stateValue } from '../../../../common/pretraga'
+import { stateValue } from '../../../../common/pretraga'
 import { filterButton, filterView } from '../../../../common/pretraga/components/filter-drawer'
+import * as EnumFilter from '../../../../common/pretraga/filter-enum'
+import * as TextFilter from '../../../../common/pretraga/filter-text'
 import type { VozacCriteria } from '../../../api'
 import * as Kategorija from '../../../domain/kategorija-vozaca'
 import { vForm, type FormValue, type Model } from './model'
@@ -41,13 +43,13 @@ export const init = (criteria: VozacCriteria, state: unknown, previous?: Model):
   return [
     {
       value: {
-        ime: predicateValue(criteria.ime),
-        prezime: predicateValue(criteria.prezime),
-        imeZaPrikaz: predicateValue(criteria.imeZaPrikaz),
-        email: predicateValue(criteria.email),
-        telefon: predicateValue(criteria.telefon),
+        ime: criteria.ime ?? null,
+        prezime: criteria.prezime ?? null,
+        imeZaPrikaz: criteria.imeZaPrikaz ?? null,
+        email: criteria.email ?? null,
+        telefon: criteria.telefon ?? null,
         kategorija,
-        stanje: predicateValue(criteria.stanje),
+        stanje: criteria.stanje ?? null,
       },
       isOpen: previous?.isOpen ?? true,
       kategorijaCombo,
@@ -74,13 +76,13 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
   })
 
 export const toCriteria = (value: FormValue): VozacCriteria => ({
-  ime: contains(value.ime),
-  prezime: contains(value.prezime),
-  imeZaPrikaz: contains(value.imeZaPrikaz),
-  email: contains(value.email),
-  telefon: contains(value.telefon),
+  ime: TextFilter.toCriteria(value.ime),
+  prezime: TextFilter.toCriteria(value.prezime),
+  imeZaPrikaz: TextFilter.toCriteria(value.imeZaPrikaz),
+  email: TextFilter.toCriteria(value.email),
+  telefon: TextFilter.toCriteria(value.telefon),
   kategorijaID: value.kategorija?.id,
-  stanje: eq(value.stanje),
+  stanje: EnumFilter.toCriteria(value.stanje),
 })
 
 const options = (model: Model, dispatch: Platform.Dispatch<Msg>): Form.Options<FormValue> => ({

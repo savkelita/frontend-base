@@ -1,21 +1,23 @@
 import { Schema } from 'effect'
-import * as DateRange from '../../../../../common/domain/date-range'
-import * as Name from '../../../../../common/domain/name'
+import * as DateFilter from '../../../../../common/pretraga/filter-date'
+import * as EnumFilter from '../../../../../common/pretraga/filter-enum'
+import * as TextFilter from '../../../../../common/pretraga/filter-text'
+import { OZNAKA_OPERATORI } from '../../../../../evidencija-vozila/api'
 import * as VoziloStanje from '../../../../../evidencija-vozila/domain/vozilo-stanje'
 
 export type FormValue = {
-  readonly registarskaOznaka: Name.Form
-  readonly markaVozila: Name.Form
-  readonly datumIsticanjaRegistracije: DateRange.Form | null
-  readonly stanje: VoziloStanje.Form
+  readonly registarskaOznaka: TextFilter.Form
+  readonly markaVozila: TextFilter.Form
+  readonly datumIsticanjaRegistracije: DateFilter.Form
+  readonly stanje: EnumFilter.Form<VoziloStanje.Value>
 }
 
 export const vForm = () =>
   Schema.Struct({
-    registarskaOznaka: Schema.NullOr(Name.vForm),
-    markaVozila: Schema.NullOr(Name.vForm),
-    datumIsticanjaRegistracije: Schema.NullOr(DateRange.vForm),
-    stanje: Schema.NullOr(VoziloStanje.vForm),
+    registarskaOznaka: TextFilter.vForm(OZNAKA_OPERATORI),
+    markaVozila: TextFilter.vForm(),
+    datumIsticanjaRegistracije: DateFilter.vForm(),
+    stanje: EnumFilter.vForm(VoziloStanje.KEYS),
   })
 
 export type Model = {

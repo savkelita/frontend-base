@@ -1,8 +1,10 @@
 import type * as Platform from 'tea-effect/Platform'
 import type * as TeaReact from 'tea-effect/React'
 import * as Form from '../../../../../common/form'
-import { contains, eq, predicateValue, range, rangeValue } from '../../../../../common/pretraga'
 import { filterBar } from '../../../../../common/pretraga/components/filter-bar'
+import * as DateFilter from '../../../../../common/pretraga/filter-date'
+import * as EnumFilter from '../../../../../common/pretraga/filter-enum'
+import * as TextFilter from '../../../../../common/pretraga/filter-text'
 import type { VoziloCriteria } from '../../../../../evidencija-vozila/api'
 import { vForm, type FormValue, type Model } from './model'
 import { Msg, changed, cleared, submitted } from './msg'
@@ -19,10 +21,10 @@ export const EMPTY: FormValue = {
 
 export const init = (criteria: VoziloCriteria): Model => ({
   value: {
-    registarskaOznaka: predicateValue(criteria.registarskaOznaka),
-    markaVozila: predicateValue(criteria.markaVozila),
-    datumIsticanjaRegistracije: rangeValue(criteria.datumIsticanjaRegistracije),
-    stanje: predicateValue(criteria.stanje),
+    registarskaOznaka: criteria.registarskaOznaka ?? null,
+    markaVozila: criteria.markaVozila ?? null,
+    datumIsticanjaRegistracije: DateFilter.fromCriteria(criteria.datumIsticanjaRegistracije),
+    stanje: criteria.stanje ?? null,
   },
 })
 
@@ -34,10 +36,10 @@ export const update = (msg: Msg, model: Model): Model =>
   })
 
 export const toCriteria = (value: FormValue): VoziloCriteria => ({
-  registarskaOznaka: contains(value.registarskaOznaka),
-  markaVozila: contains(value.markaVozila),
-  datumIsticanjaRegistracije: range(value.datumIsticanjaRegistracije),
-  stanje: eq(value.stanje),
+  registarskaOznaka: TextFilter.toCriteria(value.registarskaOznaka),
+  markaVozila: TextFilter.toCriteria(value.markaVozila),
+  datumIsticanjaRegistracije: DateFilter.toCriteria(value.datumIsticanjaRegistracije),
+  stanje: EnumFilter.toCriteria(value.stanje),
 })
 
 const options: Form.Options<FormValue> = {

@@ -48,15 +48,19 @@ const DateRangeView = ({ l }: { l: Locals<DateRangeForm | null, DateRangeFieldOp
   }
 
   return (
-    <FormField l={l}>
-      <div className={styles.row}>
-        <DatePicker {...common} id={l.id} name={`${l.name}.od`} value={od} placeholder="Od" onSelectDate={pick(0)} />
-        <DatePicker {...common} name={`${l.name}.do`} value={doDatuma} placeholder="Do" onSelectDate={pick(1)} />
-      </div>
-    </FormField>
+    <div className={styles.row}>
+      <DatePicker {...common} id={l.id} name={`${l.name}.od`} value={od} placeholder="Od" onSelectDate={pick(0)} />
+      <DatePicker {...common} name={`${l.name}.do`} value={doDatuma} placeholder="Do" onSelectDate={pick(1)} />
+    </div>
   )
 }
 
-export const dateRangeField = (l: Locals<DateRangeForm | null, DateRangeFieldOptions>): ReactNode => (
+export const dateRangeControl = (l: Locals<DateRangeForm | null, DateRangeFieldOptions>): ReactNode => (
   <DateRangeView l={l} />
+)
+
+export const dateRangeField = (l: Locals<DateRangeForm | null, DateRangeFieldOptions>): ReactNode => (
+  <FormField l={l}>
+    <DateRangeView l={l} />
+  </FormField>
 )

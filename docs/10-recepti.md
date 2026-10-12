@@ -87,41 +87,96 @@ bez prava.
 
 ## Novo polje u filteru
 
+Polje se dodaje na dva mesta: u kriterijum (sta adresa i server primaju) i u filter (sta korisnik
+vidi). Ruta se ne dira ni u jednom slucaju — `pretragaQuery` polje pokupi iz kriterijuma.
+
 **Tekst:**
 
 ```ts
-// api/types.ts
-naziv: Schema.optional(ioStringPredicate) // ioStavkaCriteria
-// filter/model.ts
-naziv: Name.Form
-// vForm()
-naziv: Schema.NullOr(Name.vForm)
-// filter/index.tsx
-naziv: predicateValue(criteria.naziv)     // init
-naziv: contains(value.naziv)              // toCriteria
-naziv: { label: 'Naziv' }                 // options.fields
-{locals.inputs.naziv}                     // options.template
+naziv: Schema.optional(ioStringPredicate),      // api/types.ts, u ioStavkaCriteria
+
+readonly naziv: TextFilter.Form                 // filter/model.ts, FormValue
+naziv: TextFilter.vForm(),                      // filter/model.ts, vForm()
+
+naziv: null,                                    // filter/index.tsx, EMPTY
+naziv: criteria.naziv ?? null,                  // init
+naziv: TextFilter.toCriteria(value.naziv),      // toCriteria
+naziv: { label: 'Naziv' },                      // options.fields
+{locals.inputs.naziv}                           // options.template
 ```
 
-**Enum:** isto, ali `Schema.optional(ioEnumPredicate(Stanje.ioValue))` u kriterijumu i
-`eq(value.stanje)` / `predicateValue`.
+Tekst i enum se iz adrese ne prevode — vrednost kriterijuma vec jeste vrednost polja.
 
-**Opseg datuma:**
+**Enum:** isto, uz `Schema.optional(ioEnumPredicate(Stanje.ioValue))` u kriterijumu i
+`EnumFilter.vForm(Stanje.KEYS)` u semi. Zato enum modul izvozi i `KEYS`, ne samo `vForm`.
+
+**Broj:**
 
 ```ts
-datumOd: Schema.optional(ioDatePredicate)      // ioStavkaCriteria
-datumOd: DateRange.Form                        // filter/model.ts (tip je opseg, jedno polje)
-datumOd: Schema.NullOr(DateRange.vForm)        // vForm()
-datumOd: rangeValue(criteria.datumOd)          // init
-datumOd: range(value.datumOd)                  // toCriteria
+predjenaKm: Schema.optional(ioNumberPredicate),                   // kriterijum
+readonly predjenaKm: NumberFilter.Form                            // FormValue
+predjenaKm: NumberFilter.vForm(),                                 // vForm(), ceo broj
+predjenaKm: NumberFilter.fromCriteria(criteria.predjenaKm),       // init
+predjenaKm: NumberFilter.toCriteria(value.predjenaKm),            // toCriteria
 ```
 
-Ruta se ne dira ni u jednom slucaju — `pretragaQuery` polje pokupi iz kriterijuma.
+`vForm(2)` je polje sa dve decimale, i tada ide `fromCriteria(p, 2)` — on vraca zapis kakav se
+kuca (`1.234,50`), a zica nosi `1234.5`. Polje je obican tekst sa proverom unosa, nikad
+`type="number"`.
+
+**Datum:**
+
+```ts
+datumIsticanja: Schema.optional(ioDatePredicate),                 // kriterijum
+readonly datumIsticanja: DateFilter.Form                          // FormValue
+datumIsticanja: DateFilter.vForm(),                               // vForm()
+datumIsticanja: DateFilter.fromCriteria(criteria.datumIsticanja), // init
+datumIsticanja: DateFilter.toCriteria(value.datumIsticanja),      // toCriteria
+```
+
+Jedan unos u `FormValue`, dva kraja u prikazu, operator se bira sam.
 
 **Combo:** polje, poruka, combo model, `Combo.init` u `init`, grana u `update` sa `Combo.step`,
-`ioValue` u `ioState`, `id` u `toCriteria`, `Combo.empty()` u `Cleared`.
+`ioValue` u `ioState`, `id` u `toCriteria`, `Combo.empty()` u `Cleared`. Combo salje identifikator
+(`ioId`) i operator nema. Izuzetak je lista bez identifikatora (marka, model vozila): ona ide kao
+`ioStringPredicate` sa `eq`, a nazad se cita kroz `fromText`.
 
-Kad dodas polje, dodaj i njegov generator u `test/route.test.ts`.
+### Kad polje sme samo neke operatore
+
+Spisak stoji uz kriterijum, pod svojim imenom, i citaju ga oba mesta:
+
+```ts
+// api/types.ts
+export const OZNAKA_OPERATORI: ReadonlyArray<StringOperator> = ['contains', 'starts_with']
+
+export const ioVoziloCriteria = Schema.Struct({
+  registarskaOznaka: Schema.optional(ioStringPredicateOf(OZNAKA_OPERATORI)),
+})
+
+// filter/model.ts
+registarskaOznaka: TextFilter.vForm(OZNAKA_OPERATORI),
+```
+
+Jedan operator u spisku — dugmeta nema. Operator van spiska — adresa nema rutu, korisnik dobija 404.
+Spisak se prepisuje iz PJ-a, ne bira se u hodu:
+[03 API sloj](03-api.md#suzenje-je-brava-a-brava-je-404).
+
+### Generator u `test/route.test.ts`
+
+Svako novo polje dobija i generator, inace property test ne zna za njega. Generator mora da pravi
+**samo ono sto kodek prima**, jer test trazi da upit prezivi adresu nepromenjen:
+
+```ts
+const stringPredicateOf = (operators: ReadonlyArray<StringOperator>) =>
+  FastCheck.tuple(FastCheck.constantFrom(...operators), tekst)
+
+const enumPredicate = <A>(value: Schema.Schema<A>) =>
+  FastCheck.tuple(Arbitrary.make(ioEnumOperator), Arbitrary.make(value), FastCheck.array(Arbitrary.make(value)))
+    .map(([operator, first, rest]) => [operator, first, ...(isList(operator) ? rest : [])] as const)
+```
+
+Enum uvek dobije bar jednu vrednost, a vise njih samo uz `in`. Brojcano polje dobija brojcani tekst,
+jer `ioNumberPredicate` proverava i vrednost, ne samo operator.
 
 ---
 
@@ -162,6 +217,10 @@ export type Value = Schema.Schema.Type<ReturnType<typeof vForm>>
 
 `FormValue.ime` ostaje `Name.Form`, dakle i dalje sme `null`. Nacrt je sirok, sema je uska. Poruka
 "Podatak je obavezan" vec postoji u `Text.vForm` i `Combo.vForm` — ne dopisuje se.
+
+Obavezno polje je ovde **domensko** (`Name.vForm`), a ne `TextFilter.vForm()`: filter moduli nose
+`Schema.NullOr` u sebi i iz njega se spolja ne izlazi. Cena je da takvo polje nema izbor operatora,
+sto je za obavezan kriterijum do sada uvek bilo tacno.
 
 ### 2. Filter pamti da je pretraga zatrazena
 

@@ -23,9 +23,10 @@ src/
 │   ├── form/               omotac oko effect-form + dijalozi
 │   ├── http/               XSRF, get/post, ObjekatIdentifikator
 │   ├── memo/               memoize po identitetu
-│   ├── pretraga/           predikati, sortiranje, strane, komponente
+│   ├── pretraga/           operatori, predikati, polja filtera, sortiranje, strane, komponente
 │   ├── theme/              globalni stilovi
 │   └── toast/              notifikacije
+├── testing/                alat za testove (DOM), ne ucestvuje u aplikaciji
 ├── sifarnici/              oblast
 │   ├── api/                routes.ts + types.ts
 │   ├── domain/             domenski tipovi oblasti
@@ -50,7 +51,8 @@ Folder se zove po tome **sta radi**, ne po tehnickoj vrsti (`components`, `views
 vise oblasti, sele se u `common/domain`.
 
 **Testovi u `test/` pored modula.** `src/sifarnici/vozac/pretraga/test/update.test.ts`. Nikad
-paralelno stablo `__tests__` u korenu.
+paralelno stablo `__tests__` u korenu. Ono **cime** se testira nije test i ne stoji u `test/` nego u
+`src/testing/` — vidi [08 Testiranje](08-testiranje.md#prikaz-koji-se-klikce).
 
 **Barel fajl nema logiku.** `index.ts` koji sadrzi samo `export * from './form'` je u redu. Cim
 barel pocne da racuna nesto, to nije barel nego modul kome fali ime.

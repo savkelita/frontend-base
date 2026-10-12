@@ -11,8 +11,9 @@ src/sifarnici/vozac/pretraga/
     └── view.test.ts
 ```
 
-`.tsx` testovi se ne pokupljaju (`include: ['src/**/*.test.ts']`). Ako testu treba JSX, ide kroz
-`renderToStaticMarkup`, ne kroz `.tsx` fajl.
+`.tsx` testovi se ne pokupljaju (`include: ['src/**/*.test.ts']`). Testu zato ostaju dva puta do
+elementa: `renderToStaticMarkup` nad onim sto `view` vec vraca, ili `createElement(Komponenta, props)`
+kad se komponenta crta sama. JSX u testu ne postoji.
 
 ## Sta se testira
 
@@ -21,7 +22,8 @@ src/sifarnici/vozac/pretraga/
 | `update` | Tu je sva logika. Cista funkcija, bez mock-ova |
 | Ruta u oba smera | Kriterijumi prezive adresu bez gubitka |
 | Prikaz, samo za autorizaciju | Jer je prikaz jedini cuvar |
-| Cisti pomocni moduli (`predicate`, `telefon`, `number`, `error`) | Pravila koja se lako tiho pokvare |
+| Cisti pomocni moduli (`predicate`, `filter-*`, `telefon`, `number`, `error`) | Pravila koja se lako tiho pokvare |
+| Polje koje nosi pravilo (operator, odbijanje unosa, `Esc`) | Ponasanje koje se ne vidi u ispisu |
 
 Ne testira se: da Fluent crta dugme, da React postavlja `className`, da `Schema.String` odbija broj.
 
@@ -82,11 +84,37 @@ it('nema ga bez funkcionalnosti', () => {
 
 `dispatch` je `() => {}` — u testu nema petlje.
 
+## Prikaz koji se klikce
+
+`renderToStaticMarkup` odgovara na pitanje "ima li dugmeta" i za vecinu prikaza je dovoljan. Kad
+pravilo zivi u ponasanju a ne u ispisu — meni koji se otvara, polje koje odbija slovo, `Esc` nad
+dijalogom — test mora da klikne. Takav fajl trazi `happy-dom`, a radnje uzima iz `src/testing/dom.ts`:
+
+| | |
+|---|---|
+| `mount(element)` / `unmount()` | React koren kroz `act`; uz `afterEach(unmount)` |
+| `click(element)`, `escape()` | dogadjaji |
+| `type(text, index?)` | kucanje kroz izvorni setter, jer je polje kontrolisano |
+| `button(label)`, `buttons()`, `input(index?)`, `inputs()` | pronalazenje |
+| `menuItems()`, `menuLabels()` | stavke menija (`role="menuitemradio"`) |
+
+`src/testing/` nije `test/`: u `test/` pored modula stoje njegovi testovi, u `testing/` ono **cime**
+se testira. Nije pod `common/`, jer ne ucestvuje u aplikaciji.
+
+I takav test proverava pravilo, ne Fluent: da `IN` pretvara listu u visestruku, da jedan ponudjen
+operator ne prikazuje dugme, da `Esc` nad pitanjem vraca na formu umesto da zatvori dijalog. Da
+Fluent ume da nacrta meni ne proverava niko.
+
 ## Okruzenje
 
-`environment: 'node'`. Nema DOM-a, nema `window`-a. Test ne moze da klikne dugme; to nije
-propust nego granica: sve sto se moze kliknuti mora da se svede na poruku, a poruke se testiraju
-kroz `update`.
+`environment: 'node'` je podrazumevano i vazi za vecinu testova — `update` je cista funkcija i DOM
+mu ne treba. Fajl kome DOM treba to kaze u prvom redu:
+
+```ts
+// @vitest-environment happy-dom
+```
+
+To je pragma, ne komentar, i ne brise se.
 
 **Vremenska zona je fiksirana** na `Europe/Belgrade`:
 

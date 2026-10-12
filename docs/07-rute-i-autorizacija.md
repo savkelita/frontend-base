@@ -32,6 +32,17 @@ const PERMISSIONS_BY_ROUTE: Record<Route['_tag'], ReadonlyArray<Permission>> = {
 Kljuc je `Route['_tag']`, ne `string`, i nema `?? []` na citanju. Ruta bez unosa pada na kompajleru
 umesto da tiho postane javna. Ruta koja stvarno ne trazi nista se to i kaze, praznim spiskom.
 
+## Sta ruta prima
+
+Ruta nije samo putanja nego i upit. `RouteQuery` kaze koje kriterijume ekran prima, a `Router.parse`
+odbija sve ostalo: nepoznato stanje u `?stanje=`, ali i operator koji polje ne nudi. Takva adresa
+nema rutu i zavrsava kao 404 — ne kao prazna pretraga i ne kao zahtev koji server odbije. Spisak
+operatora po polju dolazi iz PJ-a:
+[03 API sloj](03-api.md#suzenje-je-brava-a-brava-je-404).
+
+Rucno otkucana adresa je zato prvo o cemu se misli pri projektovanju rute, kao i kod autorizacije:
+ekran sme da primi samo ono sto ume da prikaze.
+
 ## Dodavanje rute
 
 Sest koraka. Kompajler ce prijaviti svaki propusten osim poslednjeg.

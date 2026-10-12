@@ -30,6 +30,7 @@ poziva:
 |---|---|
 | Pretraga sa CRUD dijalozima | `src/sifarnici/vozac/pretraga/` |
 | Pretraga sa bogatim filterom (datumi, kaskada) | `src/evidencija-vozila/vozilo/pretraga/` |
+| Polje filtera sa izborom operatora | `src/common/pretraga/filter-text.ts` i ostala `filter-*` |
 | Kreiranje | `src/sifarnici/vozac/kreiranje/` |
 | Azuriranje (ucitava pa menja) | `src/sifarnici/vozac/azuriranje/` |
 | Brisanje (potvrda) | `src/sifarnici/vozac/brisanje/` |

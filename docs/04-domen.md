@@ -40,7 +40,7 @@ je vredniji od uklonjenog mrtvog export-a.
 | `number` | Broj | `vForm(decimals, maxIntegerDigits)` |
 | `int` | Ceo broj | 0 decimala, 10 cifara |
 | `decimal` | Decimalni broj | 2 decimale, 16 cifara |
-| `boolean` | Da / Ne | |
+| `boolean` | Da / Ne | labele se menjaju kroz `yes` / `no` |
 | `date` | Datum | |
 | `date-range` | Opseg datuma | dva polja, oba opciona |
 | `date-time` | Datum i vreme | samo kodek (`api/`), nema polje |
@@ -91,6 +91,27 @@ Dve stvari koje `FormField` resava, a rucno pisan `<Field>` ne:
 
 `field/test/form-field.test.ts` iscrta svaki tip polja i trazi da svako `for` pogodi element koji
 sme da nosi labelu.
+
+### Kontrola i polje su dva izvoza
+
+Polje je kontrola plus `FormField` oko nje. Kad ista kontrola treba i unutar neceg drugog — polje
+filtera je dugme operatora plus kontrola u istom redu — izvozi se i gola kontrola:
+
+```tsx
+export const textControl = (l: Locals<TextForm, TextFieldOptions>): ReactNode => <Input ... />
+
+export const textField = (l: Locals<TextForm, TextFieldOptions>): ReactNode => (
+  <FormField l={l}>{textControl(l)}</FormField>
+)
+```
+
+Tako postoje i `dropdownControl`, `dropdownControlMulti`, `numberControl` i `dateRangeControl`.
+Kontrola prima `className`, jer o sirini odlucuje onaj ko je smesta u red; polje ga ne koristi.
+`FormField` je pritom tacno jednom u lancu, pa nad jednom kontrolom nikad ne stoje dve labele.
+
+Polja filtera (`field/filter-field.tsx`) i meni operatora (`field/operator-menu.tsx`) stoje ovde, uz
+ostala polja, ali nisu domenski tipovi — semu im daje `common/pretraga`, a crtaju se iz nje kao i
+sve drugo. Vidi [06 Pretraga](06-pretraga.md#polje-filtera-nije-polje-forme).
 
 ## Enum
 

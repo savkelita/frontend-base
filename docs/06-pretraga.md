@@ -191,27 +191,99 @@ Filter nikad sam ne menja adresu. On javi `Submitted`, ekran odluci.
 Filter ima tri zadatka: da drzi vrednosti, da ih pretvori u kriterijume, i da ih vrati nazad kada se
 ekran obnavlja iz adrese.
 
+### Polje filtera nije polje forme
+
+Polje u dijalogu i polje u fioci nisu ista stvar:
+
+| | forma | filter |
+|---|---|---|
+| prazno polje | greska, ako je obavezno | "ne filtriraj po tome" |
+| duzina, obrazac | validira se | ne proverava se, server ce reci |
+| sta nosi | vrednost | vrednost **i operator** |
+
+Zato filter ne koristi domenska polja (`Name.vForm`, `Int.vForm`) nego cetiri modula iz
+`common/pretraga`:
+
+| Modul | `vForm(...)` | Sta korisnik vidi |
+|---|---|---|
+| `filter-text` | `vForm(operatori?)` | dugme operatora + polje za unos |
+| `filter-enum` | `vForm(KEYS, operatori?, dozvoljene?)` | dugme operatora + padajuca lista |
+| `filter-number` | `vForm(decimale?, operatori?)` | dugme operatora + broj, uz `between` dva |
+| `filter-date` | `vForm()` | dva polja za datum, bez dugmeta |
+
 ```ts
-export const toCriteria = (value: FormValue): VozacCriteria => ({
-  ime: contains(value.ime),
-  kategorijaID: value.kategorija?.id,
-  stanje: eq(value.stanje),
+export type FormValue = {
+  readonly registarskaOznaka: TextFilter.Form
+  readonly stanje: EnumFilter.Form<VoziloStanje.Value>
+  readonly datumIsticanjaRegistracije: DateFilter.Form
+}
+
+export const vForm = () =>
+  Schema.Struct({
+    registarskaOznaka: TextFilter.vForm(OZNAKA_OPERATORI),
+    stanje: EnumFilter.vForm(VoziloStanje.KEYS),
+    datumIsticanjaRegistracije: DateFilter.vForm(),
+  })
+```
+
+`Schema.NullOr` se ovde ne pise — modul ga nosi, jer prazno polje u filteru nije izuzetak nego
+pravilo.
+
+### Operator bira korisnik, iz onoga sto ruta prima
+
+Podrazumevano polje nudi sve operatore svog tipa. Kad `vForm` dobije uzi spisak, meni nudi tacno
+njega — i isti spisak stoji u kriterijumu, pa se meni i adresa ne mogu razici:
+
+```ts
+registarskaOznaka: Schema.optional(ioStringPredicateOf(OZNAKA_OPERATORI)),   // api/types.ts
+registarskaOznaka: TextFilter.vForm(OZNAKA_OPERATORI),                       // filter/model.ts
+```
+
+Zasto spisak uopste postoji i zasto je operator van njega 404:
+[03 API sloj](03-api.md#suzenje-je-brava-a-brava-je-404). Jedan operator u spisku znaci da dugmeta
+nema — nema sta da se bira.
+
+Enum sa `in` menja i kontrolu: dok je operator `in` lista je visestruka, a cim se izabere `eq` ili
+`neq` ostaje prva izabrana vrednost. Datum nema meni; operator se izvodi iz toga koji je kraj
+popunjen:
+
+| od | do | operator |
+|---|---|---|
+| ima | ima | `between` |
+| ima | — | `after_or_same` |
+| — | ima | `before_or_same` |
+
+Zato se i ne proverava da je "od" pre "do". Oba kraja su nezavisna, a jedan popunjen je smislen
+upit.
+
+### Oba smera
+
+```ts
+export const toCriteria = (value: FormValue): VoziloCriteria => ({
+  registarskaOznaka: TextFilter.toCriteria(value.registarskaOznaka),
+  stanje: EnumFilter.toCriteria(value.stanje),
+  datumIsticanjaRegistracije: DateFilter.toCriteria(value.datumIsticanjaRegistracije),
 })
 ```
 
+`toCriteria` vraca `undefined` za prazno polje, sto je tacno ono sto kriterijum ocekuje. Prazno je i
+polje u kome stoji samo operator, i polje sa `between` kome fali drugi kraj.
+
+U povratku iz adrese tekst i enum **ne treba prevoditi** — vrednost kriterijuma jeste vrednost
+polja. Datum i broj se prevode, jer polje drzi `Date` odnosno otkucan tekst (`1.234,50`), a zica
+nosi `2026-01-15` odnosno `1234.5`:
+
 ```ts
-export const init = (criteria: VozacCriteria, state: unknown, previous?: Model): [Model, Cmd.Cmd<Msg>] => {
-  const [kategorija, kategorijaCombo, comboCmd] = Combo.init(
-    criteria.kategorijaID,
-    [fromState(state)?.kategorija, previous?.value.kategorija],
-    Kategorija.search,
-  )
-  return [{ value: { ime: predicateValue(criteria.ime), kategorija, ... }, isOpen: previous?.isOpen ?? true, kategorijaCombo },
-          Cmd.map(kategorijaMsg)(comboCmd)]
-}
+export const init = (criteria: VoziloCriteria): Model => ({
+  value: {
+    registarskaOznaka: criteria.registarskaOznaka ?? null,
+    stanje: criteria.stanje ?? null,
+    datumIsticanjaRegistracije: DateFilter.fromCriteria(criteria.datumIsticanjaRegistracije),
+  },
+})
 ```
 
-`predicateValue` i `rangeValue` su obrnuti smer od `contains` / `eq` / `range`.
+Combo je treci slucaj: adresa nosi identifikator, a polje trazi ceo objekat.
 
 ### Zasto `state`
 
@@ -248,6 +320,10 @@ Jedini izuzetak je obavezan kriterijum: polje bez kojeg se ne sme pretrazivati. 
 `Schema.NullOr`, filter dobija `showErrors`, `issues` dolaze iz `Form.visibleIssues`, a gola adresa
 prestaje da bude pretraga. Ceo postupak:
 [10 Recepti — Obavezan kriterijum pretrage](10-recepti.md#obavezan-kriterijum-pretrage).
+
+Obavezno polje je zato **domensko polje** (`Name.vForm`), bez izbora operatora: filter moduli nose
+`Schema.NullOr` u sebi i iz njega se ne izlazi spolja. Kad zatreba obavezno polje **sa** operatorom,
+dopunjuje se filter modul — ne zaobilazi se na ekranu rucno sklopljenom semom.
 
 `filterView` daje fioku, dugmad `Pretrazi` / `Ponisti` i memoizaciju. `fields`, `toggled`,
 `submitted` i `cleared` su konstante na nivou modula, pa poredjenje props-a staje na modelu filtera.

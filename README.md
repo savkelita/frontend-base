@@ -1,22 +1,16 @@
 # frontend-base
 
-Base project for admin/dashboard applications using the
+Base project for admin applications using the
 [tea-effect](https://github.com/savkelita/tea-effect) architecture.
 
 > **Developer documentation lives in [docs/](docs/README.md)** (Serbian). It is the source of truth
-> for how work is done in this project: module layout, naming, API conventions, forms, search
+> for how work is done here: module layout, naming, API conventions, domain types, forms, search
 > screens, routes, authorization, testing, and step-by-step recipes. Read it before writing code.
 
-## Tech Stack
+## Requirements
 
-- **Architecture**: tea-effect (The Elm Architecture + Effect-TS)
-- **Forms**: [effect-form](https://www.npmjs.com/package/effect-form) — the schema carries the widget
-- **UI**: React 18 + Fluent UI 9
-- **Language**: TypeScript 5.9
-- **Build**: Webpack 5 + Babel
-- **Linting**: ESLint 9 (flat config) + Prettier 3
-- **Testing**: Vitest + @effect/vitest (property tests via `effect`'s `FastCheck`)
-- **Git Hooks**: Husky + lint-staged + commitlint
+- **Node 20 or newer** (developed on 24)
+- **Yarn 1.22** (classic)
 
 ## Getting Started
 
@@ -27,17 +21,37 @@ yarn start
 
 Open https://localhost:3000
 
+## Tech Stack
+
+- **Architecture**: tea-effect (The Elm Architecture + Effect)
+- **Forms**: [effect-form](https://www.npmjs.com/package/effect-form) — the schema carries the widget
+- **UI**: React 18 + Fluent UI 9
+- **Language**: TypeScript 5
+- **Build**: Webpack 5 + Babel
+- **Linting**: ESLint 9 (flat config) + Prettier 3
+- **Testing**: Vitest, `@effect/vitest` for `TestClock`, property tests through `effect`'s `FastCheck`
+- **Git hooks**: Husky + lint-staged + commitlint
+
+## Before You Call It Done
+
+```sh
+yarn checkts && yarn lint && yarn test:unit
+```
+
+Continuous integration runs on Azure Pipelines. The pre-commit hook runs lint-staged (ESLint +
+Prettier) and `tsc`; that is not a substitute for the command above.
+
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
 | `yarn start` | Dev server at https://localhost:3000 |
-| `yarn build` | Production build to dist/ |
+| `yarn build` | Production build to `dist/` |
 | `yarn checkts` | TypeScript type checking |
 | `yarn lint` | ESLint check |
 | `yarn test:unit` | Run unit tests (Vitest) |
 | `yarn test:watch` | Run tests in watch mode |
-| `yarn test` | Full verification: prettier + checkts + unit tests |
+| `yarn test` | prettier + checkts + unit tests |
 | `yarn fix-lint` | Auto-fix ESLint issues |
 | `yarn fix-prettier` | Auto-fix formatting |
 
@@ -62,7 +76,7 @@ src/
 ├── navigation/             Side drawer navigation
 ├── login/                  Two-step sign-in (identify, then pick role)
 ├── home/                   Home page
-├── auth/                   Session, funkcionalnosti, roles
+├── auth/                   Session, permissions, roles, expiration
 ├── common/                 Shared building blocks
 │   ├── audit/              Audit schema + table cell
 │   ├── domain/             Domain types and form fields
@@ -71,11 +85,12 @@ src/
 │   ├── form/               effect-form wrapper + dialogs
 │   ├── http/               XSRF-aware get/post, ObjekatIdentifikator
 │   ├── memo/               Identity-keyed memoize
-│   ├── pretraga/           Predicates, sorting, paging, table components
+│   ├── pretraga/           Operators, predicates, filter fields, sorting, paging, table
 │   ├── theme/              Global styles
 │   └── toast/              Notifications as Cmd
-├── sifarnici/              Reference-data area (vozac: search + CRUD)
-└── evidencija-vozila/      Vehicle records area (vozilo: search with rich filter)
+├── testing/                What tests use (DOM harness); not part of the application
+├── sifarnici/              Reference data (vozac: search, CRUD, detail with a nested list)
+└── evidencija-vozila/      Vehicle records (vozilo: search with a rich filter)
 ```
 
 ## TEA Module Pattern
@@ -99,42 +114,28 @@ Model -> View -> Msg -> Update -> Model
 
 See [docs/01-arhitektura.md](docs/01-arhitektura.md).
 
-## Adding a New Page
+## Adding a Screen
 
-1. Create `src/<area>/<entity>/<use-case>/` with `model.ts`, `msg.ts`, `index.tsx`; export `route`
-   and `FUNKCIONALNOSTI`
-2. Register in `src/router/route.ts` (`routes` and `routeFunkcionalnosti`)
-3. Add a variant to `src/router/screen-model.ts` and `src/router/screen-msg.ts`
-4. Wire into `startScreen`, `updateScreen`, `screenView` and `selectedNavValue` in
-   `src/router/index.tsx`
-5. Add a navigation entry in `src/navigation/config.ts`
-
-Full walkthrough: [docs/07-rute-i-autorizacija.md](docs/07-rute-i-autorizacija.md).
-
-## Git Conventions
-
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (enforced by
-commitlint):
-
-```
-feat: add user list page
-fix: resolve navigation drawer toggle
-refactor: extract shared layout component
-test: add update tests for home module
-chore: update dependencies
-```
-
-The pre-commit hook runs lint-staged (ESLint + Prettier) and `tsc` to prevent bad commits.
+Six steps, all but the last caught by the compiler:
+[docs/07-rute-i-autorizacija.md](docs/07-rute-i-autorizacija.md#dodavanje-rute). Do not invent a new
+shape — copy the nearest existing screen and change it.
 
 ## Environment Variables
 
-Defined in `src/common/env/index.ts` and injected via Webpack `DefinePlugin`.
+`src/common/env/index.ts` is the only place `process.env` is read. A new variable goes in three
+places: the `Env` type, `webpack/webpack.dev.js` and `webpack/webpack.prod.js`. See
+[docs/09-konvencije.md](docs/09-konvencije.md#promenljive-okruzenja).
 
-To add a new variable:
+## Git Conventions
 
-1. Update the `Env` type in `src/common/env/index.ts`
-2. Add the value in both `webpack/webpack.dev.js` and `webpack/webpack.prod.js`
+[Conventional Commits](https://www.conventionalcommits.org/), enforced by commitlint:
 
-## License
+```
+feat: pretraga vozila
+fix: datum se gubi na pretrazi
+refactor: enum domeni na jednu mapu
+test: property test rute za vozace
+chore(deps): podigni pakete u okviru postojecih opsega
+```
 
-MIT
+Hooks are not skipped (`--no-verify`). A failing hook fails for a reason.

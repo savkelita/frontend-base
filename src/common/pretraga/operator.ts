@@ -10,7 +10,11 @@ export const DATE_OPERATORS = ['eq', 'before', 'after', 'before_or_same', 'after
 
 export type DateOperator = (typeof DATE_OPERATORS)[number]
 
-export type Operator = StringOperator | EnumOperator | DateOperator
+export const NUMBER_OPERATORS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'between'] as const
+
+export type NumberOperator = (typeof NUMBER_OPERATORS)[number]
+
+export type Operator = StringOperator | EnumOperator | DateOperator | NumberOperator
 
 export type RangeOperator = 'between'
 
@@ -31,6 +35,10 @@ export const operatorLabel: Record<Operator, string> = {
   after: 'Posle',
   before_or_same: 'Isti dan ili pre',
   after_or_same: 'Isti dan ili posle',
+  gt: 'Vece od',
+  gte: 'Vece ili jednako',
+  lt: 'Manje od',
+  lte: 'Manje ili jednako',
   between: 'Izmedju',
   in: 'Jedno od',
 }
@@ -44,6 +52,10 @@ const CODE_POINT: Record<Operator, number> = {
   after: 8888,
   before_or_same: 8804,
   after_or_same: 8805,
+  gt: 62,
+  gte: 8805,
+  lt: 60,
+  lte: 8804,
   between: 10719,
   in: 8714,
 }

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { FormField } from './form-field'
 
 export interface NumberFieldOptions {
+  readonly className?: string
   readonly placeholder?: string
   readonly autoFocus?: boolean
 }
@@ -40,36 +41,41 @@ export const canonical = (value: NumberForm, decimals: number): NumberForm => {
   return Number.isNaN(n) ? value : format(n, decimals)
 }
 
-export const numberField = (decimals: number) => {
+export const numberControl = (decimals: number) => {
   const allowed = accepts(decimals)
 
   return (l: Locals<NumberForm, NumberFieldOptions>): ReactNode => (
-    <FormField l={l}>
-      <Input
-        id={l.id}
-        name={l.name}
-        type="text"
-        autoComplete="off"
-        inputMode={decimals === 0 ? 'numeric' : 'decimal'}
-        value={l.value ?? ''}
-        disabled={l.disabled}
-        {...(l.placeholder === undefined ? {} : { placeholder: l.placeholder })}
-        {...(l.autoFocus === undefined ? {} : { autoFocus: l.autoFocus })}
-        onChange={(_e, data) => {
-          const text = editable(data.value)
-          if (!allowed.test(text)) return
-          l.onChange(text === '' ? null : text)
-        }}
-        onFocus={() => {
-          if (l.value === null) return
-          const next = editable(l.value)
-          if (next !== l.value) l.onChange(next)
-        }}
-        onBlur={() => {
-          const next = canonical(l.value, decimals)
-          if (next !== l.value) l.onChange(next)
-        }}
-      />
-    </FormField>
+    <Input
+      {...(l.className === undefined ? {} : { className: l.className })}
+      id={l.id}
+      name={l.name}
+      type="text"
+      autoComplete="off"
+      inputMode={decimals === 0 ? 'numeric' : 'decimal'}
+      value={l.value ?? ''}
+      disabled={l.disabled}
+      {...(l.placeholder === undefined ? {} : { placeholder: l.placeholder })}
+      {...(l.autoFocus === undefined ? {} : { autoFocus: l.autoFocus })}
+      onChange={(_e, data) => {
+        const text = editable(data.value)
+        if (!allowed.test(text)) return
+        l.onChange(text === '' ? null : text)
+      }}
+      onFocus={() => {
+        if (l.value === null) return
+        const next = editable(l.value)
+        if (next !== l.value) l.onChange(next)
+      }}
+      onBlur={() => {
+        const next = canonical(l.value, decimals)
+        if (next !== l.value) l.onChange(next)
+      }}
+    />
   )
+}
+
+export const numberField = (decimals: number) => {
+  const control = numberControl(decimals)
+
+  return (l: Locals<NumberForm, NumberFieldOptions>): ReactNode => <FormField l={l}>{control(l)}</FormField>
 }

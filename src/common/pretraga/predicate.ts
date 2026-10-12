@@ -1,6 +1,15 @@
 import { Schema } from 'effect'
 import { fromYmd, toYmd } from '../domain/date/api'
-import { DATE_OPERATORS, ENUM_OPERATORS, STRING_OPERATORS, type EnumOperator, type StringOperator } from './operator'
+import {
+  DATE_OPERATORS,
+  ENUM_OPERATORS,
+  NUMBER_OPERATORS,
+  STRING_OPERATORS,
+  isRange,
+  type EnumOperator,
+  type NumberOperator,
+  type StringOperator,
+} from './operator'
 
 export const RANGE_SEPARATOR = '~'
 
@@ -32,6 +41,23 @@ export type EnumPredicate<A> = readonly [EnumOperator, ...Array<A>]
 
 export const eq = <A extends string>(value: A | null): readonly ['eq', A] | undefined =>
   value === null ? undefined : ['eq', value]
+
+export const ioNumberOperator = Schema.Literal(...NUMBER_OPERATORS)
+
+export const isNumberText = (raw: string): boolean => /^-?\d+(\.\d+)?$/.test(raw)
+
+const isBoundsText = (raw: string): boolean => {
+  const [from, to, ...rest] = raw.split(RANGE_SEPARATOR)
+  return rest.length === 0 && from !== undefined && to !== undefined && isNumberText(from) && isNumberText(to)
+}
+
+export const ioNumberPredicateOf = (operators: ReadonlyArray<NumberOperator> = NUMBER_OPERATORS) =>
+  Schema.Tuple(Schema.Literal(...operators), Schema.String).pipe(
+    Schema.filter(([operator, raw]) => (isRange(operator) ? isBoundsText(raw) : isNumberText(raw))),
+  )
+
+export const ioNumberPredicate = ioNumberPredicateOf()
+export type NumberPredicate = typeof ioNumberPredicate.Type
 
 export const ioDateOperator = Schema.Literal(...DATE_OPERATORS)
 export const ioDatePredicate = Schema.Tuple(ioDateOperator, Schema.String)

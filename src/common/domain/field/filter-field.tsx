@@ -1,10 +1,18 @@
 import { makeStyles, tokens } from '@fluentui/react-components'
 import type { Locals } from 'effect-form/Locals'
 import type { ReactNode } from 'react'
-import { isList, type DateOperator, type EnumOperator, type StringOperator } from '../../pretraga/operator'
+import {
+  isList,
+  isRange,
+  type DateOperator,
+  type EnumOperator,
+  type NumberOperator,
+  type StringOperator,
+} from '../../pretraga/operator'
 import { dateRangeControl, type DateRangeFieldOptions, type DateRangeForm } from './date-range-field'
 import { dropdownControl, dropdownControlMulti, type Choice, type DropdownFieldOptions } from './dropdown-field'
 import { FormField } from './form-field'
+import { numberControl, type NumberFieldOptions, type NumberForm } from './number-field'
 import { OperatorMenu } from './operator-menu'
 import { textControl, type TextFieldOptions } from './text-field'
 
@@ -149,3 +157,66 @@ export const dateFilterField = (l: Locals<DateFilterForm, DateRangeFieldOptions>
     })}
   </FormField>
 )
+
+export type NumberFilterForm = readonly [NumberOperator, ...Array<string>] | null
+
+type NumberControl = (l: Locals<NumberForm, NumberFieldOptions>) => ReactNode
+
+const numberValues = (operator: NumberOperator, from: NumberForm, to: NumberForm): NumberFilterForm =>
+  isRange(operator) ? [operator, from ?? '', to ?? ''] : [operator, from ?? '']
+
+const NumberFilterView = ({
+  l,
+  operators,
+  control,
+}: {
+  l: Locals<NumberFilterForm, NumberFieldOptions>
+  operators: ReadonlyArray<NumberOperator>
+  control: NumberControl
+}): ReactNode => {
+  const styles = useStyles()
+  const [operator, from, to] = l.value ?? [operators[0] ?? 'eq']
+  const ends = isRange(operator)
+
+  const bare = { ...l, className: styles.control, label: undefined, error: undefined, hasError: false, required: false }
+
+  return (
+    <FormField l={l}>
+      <div className={styles.row}>
+        {operators.length > 1 && (
+          <OperatorMenu
+            operators={operators}
+            value={operator}
+            disabled={l.disabled}
+            onChange={next => l.onChange(numberValues(next as NumberOperator, from ?? null, to ?? null))}
+          />
+        )}
+
+        {control({
+          ...bare,
+          ...(ends ? { placeholder: 'Od' } : {}),
+          value: from ?? null,
+          onChange: next => l.onChange(numberValues(operator, next, to ?? null)),
+        })}
+
+        {ends &&
+          control({
+            ...bare,
+            id: `${l.id}-do`,
+            name: `${l.name}.do`,
+            placeholder: 'Do',
+            value: to ?? null,
+            onChange: next => l.onChange(numberValues(operator, from ?? null, next)),
+          })}
+      </div>
+    </FormField>
+  )
+}
+
+export const numberFilterField = (operators: ReadonlyArray<NumberOperator>, decimals: number) => {
+  const control = numberControl(decimals)
+
+  return (l: Locals<NumberFilterForm, NumberFieldOptions>): ReactNode => (
+    <NumberFilterView l={l} operators={operators} control={control} />
+  )
+}

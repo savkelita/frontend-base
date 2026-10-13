@@ -125,6 +125,9 @@ tri mesta: tip `Env`, `webpack/webpack.dev.js` i `webpack/webpack.prod.js`.
   ESLint 9, Vitest 3, Babel 7, webpack-cli 6, `@effect/platform` 0.94.
 - `resolutions` u `package.json` drze Fluent pakete na jednoj kopiji. Dve kopije
   `@fluentui/react-motion` daju `presenceFn is not a function` u vreme izvrsavanja.
+- `redux` je tu samo kao store za Redux DevTools (`common/debugger`); stanje aplikacije ne ide u
+  njega. `@redux-devtools/instrument` i `jsan` su samo za testove: to su mehanizam i serializer koje
+  koristi i prosirenje, pa test proverava isto ponasanje.
 - Posle nadogradnje: `yarn lint`, `yarn checkts`, `yarn test:unit` — sva tri.
 
 ## Kada nesto ne radi

@@ -31,6 +31,7 @@
     "effect-form": "^0.1.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "redux": "^5.0.1",
     "tea-effect": "^0.8.3"
   },
   "devDependencies": {
@@ -48,6 +49,8 @@
     "@fluentui/react-datepicker-compat": "^0.6.35",
     "@fluentui/react-icons": "^2.0.318",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.15",
+    "@redux-devtools/instrument": "^3.0.0",
+    "@types/jsan": "^3.1.5",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "babel-loader": "^9.2.0",
@@ -63,6 +66,7 @@
     "happy-dom": "^20.11.6",
     "html-webpack-plugin": "^5.6.0",
     "husky": "^9.1.0",
+    "jsan": "^3.1.14",
     "lint-staged": "^15.4.0",
     "prettier": "^3.4.0",
     "react-refresh": "^0.14.0",

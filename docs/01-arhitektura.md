@@ -2,7 +2,8 @@
 
 Aplikacija je pisana u TEA (The Elm Architecture) preko biblioteke
 [tea-effect](https://github.com/savkelita/tea-effect). Nema React state-a koji nosi poslovnu logiku,
-nema `useEffect`-a koji zove server, nema globalnog store-a.
+nema `useEffect`-a koji zove server, nema globalnog store-a. Redux store iz `common/debugger` nije
+izuzetak: on je samo istorija za DevTools, vidi [Redux DevTools](#redux-devtools).
 
 ```
 Model  ->  view  ->  Msg  ->  update  ->  Model
@@ -204,3 +205,34 @@ Model
 `ScreenModel` je tagovani enum svih ekrana, `ScreenMsg` svih njihovih poruka. Router ne zna nista o
 sadrzaju ekrana — samo ih pravi (`startScreen`), prosledjuje poruke (`updateScreen`) i crta
 (`screenView`).
+
+## Redux DevTools
+
+Kad pregledac ima Redux DevTools, `src/index.tsx` pokrece program kroz `common/debugger`, i u razvoju
+i u produkciji. Bez prosirenja program je isti kao da debugger-a nema.
+
+Debugger drzi pravi Redux store ciji je reducer `update` aplikacije. Model i dalje zivi u tea-effect
+programu; store je istorija koju DevTools prikazuje i premotava.
+
+- Svaka poruka ulazi pod putanjom tagova, npr. `Screen/VozaciMsg/FilterMsg/Changed`. Putanja nosi
+  samo imena, nikad sadrzaj poruke.
+- `update` ostaje cist. Poruka stize u store iz `subscribe` na programu, posle koraka, pa je redosled
+  u istoriji redosled kojim su poruke primenjene. Kroz `Cmd` bi se redosled gubio, jer se komande
+  pokrecu svaka u svom fiber-u.
+- Skok, preskakanje, zakljucavanje i uvoz racunaju stanje kroz `update`, bez komandi. Zato korisnik
+  moze da izveze log, a mi ga uvezemo i vidimo svaki ekran koji je on video, bez servera.
+- `SessionExpiration/Tick` se ne prikazuje (`actionsDenylist`), ali ostaje u istoriji i u izvozu, pa
+  uvoz ne gubi istek sesije. Pamti se poslednjih 200 poruka (`maxAge`).
+- Svaka akcija nosi `build`: verziju iz `package.json` i commit (`0.1.0+61dbe74`, uz `-dirty` ako
+  stablo nije bilo cisto). Uvezen log se pusta na tom build-u, jer drugi `update` daje druga stanja.
+  Verzija je u svakoj akciji, a ne samo u prvoj, jer DevTools posle `maxAge` odbacuje pocetak istorije.
+- Izvoz prolazi kroz `common/debugger/serialize`: `Date` i `Option` se vracaju kakvi su bili, a
+  tagovane vrednosti kao obicni objekti sa `_tag`.
+- Uvoz ne racuna na `reviver` prosirenja: 3.2.10 ga poziva samo uz Immutable.js, pa `Option` stize
+  kao sirov `{ _id: 'Option', ... }`. Zato reducer sam ozivljava (`revive`) svaku poruku i stanje koji
+  dolaze iz DevTools-a, pre nego sto ih vidi `update` ili prikaz.
+
+**Sve sto je u modelu i u porukama ulazi u log koji korisnik moze da posalje.** Zato `serialize`
+maskira svako polje cije ime sadrzi `lozinka` ili `password` (`novaLozinka`, `staraLozinka`...): u
+logu je `'<redacted>'`, a prazno polje ostaje `null`. Tajno polje se zato uvek zove tako i uvek je
+polje forme, a ne gola vrednost u poruci — `{ value: 'tajna' }` bez imena polja bi procurilo.

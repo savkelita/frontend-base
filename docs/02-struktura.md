@@ -17,6 +17,7 @@ src/
 │   └── types.ts
 ├── common/                 sve sto deli vise oblasti
 │   ├── audit/              Audit tip i celija u tabeli
+│   ├── debugger/           Redux DevTools: istorija poruka, skok, izvoz i uvoz
 │   ├── domain/             domenski tipovi i polja (vidi 04)
 │   ├── env/                promenljive okruzenja
 │   ├── error/              ApiError, prevod u poruku, prikaz

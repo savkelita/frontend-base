@@ -1,5 +1,6 @@
 const webpack = require('webpack')
 const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin')
+const build = require('./build')
 
 const apiHost = process.env.APIHOST || '192.168.36.234'
 const apiPort = process.env.APIPORT || 8080
@@ -36,6 +37,7 @@ module.exports = {
       // Prazno da zahtevi idu na origin dev servera i kroz proxy iznad: sesija je
       // kolacic, pa mora da ostane isti origin — inace trazi CORS i SameSite=None.
       'process.env.apiBaseUrl': JSON.stringify(''),
+      'process.env.build': JSON.stringify(build),
     }),
   ],
 }

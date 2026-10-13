@@ -1,4 +1,5 @@
 const webpack = require('webpack')
+const build = require('./build')
 
 module.exports = {
   mode: 'production',
@@ -7,6 +8,7 @@ module.exports = {
     new webpack.DefinePlugin({
       'process.env.basename': JSON.stringify('/'),
       'process.env.apiBaseUrl': JSON.stringify(''),
+      'process.env.build': JSON.stringify(build),
     }),
   ],
 }

@@ -115,7 +115,9 @@ const ComboView = <A,>({ l, id, render }: { l: Locals<A | null, ComboFieldOption
         open={model.open}
         clearable
         autoComplete="off"
-        onOpenChange={(_event, data) => onMsg(data.open ? opened<A>() : closed<A>())}
+        onOpenChange={(_event, data) => {
+          if (data.open !== model.open) onMsg(data.open ? opened<A>() : closed<A>())
+        }}
         onChange={event => {
           if (l.value !== null) onMsg(selected<A>([]))
           onMsg(typed<A>(event.target.value))
@@ -124,7 +126,6 @@ const ComboView = <A,>({ l, id, render }: { l: Locals<A | null, ComboFieldOption
           const [first] = data.selectedOptions
           const row = items.find(item => String(id(item)) === first)
           onMsg(selected<A>(row === undefined ? [] : [row]))
-          onMsg(closed<A>())
         }}
       >
         <ComboListbox model={model} onMsg={onMsg} id={id} render={render} />

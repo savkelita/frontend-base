@@ -21,6 +21,17 @@ Model  ->  view  ->  Msg  ->  update  ->  Model
 | `update` | `(msg, model) => [Model, Cmd]` | Cista funkcija. Bez `fetch`, bez `Date.now()`, bez `localStorage` |
 | `view` | `(model) => Html<Msg>` | Cista funkcija. Ne odlucuje nista sto ne moze da se procita iz modela |
 
+**Model i poruke se grade od tipova koje log prenosi.** To su JSON vrednosti (string, broj,
+boolean, `null`, niz, obican objekat), tagovane vrednosti (`Data.taggedEnum`), `Option` i `Date`.
+Samo njih `common/debugger/serialize` prenosi kroz izvoz i uvoz loga
+(vidi [Redux DevTools](#redux-devtools)).
+
+- Koristi se ono sto vec postoji: niz umesto `Set`, objekat ili niz parova umesto `Map`, tagovana
+  vrednost umesto klase.
+- Ako novi tip zaista treba, dodaje se u `serialize` u istoj izmeni: grana u `replacer`-u, oznaka u
+  `ioMark`, vracanje u `unmark` i test. Bez toga log i skok kroz istoriju rade, ali uvezeni log tiho
+  daje pogresna stanja: `Set` stigne kao `{}`, a `Date` kao string.
+
 `Cmd` je **opis** posla, ne posao. `Http.send(...)` ne salje zahtev; on opisuje zahtev koji ce
 runtime poslati i ciji ce rezultat stici nazad kao `Msg`. Zato je `update` moguce testirati bez
 mreze i bez mock-ova.
@@ -226,11 +237,14 @@ programu; store je istorija koju DevTools prikazuje i premotava.
 - Svaka akcija nosi `build`: verziju iz `package.json` i commit (`0.1.0+61dbe74`, uz `-dirty` ako
   stablo nije bilo cisto). Uvezen log se pusta na tom build-u, jer drugi `update` daje druga stanja.
   Verzija je u svakoj akciji, a ne samo u prvoj, jer DevTools posle `maxAge` odbacuje pocetak istorije.
-- Izvoz prolazi kroz `common/debugger/serialize`: `Date` i `Option` se vracaju kakvi su bili, a
-  tagovane vrednosti kao obicni objekti sa `_tag`.
-- Uvoz ne racuna na `reviver` prosirenja: 3.2.10 ga poziva samo uz Immutable.js, pa `Option` stize
-  kao sirov `{ _id: 'Option', ... }`. Zato reducer sam ozivljava (`revive`) svaku poruku i stanje koji
-  dolaze iz DevTools-a, pre nego sto ih vidi `update` ili prikaz.
+- Izvoz prolazi kroz `common/debugger/serialize`: `Date` i `Option` se zapisuju kao obicni objekti
+  (`{ _id: 'Date', value: '2026-02-13T13:28:42.000Z' }`, `{ _id: 'Option', ... }`), a tagovane
+  vrednosti kao objekti sa `_tag`. Samo obican objekat prezivi svaki put: prosirenje 3.2.10 izvozi i
+  iz panela, kao obican JSON, gde bi pravi `Date` postao string. Zato su `jsan` opcije prazne
+  (`options: {}`), jer bez njih prosirenje ukljuci sve `jsan` tipove, a oni na tom putu ne prezive.
+- Uvoz ne racuna na `reviver` prosirenja: 3.2.10 ga poziva samo uz Immutable.js. Zato reducer sam
+  ozivljava (`revive`) svaku poruku i stanje koji dolaze iz DevTools-a, pre nego sto ih vidi `update`
+  ili prikaz.
 
 **Sve sto je u modelu i u porukama ulazi u log koji korisnik moze da posalje.** Zato `serialize`
 maskira svako polje cije ime sadrzi `lozinka` ili `password` (`novaLozinka`, `staraLozinka`...): u

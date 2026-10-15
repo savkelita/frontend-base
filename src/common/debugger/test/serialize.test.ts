@@ -77,6 +77,19 @@ describe('ozivljavanje uvezenog loga', () => {
     expect(inside(field(back, 'ima'))).toBe(5)
   })
 
+  it('datum prezivi izvoz iz panela, koji pise obican JSON', () => {
+    const kreiran = new Date(2026, 1, 13, 14, 28, 42)
+    const panel = JSON.parse(JSON.stringify(Jsan.parse(exported({ vozilo: { datumKreiranja: kreiran } }))))
+
+    expect(field(field(revive(panel), 'vozilo'), 'datumKreiranja')).toStrictEqual(kreiran)
+  })
+
+  it('neispravan datum ostaje neispravan datum', () => {
+    const back = field(revive(Jsan.parse(exported({ datum: new Date(Number.NaN) }))), 'datum')
+
+    expect(back instanceof Date && Number.isNaN(back.getTime())).toBe(true)
+  })
+
   it('ziva vrednost aplikacije ostaje isti objekat', () => {
     const value = { korisnickoIme: 'pera', izabran: Option.some({ id: 1 }) }
 

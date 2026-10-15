@@ -4,15 +4,24 @@ export const REDACTED = '<redacted>'
 
 const SECRET = /lozinka|password/i
 
-const ioOption = Schema.Union(
+const ioMark = Schema.Union(
   Schema.Struct({ _id: Schema.Literal('Option'), _tag: Schema.Literal('None') }),
   Schema.Struct({ _id: Schema.Literal('Option'), _tag: Schema.Literal('Some'), value: Schema.Unknown }),
+  Schema.Struct({ _id: Schema.Literal('Date'), value: Schema.NullOr(Schema.String) }),
 )
 
-const decodeOption = Schema.decodeUnknownOption(ioOption)
+type Mark = typeof ioMark.Type
+
+const decodeMark = Schema.decodeUnknownOption(ioMark)
+
+const unmark = (mark: Mark): unknown => {
+  if (mark._id === 'Date') return new Date(mark.value ?? Number.NaN)
+  return mark._tag === 'Some' ? Option.some(mark.value) : Option.none()
+}
 
 export const replacer = (key: string | number, value: unknown): unknown => {
   if (typeof key === 'string' && SECRET.test(key) && value !== null && value !== undefined) return REDACTED
+  if (value instanceof Date) return { _id: 'Date', value: Number.isNaN(value.getTime()) ? null : value.toISOString() }
   if (Option.isOption(value)) {
     return Option.isSome(value) ? { _id: 'Option', _tag: 'Some', value: value.value } : { _id: 'Option', _tag: 'None' }
   }
@@ -22,10 +31,7 @@ export const replacer = (key: string | number, value: unknown): unknown => {
 export const reviver = (_key: string, value: unknown): unknown =>
   typeof value !== 'object' || value === null || !('_id' in value)
     ? value
-    : Option.match(decodeOption(value), {
-        onNone: () => value,
-        onSome: option => (option._tag === 'Some' ? Option.some(option.value) : Option.none()),
-      })
+    : Option.match(decodeMark(value), { onNone: () => value, onSome: unmark })
 
 const isPlain = (value: object): boolean => {
   const prototype: unknown = Object.getPrototypeOf(value)
@@ -50,7 +56,7 @@ export const revive = <A>(value: A): A => reviveAny(value) as A
 export const serialize = {
   replacer,
   reviver,
-  options: { date: true, undefined: true, map: true, set: true },
+  options: {},
 }
 
 export type Serialize = typeof serialize

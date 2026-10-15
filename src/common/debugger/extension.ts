@@ -8,7 +8,20 @@ export type Options = {
   readonly actionsDenylist: ReadonlyArray<string>
 }
 
-export type Extension = (options: Omit<Options, 'build'> & { readonly serialize: Serialize }) => StoreEnhancer
+export type Features = {
+  readonly pause: boolean
+  readonly export: boolean | 'custom'
+  readonly import: boolean | 'custom'
+  readonly jump: boolean
+  readonly skip: boolean
+  readonly reorder: boolean
+  readonly dispatch: boolean
+  readonly test: boolean
+}
+
+export type Extension = (
+  options: Omit<Options, 'build'> & { readonly features: Features; readonly serialize: Serialize },
+) => StoreEnhancer
 
 export const extension = (): Option.Option<Extension> =>
   Option.fromNullable(

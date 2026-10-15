@@ -4,6 +4,8 @@ import { Effect, Exit, Option, Scope } from 'effect'
 import * as Jsan from 'jsan'
 import type { UnknownAction } from 'redux'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { Session } from '../../../auth/session'
+import { PERMISSIONS } from '../../../auth/types'
 import { changeKorisnik, submitKorisnik } from '../../../login/msg'
 import * as App from '../../../router'
 import { login, sessionLoaded } from '../../../router/msg'
@@ -45,10 +47,17 @@ const start = async (extension: Extension) => {
   const prog = await Effect.runPromise(
     Scope.extend(program(extension, { build: '0.1.0+test', maxAge: 200, actionsDenylist: [] }, config), scope),
   )
-  const models: Array<App.Model> = []
-  prog.subscribe(model => void models.push(model.app))
-  return { current: (): App.Model | undefined => models[models.length - 1] }
+  const shown: Array<App.Model> = []
+  prog.subscribe(model => void shown.push(Option.getOrElse(model.shown, () => model.app)))
+  return { current: (): App.Model | undefined => shown[shown.length - 1] }
 }
+
+const session = (expiration: number): Session => ({
+  korisnik: { id: 1, ime: 'Pera', prezime: 'Peric', korisnickoIme: 'pera', email: 'p@p.rs' },
+  uloga: 'ADMINISTRATOR',
+  funkcionalnosti: [...PERMISSIONS],
+  expiration,
+})
 
 const until = async (condition: () => boolean): Promise<void> => {
   for (let i = 0; i < 200 && !condition(); i++) await new Promise(resolve => setTimeout(resolve, 5))
@@ -93,5 +102,18 @@ describe('uvoz prijave', () => {
     await until(() => submitted(razvoj.current()))
 
     expect(lozinka(razvoj.current())).toBe(REDACTED)
+  })
+
+  it('sesija iz loga ostaje prikazana i kad je istekla, a u ovom tabu niko nije prijavljen', async () => {
+    const log = exported([action(sessionLoaded(Option.some(session(Date.now() - 1))))])
+    const tools = devTools()
+    const razvoj = await start(tools.extension)
+    await until(tools.listening)
+
+    tools.store().dispatch(ActionCreators.importState<App.Model, UnknownAction>(importedLikeExtension(log)))
+    await until(() => razvoj.current()?._tag === 'Authenticated')
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(razvoj.current()?._tag).toBe('Authenticated')
   })
 })

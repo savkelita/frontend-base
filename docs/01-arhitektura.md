@@ -230,8 +230,15 @@ programu; store je istorija koju DevTools prikazuje i premotava.
 - `update` ostaje cist. Poruka stize u store iz `subscribe` na programu, posle koraka, pa je redosled
   u istoriji redosled kojim su poruke primenjene. Kroz `Cmd` bi se redosled gubio, jer se komande
   pokrecu svaka u svom fiber-u.
-- Skok, preskakanje, zakljucavanje i uvoz racunaju stanje kroz `update`, bez komandi. Zato korisnik
-  moze da izveze log, a mi ga uvezemo i vidimo svaki ekran koji je on video, bez servera.
+- Skok, preskakanje i uvoz racunaju stanje kroz `update`, bez komandi. Zato korisnik moze da izveze
+  log, a mi ga uvezemo i vidimo svaki ekran koji je on video, bez servera.
+- **Stanje iz DevTools-a se samo prikazuje, nikad ne postaje zivo.** Dok DevTools pokazuje bilo sta
+  osim poslednjeg zivog stanja, aplikacija je pauzirana: ekran crta izabrano stanje i ne reaguje na
+  klik, a pretplate i komande rade nad zivim stanjem i njihove poruke cekaju. Skok na
+  poslednje stanje ih pusti redom. Inace bi zive pretplate radile nad tudjim stanjem: uvezena sesija
+  bi te odjavila, a skok kroz istoriju bi upao u petlju.
+- Posle uvoza ili preskakanja zivog stanja vise nema u istoriji, pa tab ostaje preglednik do
+  osvezavanja stranice. Lock i persist su iskljuceni (`FEATURES`), jer bi aplikaciju ostavili u pauzi.
 - `SessionExpiration/Tick` se ne prikazuje (`actionsDenylist`), ali ostaje u istoriji i u izvozu, pa
   uvoz ne gubi istek sesije. Pamti se poslednjih 200 poruka (`maxAge`).
 - Svaka akcija nosi `build`: verziju iz `package.json` i commit (`0.1.0+61dbe74`, uz `-dirty` ako

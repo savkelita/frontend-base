@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
-import { ActionCreators, instrument, type LiftedStore } from '@redux-devtools/instrument'
-import { Data, Effect, Exit, Scope } from 'effect'
+import { ActionCreators, instrument, type LiftedState, type LiftedStore } from '@redux-devtools/instrument'
+import { Data, Effect, Exit, Option, Scope } from 'effect'
 import * as Jsan from 'jsan'
 import type { UnknownAction } from 'redux'
 import * as Cmd from 'tea-effect/Cmd'
 import * as Sub from 'tea-effect/Sub'
 import { afterEach, describe, expect, it } from 'vitest'
-import { app, program, serialize, type Extension } from '../index'
+import { app, program, serialize, type Extension, type Model } from '../index'
 
 type Counted = Data.TaggedEnum<{ Incremented: {}; Doubled: {}; Echoed: {}; Navigated: {} }>
 
@@ -82,11 +82,19 @@ const start = async (extension: Extension, build = '1.0.0+test') => {
   const prog = await Effect.runPromise(
     Scope.extend(program(extension, { build, maxAge: 50, actionsDenylist: [] }, counter), scope),
   )
-  const models: Array<Counter> = []
-  prog.subscribe(model => void models.push(model.app))
+  const models: Array<Model<Counter, Counted>> = []
+  prog.subscribe(model => void models.push(model))
+  const latest = (): Model<Counter, Counted> | undefined => models[models.length - 1]
   return {
     dispatch: (msg: Counted): void => prog.dispatch(app(msg)),
-    current: (): Counter | undefined => models[models.length - 1],
+    current: (): Counter | undefined => {
+      const model = latest()
+      return model === undefined ? undefined : Option.getOrElse(model.shown, () => model.app)
+    },
+    paused: (): boolean => {
+      const model = latest()
+      return model !== undefined && Option.isSome(model.shown)
+    },
   }
 }
 
@@ -122,9 +130,9 @@ describe('istorija u Redux DevTools', () => {
     expect(builds(tools.store())).toStrictEqual(['0.1.0+61dbe74', '0.1.0+61dbe74'])
   })
 
-  it('skok vraca aplikaciju u izabrano stanje i ne pravi novu akciju', async () => {
+  it('skok prikaze izabrano stanje i pauzira aplikaciju, bez nove akcije', async () => {
     const tools = devTools()
-    const { dispatch, current } = await start(tools.extension)
+    const { dispatch, current, paused } = await start(tools.extension)
     dispatch(Counted.Incremented())
     dispatch(Counted.Doubled())
     await until(tools.listening)
@@ -132,12 +140,13 @@ describe('istorija u Redux DevTools', () => {
     tools.store().dispatch(ActionCreators.jumpToAction(1))
     await until(() => current()?.count === 1)
 
+    expect(paused()).toBe(true)
     expect(types(tools.store())).toStrictEqual(['Incremented', 'Doubled'])
   })
 
-  it('posle skoka nova poruka ide na kraj istorije, a prikaz ostaje na izabranom stanju', async () => {
+  it('dok se gleda istorija zive poruke cekaju, a povratak na poslednje stanje ih pusti', async () => {
     const tools = devTools()
-    const { dispatch, current } = await start(tools.extension)
+    const { dispatch, current, paused } = await start(tools.extension)
     dispatch(Counted.Incremented())
     dispatch(Counted.Doubled())
     await until(tools.listening)
@@ -145,14 +154,18 @@ describe('istorija u Redux DevTools', () => {
     await until(() => current()?.count === 1)
 
     dispatch(Counted.Incremented())
-    await until(() => current()?.count === 1)
+    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(current()?.count).toBe(1)
+    expect(counts(tools.store())).toStrictEqual([0, 1, 2])
 
+    tools.store().dispatch(ActionCreators.jumpToAction(2))
+    await until(() => !paused() && current()?.count === 3)
     expect(counts(tools.store())).toStrictEqual([0, 1, 2, 3])
   })
 
-  it('preskocena poruka ispada, a aplikacija dobija stanje izracunato bez nje', async () => {
+  it('preskocena poruka ispada iz prikazanog stanja, a aplikacija ostaje pauzirana', async () => {
     const tools = devTools()
-    const { dispatch, current } = await start(tools.extension)
+    const { dispatch, current, paused } = await start(tools.extension)
     dispatch(Counted.Incremented())
     dispatch(Counted.Doubled())
     dispatch(Counted.Incremented())
@@ -161,19 +174,7 @@ describe('istorija u Redux DevTools', () => {
     tools.store().dispatch(ActionCreators.toggleAction(1))
 
     await until(() => current()?.count === 1)
-  })
-
-  it('zakljucan DevTools vraca aplikaciju na zakljucano stanje', async () => {
-    const tools = devTools()
-    const { dispatch, current } = await start(tools.extension)
-    dispatch(Counted.Incremented())
-    await until(tools.listening)
-    tools.store().dispatch(ActionCreators.lockChanges(true))
-
-    dispatch(Counted.Incremented())
-
-    await until(() => current()?.count === 1)
-    expect(types(tools.store())).toStrictEqual(['Incremented'])
+    expect(paused()).toBe(true)
   })
 
   it('uvezen log se odigrava kroz update aplikacije, bez komandi, i cuva build korisnika', async () => {
@@ -195,5 +196,41 @@ describe('istorija u Redux DevTools', () => {
     expect(razvoj.current()?.count).toBe(4)
     expect(types(developer.store())).toStrictEqual(['Incremented', 'Echoed', 'Incremented', 'Doubled'])
     expect(new Set(builds(developer.store()))).toStrictEqual(new Set(['0.1.0+korisnik']))
+  })
+
+  it('uvozi se i izvoz iz panela, celo stanje DevTools-a zapisano kao obican JSON', async () => {
+    const user = devTools()
+    const korisnik = await start(user.extension)
+    korisnik.dispatch(Counted.Incremented())
+    korisnik.dispatch(Counted.Doubled())
+    const relayed = Jsan.stringify(user.store().getState(), serialize.replacer, undefined, serialize.options)
+    const panel = JSON.parse(JSON.stringify(Jsan.parse(relayed))) as LiftedState<Counter, UnknownAction, null>
+
+    const developer = devTools()
+    const razvoj = await start(developer.extension)
+    await until(developer.listening)
+    developer.store().dispatch(ActionCreators.importState(panel))
+
+    await until(() => razvoj.current()?.count === 2)
+    expect(razvoj.paused()).toBe(true)
+    expect(types(developer.store())).toStrictEqual(['Incremented', 'Doubled'])
+  })
+
+  it('posle uvoza zive poruke ne ulaze u uvezeni log', async () => {
+    const user = devTools()
+    const korisnik = await start(user.extension)
+    korisnik.dispatch(Counted.Incremented())
+    const log = Jsan.stringify(actions(user.store()), serialize.replacer, undefined, serialize.options)
+    const developer = devTools()
+    const razvoj = await start(developer.extension)
+    await until(developer.listening)
+    developer.store().dispatch(ActionCreators.importState<Counter, UnknownAction>(parsed(log)))
+    await until(() => razvoj.paused())
+
+    razvoj.dispatch(Counted.Doubled())
+    await new Promise(resolve => setTimeout(resolve, 30))
+
+    expect(types(developer.store())).toStrictEqual(['Incremented'])
+    expect(razvoj.current()?.count).toBe(1)
   })
 })

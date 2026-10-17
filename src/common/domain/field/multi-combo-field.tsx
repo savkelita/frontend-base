@@ -55,7 +55,9 @@ const MultiComboView = <A,>({
           selectedOptions={l.value.map(one => String(id(one)))}
           open={model.open}
           autoComplete="off"
-          onOpenChange={(_event, data) => onMsg(data.open ? opened<A>() : closed<A>())}
+          onOpenChange={(_event, data) => {
+            if (data.open !== model.open) onMsg(data.open ? opened<A>() : closed<A>())
+          }}
           onChange={event => onMsg(typed<A>(event.target.value))}
           onOptionSelect={(_event, data) =>
             onMsg(selected<A>(data.selectedOptions.map(chosen).filter((one): one is A => one !== undefined)))

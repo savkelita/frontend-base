@@ -2863,6 +2863,11 @@
     schema-utils "^4.2.0"
     source-map "^0.7.3"
 
+"@redux-devtools/instrument@^3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@redux-devtools/instrument/-/instrument-3.0.0.tgz#22ce0b89ebebfa52a29186200c5a395e6796899d"
+  integrity sha512-f2PT0ZiwbpdpSNLPzozx7S2yiNgBJPWly7yTxFctCRMEU8jdkrW9TQbCYNdP+Cfj/VELEd7+qzNhGPsX9erdrQ==
+
 "@rollup/rollup-android-arm-eabi@4.63.0":
   version "4.63.0"
   resolved "https://registry.yarnpkg.com/@rollup/rollup-android-arm-eabi/-/rollup-android-arm-eabi-4.63.0.tgz#a85e4755658a6ab0ec48b41fdbc99375079755e1"
@@ -3117,6 +3122,11 @@
   integrity sha512-ED6LB+Z1AVylNTu7hdzuBqOgMnvG/ld6wGCG8wFnAzKX5uyW2K3WD52v0gnLCTK/VLpXtKckgWuyScYK6cSPaw==
   dependencies:
     "@types/node" "*"
+
+"@types/jsan@^3.1.5":
+  version "3.1.5"
+  resolved "https://registry.yarnpkg.com/@types/jsan/-/jsan-3.1.5.tgz#ed347bb123185fc067e3b11d736ad0e75bfcf734"
+  integrity sha512-gPZqsdRGlS/lAIXP0kKnHoG3w6DaFskZHpt3PZlvY7g2Pme16Qu9weGdY1dSoziU6A73+Wj/wst5d2v+j4AO9A==
 
 "@types/json-schema@^7.0.15", "@types/json-schema@^7.0.9":
   version "7.0.15"
@@ -6095,6 +6105,11 @@ js-yaml@^4.3.0:
   dependencies:
     argparse "^2.0.1"
 
+jsan@^3.1.14:
+  version "3.1.14"
+  resolved "https://registry.yarnpkg.com/jsan/-/jsan-3.1.14.tgz#197fee2d260b85acacb049c1ffa41bd09fb1f213"
+  integrity sha512-wStfgOJqMv4QKktuH273f5fyi3D3vy2pHOiSDGPvpcS/q+wb/M7AK3vkCcaHbkZxDOlDU/lDJgccygKSG2OhtA==
+
 jsesc@^3.0.2, jsesc@~3.1.0:
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/jsesc/-/jsesc-3.1.0.tgz#74d335a234f67ed19907fdadfac7ccf9d409825d"
@@ -7112,6 +7127,11 @@ rechoir@^0.8.0:
   integrity sha512-/vxpCXddiX8NGfGO/mTafwjq4aFa/71pvamip0++IQk3zG8cbCj0fifNPrjjF1XMXUne91jL9OoxmdykoEtifQ==
   dependencies:
     resolve "^1.20.0"
+
+redux@^5.0.1:
+  version "5.0.1"
+  resolved "https://registry.yarnpkg.com/redux/-/redux-5.0.1.tgz#97fa26881ce5746500125585d5642c77b6e9447b"
+  integrity sha512-M9/ELqF6fy8FwmkpnF0S3YKOqMyoWJ4+CS5Efg2ct3oY9daQvd/Pc71FpGZsVsbl3Cpb+IIcjBDUnnyBdQbq4w==
 
 reflect-metadata@^0.2.2:
   version "0.2.2"

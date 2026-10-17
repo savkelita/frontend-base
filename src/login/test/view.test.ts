@@ -12,4 +12,8 @@ describe('prijava i autofill', () => {
   it('lozinka trazi tekucu lozinku', () => {
     expect(markup).toMatch(/autocomplete="current-password"/i)
   })
+
+  it('lozinka je maskirana', () => {
+    expect(markup).toMatch(/type="password"/)
+  })
 })

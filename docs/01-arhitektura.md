@@ -2,7 +2,8 @@
 
 Aplikacija je pisana u TEA (The Elm Architecture) preko biblioteke
 [tea-effect](https://github.com/savkelita/tea-effect). Nema React state-a koji nosi poslovnu logiku,
-nema `useEffect`-a koji zove server, nema globalnog store-a.
+nema `useEffect`-a koji zove server, nema globalnog store-a. Redux store iz `common/debugger` nije
+izuzetak: on je samo istorija za DevTools, vidi [Redux DevTools](#redux-devtools).
 
 ```
 Model  ->  view  ->  Msg  ->  update  ->  Model
@@ -19,6 +20,17 @@ Model  ->  view  ->  Msg  ->  update  ->  Model
 | `Msg` | Sve sto se moze dogoditi, `Data.TaggedEnum` | Ime je dogadjaj u proslom vremenu (`Loaded`, `Sorted`) |
 | `update` | `(msg, model) => [Model, Cmd]` | Cista funkcija. Bez `fetch`, bez `Date.now()`, bez `localStorage` |
 | `view` | `(model) => Html<Msg>` | Cista funkcija. Ne odlucuje nista sto ne moze da se procita iz modela |
+
+**Model i poruke se grade od tipova koje log prenosi.** To su JSON vrednosti (string, broj,
+boolean, `null`, niz, obican objekat), tagovane vrednosti (`Data.taggedEnum`), `Option` i `Date`.
+Samo njih `common/debugger/serialize` prenosi kroz izvoz i uvoz loga
+(vidi [Redux DevTools](#redux-devtools)).
+
+- Koristi se ono sto vec postoji: niz umesto `Set`, objekat ili niz parova umesto `Map`, tagovana
+  vrednost umesto klase.
+- Ako novi tip zaista treba, dodaje se u `serialize` u istoj izmeni: grana u `replacer`-u, oznaka u
+  `ioMark`, vracanje u `unmark` i test. Bez toga log i skok kroz istoriju rade, ali uvezeni log tiho
+  daje pogresna stanja: `Set` stigne kao `{}`, a `Date` kao string.
 
 `Cmd` je **opis** posla, ne posao. `Http.send(...)` ne salje zahtev; on opisuje zahtev koji ce
 runtime poslati i ciji ce rezultat stici nazad kao `Msg`. Zato je `update` moguce testirati bez
@@ -204,3 +216,44 @@ Model
 `ScreenModel` je tagovani enum svih ekrana, `ScreenMsg` svih njihovih poruka. Router ne zna nista o
 sadrzaju ekrana — samo ih pravi (`startScreen`), prosledjuje poruke (`updateScreen`) i crta
 (`screenView`).
+
+## Redux DevTools
+
+Kad pregledac ima Redux DevTools, `src/index.tsx` pokrece program kroz `common/debugger`, i u razvoju
+i u produkciji. Bez prosirenja program je isti kao da debugger-a nema.
+
+Debugger drzi pravi Redux store ciji je reducer `update` aplikacije. Model i dalje zivi u tea-effect
+programu; store je istorija koju DevTools prikazuje i premotava.
+
+- Svaka poruka ulazi pod putanjom tagova, npr. `Screen/VozaciMsg/FilterMsg/Changed`. Putanja nosi
+  samo imena, nikad sadrzaj poruke.
+- `update` ostaje cist. Poruka stize u store iz `subscribe` na programu, posle koraka, pa je redosled
+  u istoriji redosled kojim su poruke primenjene. Kroz `Cmd` bi se redosled gubio, jer se komande
+  pokrecu svaka u svom fiber-u.
+- Skok, preskakanje i uvoz racunaju stanje kroz `update`, bez komandi. Zato korisnik moze da izveze
+  log, a mi ga uvezemo i vidimo svaki ekran koji je on video, bez servera.
+- **Stanje iz DevTools-a se samo prikazuje, nikad ne postaje zivo.** Dok DevTools pokazuje bilo sta
+  osim poslednjeg zivog stanja, aplikacija je pauzirana: ekran crta izabrano stanje i ne reaguje na
+  klik, a pretplate i komande rade nad zivim stanjem i njihove poruke cekaju. Skok na
+  poslednje stanje ih pusti redom. Inace bi zive pretplate radile nad tudjim stanjem: uvezena sesija
+  bi te odjavila, a skok kroz istoriju bi upao u petlju.
+- Posle uvoza ili preskakanja zivog stanja vise nema u istoriji, pa tab ostaje preglednik do
+  osvezavanja stranice. Lock i persist su iskljuceni (`FEATURES`), jer bi aplikaciju ostavili u pauzi.
+- `SessionExpiration/Tick` se ne prikazuje (`actionsDenylist`), ali ostaje u istoriji i u izvozu, pa
+  uvoz ne gubi istek sesije. Pamti se poslednjih 200 poruka (`maxAge`).
+- Svaka akcija nosi `build`: verziju iz `package.json` i commit (`0.1.0+61dbe74`, uz `-dirty` ako
+  stablo nije bilo cisto). Uvezen log se pusta na tom build-u, jer drugi `update` daje druga stanja.
+  Verzija je u svakoj akciji, a ne samo u prvoj, jer DevTools posle `maxAge` odbacuje pocetak istorije.
+- Izvoz prolazi kroz `common/debugger/serialize`: `Date` i `Option` se zapisuju kao obicni objekti
+  (`{ _id: 'Date', value: '2026-02-13T13:28:42.000Z' }`, `{ _id: 'Option', ... }`), a tagovane
+  vrednosti kao objekti sa `_tag`. Samo obican objekat prezivi svaki put: prosirenje 3.2.10 izvozi i
+  iz panela, kao obican JSON, gde bi pravi `Date` postao string. Zato su `jsan` opcije prazne
+  (`options: {}`), jer bez njih prosirenje ukljuci sve `jsan` tipove, a oni na tom putu ne prezive.
+- Uvoz ne racuna na `reviver` prosirenja: 3.2.10 ga poziva samo uz Immutable.js. Zato reducer sam
+  ozivljava (`revive`) svaku poruku i stanje koji dolaze iz DevTools-a, pre nego sto ih vidi `update`
+  ili prikaz.
+
+**Sve sto je u modelu i u porukama ulazi u log koji korisnik moze da posalje.** Zato `serialize`
+maskira svako polje cije ime sadrzi `lozinka` ili `password` (`novaLozinka`, `staraLozinka`...): u
+logu je `'<redacted>'`, a prazno polje ostaje `null`. Tajno polje se zato uvek zove tako i uvek je
+polje forme, a ne gola vrednost u poruci — `{ value: 'tajna' }` bez imena polja bi procurilo.

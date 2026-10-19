@@ -15,11 +15,11 @@ export const choices = <K extends Keys>(keys: K, only?: ReadonlyArray<Value<K>>)
     .filter(value => only === undefined || only.includes(value))
     .map(value => ({ value, text: keys[value] }))
 
-export const ioValue = <K extends Keys>(keys: K) => Schema.Literal(...(Object.keys(keys) as ReadonlyArray<Value<K>>))
+export const ioValue = <K extends Keys>(keys: K) => Schema.Literals(Object.keys(keys) as ReadonlyArray<Value<K>>)
 
 export const vForm = <K extends Keys>(keys: K, only?: ReadonlyArray<Value<K>>) => {
   const list = choices(keys, only)
-  return Schema.Literal(...list.map(c => c.value)).pipe(
+  return Schema.Literals(list.map(c => c.value)).pipe(
     Annotation.template(dropdownField(list)),
     Annotation.message((value: Form<Value<K>>) => (value === null ? 'Podatak je obavezan' : undefined)),
   )
@@ -27,8 +27,8 @@ export const vForm = <K extends Keys>(keys: K, only?: ReadonlyArray<Value<K>>) =
 
 export const vFormMulti = <K extends Keys>(keys: K) => {
   const list = choices(keys)
-  return Schema.Array(Schema.Literal(...list.map(c => c.value))).pipe(
-    Schema.minItems(1),
+  return Schema.Array(Schema.Literals(list.map(c => c.value))).pipe(
+    Schema.check(Schema.isMinLength(1)),
     Annotation.template(dropdownFieldMulti(list)),
     Annotation.message((value: FormMulti<Value<K>>) =>
       value === null || value.length === 0 ? 'Podatak je obavezan' : undefined,

@@ -141,7 +141,7 @@ i [05 Forme](05-forme.md#dirty). Prva izgleda ovako:
 ```ts
 Sub.withKey(
   'session-expiration',
-  Stream.repeatEffectWithSchedule(
+  Stream.fromEffectSchedule(
     Effect.clockWith(clock => Effect.map(clock.currentTimeMillis, tick)),
     Schedule.fixed('10 seconds'),
   ),

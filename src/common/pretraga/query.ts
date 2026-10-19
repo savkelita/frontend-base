@@ -10,7 +10,7 @@ type Paging = {
 
 export const pretragaQuery = <F extends Schema.Struct.Fields & { [K in keyof Paging]?: never }, O extends string>(
   criteria: Schema.Struct<F>,
-  order: Schema.Schema<O, O>,
+  order: Schema.Codec<O, O>,
 ) =>
   Schema.Struct({
     offset: Schema.optional(Router.IntFromString),

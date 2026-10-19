@@ -1,4 +1,4 @@
-import { Effect, Stream } from 'effect'
+import { Effect, Queue, Stream } from 'effect'
 import type * as Cmd from 'tea-effect/Cmd'
 
 export type Intent = 'success' | 'warning' | 'error' | 'info'
@@ -34,7 +34,7 @@ export const register = (next: Handler): (() => void) => {
 }
 
 export const notify = <Msg = never>(intent: Intent, title: string, options: Options<Msg> = {}): Cmd.Cmd<Msg> =>
-  Stream.asyncPush<Msg>(emit =>
+  Stream.callback<Msg>(queue =>
     Effect.sync(() => {
       const show = handler
       const action = options.action
@@ -50,16 +50,16 @@ export const notify = <Msg = never>(intent: Intent, title: string, options: Opti
               : {
                   label: action.label,
                   run: () => {
-                    emit.single(action.msg())
-                    emit.end()
+                    Queue.offerUnsafe(queue, action.msg())
+                    Queue.endUnsafe(queue)
                   },
                 },
-          close: () => emit.end(),
+          close: () => Queue.endUnsafe(queue),
         })
       }
 
-      if (options.then !== undefined) emit.single(options.then())
-      if (show === null || action === undefined) emit.end()
+      if (options.then !== undefined) Queue.offerUnsafe(queue, options.then())
+      if (show === null || action === undefined) Queue.endUnsafe(queue)
     }),
   )
 

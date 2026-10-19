@@ -1,4 +1,5 @@
-import { Arbitrary, FastCheck, Option, Schema } from 'effect'
+import { Option, Schema } from 'effect'
+import * as FastCheck from 'fast-check'
 import * as Cmd from 'tea-effect/Cmd'
 import { describe, expect, it } from 'vitest'
 import * as Combo from '../../../../../common/domain/combo'
@@ -204,12 +205,16 @@ describe('svojstva', () => {
 
   it('operator iz adrese prezivi ponovnu pretragu, ne svodi se na contains', () => {
     FastCheck.assert(
-      FastCheck.property(Arbitrary.make(ioStringOperator), FastCheck.string({ minLength: 1 }), (operator, tekst) => {
-        const model = open({ ime: [operator, tekst] })
-        expect(model.value.ime).toStrictEqual([operator, tekst])
-        const sent = toCriteria(model.value).ime
-        expect(sent === undefined ? operator : sent[0]).toBe(operator)
-      }),
+      FastCheck.property(
+        FastCheck.constantFrom(...ioStringOperator.literals),
+        FastCheck.string({ minLength: 1 }),
+        (operator, tekst) => {
+          const model = open({ ime: [operator, tekst] })
+          expect(model.value.ime).toStrictEqual([operator, tekst])
+          const sent = toCriteria(model.value).ime
+          expect(sent === undefined ? operator : sent[0]).toBe(operator)
+        },
+      ),
     )
   })
 })

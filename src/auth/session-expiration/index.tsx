@@ -25,7 +25,7 @@ export const update = (msg: Msg, model: Model): [Model, Cmd.Cmd<Msg>] =>
 export const subscriptions = (): Sub.Sub<Msg> =>
   Sub.withKey(
     'session-expiration',
-    Stream.repeatEffectWithSchedule(
+    Stream.fromEffectSchedule(
       Effect.map(
         Effect.all([
           Effect.clockWith(clock => clock.currentTimeMillis),

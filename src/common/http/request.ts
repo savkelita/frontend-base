@@ -1,4 +1,4 @@
-import { Option, ParseResult, Schema } from 'effect'
+import { Effect, Option, Schema, SchemaIssue } from 'effect'
 import * as Http from 'tea-effect/Http'
 
 const XSRF_COOKIE = 'XSRF-TOKEN'
@@ -32,13 +32,10 @@ const isEmpty = (value: unknown): boolean =>
   value === '' ||
   (typeof value === 'object' && Object.keys(value).length === 0)
 
-const NoContent = Schema.declare<void, void, readonly []>(
+const NoContent = Schema.declareConstructor<void>()(
   [],
-  {
-    decode: () => (input, _options, ast) =>
-      isEmpty(input) ? ParseResult.succeed(undefined) : ParseResult.fail(new ParseResult.Type(ast, input)),
-    encode: () => () => ParseResult.succeed(undefined),
-  },
+  () => (input, ast, options) =>
+    isEmpty(input) ? Effect.succeed(undefined) : Effect.fail(new SchemaIssue.InvalidType(ast, input, options)),
   { identifier: 'NoContent' },
 )
 

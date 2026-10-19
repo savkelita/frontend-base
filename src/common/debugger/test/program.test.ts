@@ -72,7 +72,7 @@ const parsed = (log: string): ReadonlyArray<UnknownAction> => {
   return value
 }
 
-const scopes: Array<Scope.CloseableScope> = []
+const scopes: Array<Scope.Closeable> = []
 
 const builds = (store: Lifted): ReadonlyArray<unknown> => actions(store).map(action => action.build)
 
@@ -80,7 +80,7 @@ const start = async (extension: Extension, build = '1.0.0+test') => {
   const scope = Effect.runSync(Scope.make())
   scopes.push(scope)
   const prog = await Effect.runPromise(
-    Scope.extend(program(extension, { build, maxAge: 50, actionsDenylist: [] }, counter), scope),
+    Scope.provide(program(extension, { build, maxAge: 50, actionsDenylist: [] }, counter), scope),
   )
   const models: Array<Model<Counter, Counted>> = []
   prog.subscribe(model => void models.push(model))

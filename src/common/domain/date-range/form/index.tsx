@@ -4,7 +4,6 @@ import { dateRangeField, type DateRangeForm } from '../../field/date-range-field
 
 export type Form = DateRangeForm
 
-export const vForm = Schema.Tuple(
-  Schema.NullOr(Schema.ValidDateFromSelf),
-  Schema.NullOr(Schema.ValidDateFromSelf),
-).pipe(Annotation.template(dateRangeField))
+export const vForm = Schema.Tuple([Schema.NullOr(Schema.Date), Schema.NullOr(Schema.Date)]).pipe(
+  Annotation.template(dateRangeField),
+)

@@ -4,7 +4,7 @@ import { dateField, type DateForm } from '../../field/date-field'
 
 export type Form = DateForm
 
-export const vForm = Schema.ValidDateFromSelf.pipe(
+export const vForm = Schema.Date.pipe(
   Annotation.template(dateField),
   Annotation.message((value: Form) =>
     value === null ? 'Podatak je obavezan' : Number.isNaN(value.getTime()) ? 'Unesite ispravan datum' : undefined,

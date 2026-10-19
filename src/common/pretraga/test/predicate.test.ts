@@ -1,4 +1,4 @@
-import { FastCheck } from 'effect'
+import * as FastCheck from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { contains, eq, predicateValue, range, rangeValue, type DateRange } from '../predicate'
 

@@ -1,34 +1,36 @@
-import { Either, Schema } from 'effect'
+import { Result, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { format, fromIso, ioValue, toIso } from '../api'
 
-const decode = Schema.decodeUnknownEither(ioValue)
+const decode = Schema.decodeUnknownResult(ioValue)
 
 describe('DateTime sa zice', () => {
   describe('ioValue', () => {
     it('pretvara zapis sa zice u pravi Date', () => {
       const result = decode('2026-08-21T16:02:07')
-      expect(Either.isRight(result)).toBe(true)
-      if (!Either.isRight(result)) return
-      expect(result.right).toBeInstanceOf(Date)
-      expect([result.right.getHours(), result.right.getMinutes(), result.right.getSeconds()]).toStrictEqual([16, 2, 7])
+      expect(Result.isSuccess(result)).toBe(true)
+      if (!Result.isSuccess(result)) return
+      expect(result.success).toBeInstanceOf(Date)
+      expect([result.success.getHours(), result.success.getMinutes(), result.success.getSeconds()]).toStrictEqual([
+        16, 2, 7,
+      ])
     })
 
     it('pusta Date da prodje nepromenjen', () => {
       const now = new Date(2026, 7, 21, 16, 2, 7)
-      expect(decode(now)).toStrictEqual(Either.right(now))
+      expect(decode(now)).toStrictEqual(Result.succeed(now))
     })
 
     it('odbija zapis koji nije datum', () => {
-      expect(Either.isLeft(decode('nije datum'))).toBe(true)
+      expect(Result.isFailure(decode('nije datum'))).toBe(true)
     })
 
     it('odbija dan bez vremena, to je Date a ne DateTime', () => {
-      expect(Either.isLeft(decode('2026-08-21'))).toBe(true)
+      expect(Result.isFailure(decode('2026-08-21'))).toBe(true)
     })
 
     it('odbija broj', () => {
-      expect(Either.isLeft(decode(1755792127000))).toBe(true)
+      expect(Result.isFailure(decode(1755792127000))).toBe(true)
     })
   })
 

@@ -1,4 +1,5 @@
-import { Arbitrary, FastCheck, Option, Schema } from 'effect'
+import { Option, Schema } from 'effect'
+import * as FastCheck from 'fast-check'
 import * as Router from 'tea-effect/Router'
 import { describe, expect, it } from 'vitest'
 import { ioDirection, ioEnumOperator, ioStringOperator, type EnumOperator } from '../../../../common/pretraga'
@@ -32,20 +33,22 @@ const tekst = FastCheck.oneof(
   ),
 )
 
-const stringPredicate = FastCheck.tuple(Arbitrary.make(ioStringOperator), tekst)
-const enumPredicate = <A>(value: Schema.Schema<A>): FastCheck.Arbitrary<readonly [EnumOperator, ...Array<A>]> =>
+const stringPredicate = FastCheck.tuple(FastCheck.constantFrom(...ioStringOperator.literals), tekst)
+const enumPredicate = <A extends string>(
+  value: Schema.Literals<ReadonlyArray<A>>,
+): FastCheck.Arbitrary<readonly [EnumOperator, ...Array<A>]> =>
   FastCheck.tuple(
-    Arbitrary.make(ioEnumOperator),
-    Arbitrary.make(value),
-    FastCheck.array(Arbitrary.make(value), { maxLength: 3 }),
+    FastCheck.constantFrom(...ioEnumOperator.literals),
+    FastCheck.constantFrom(...value.literals),
+    FastCheck.array(FastCheck.constantFrom(...value.literals), { maxLength: 3 }),
   ).map(([operator, first, rest]) => [operator, first, ...(isList(operator) ? rest : [])] as const)
 
 const upit: FastCheck.Arbitrary<Query> = FastCheck.record(
   {
     offset: FastCheck.nat(),
     kategorijaID: FastCheck.nat(),
-    order: Arbitrary.make(ioVozacOrder),
-    dir: Arbitrary.make(ioDirection),
+    order: FastCheck.constantFrom(...ioVozacOrder.literals),
+    dir: FastCheck.constantFrom(...ioDirection.literals),
     ime: stringPredicate,
     prezime: stringPredicate,
     imeZaPrikaz: stringPredicate,

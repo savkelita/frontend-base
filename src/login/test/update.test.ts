@@ -1,4 +1,4 @@
-import { Either, Option, Schema } from 'effect'
+import { Option, Result, Schema } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import { describe, expect, it } from 'vitest'
 import { IdentifikujResponse } from '../../auth/api/types'
@@ -79,8 +79,8 @@ describe('izmedju koraka', () => {
    * nego kao odgovor koji ne postuje dogovor — i pada jos pri dekodovanju.
    */
   it('prazna lista uloga nije ispravan odgovor', () => {
-    expect(Either.isLeft(Schema.decodeUnknownEither(IdentifikujResponse)({ uloge: [] }))).toBe(true)
-    expect(Either.isRight(Schema.decodeUnknownEither(IdentifikujResponse)({ uloge: ['REFERENT'] }))).toBe(true)
+    expect(Result.isFailure(Schema.decodeUnknownResult(IdentifikujResponse)({ uloge: [] }))).toBe(true)
+    expect(Result.isSuccess(Schema.decodeUnknownResult(IdentifikujResponse)({ uloge: ['REFERENT'] }))).toBe(true)
   })
 
   it('neuspela identifikacija gasi indikator i pamti gresku', () => {

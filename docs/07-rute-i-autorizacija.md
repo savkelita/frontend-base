@@ -253,7 +253,9 @@ drugde. `update` grana po identitetu:
 Identitet se **izvodi iz seme**, da se spisak polja ne odrzava rucno:
 
 ```ts
-export const sameIdentity: Equivalence.Equivalence<Session> = Schema.equivalence(Session.omit('expiration'))
+export const sameIdentity: Equivalence.Equivalence<Session> = Schema.toEquivalence(
+  Session.mapFields(Struct.omit(['expiration'])),
+)
 ```
 
 `expiration` je jedini izuzetak jer produzenje sesije pomera samo rok. **Treca grana je tu zbog

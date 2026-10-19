@@ -17,7 +17,7 @@ Uzor: `src/sifarnici/vozac/pretraga/`
 export const Stavka = Schema.Struct({ id: Schema.Number, version: Schema.Number, naziv: Schema.String, audit: Audit })
 export type Stavka = typeof Stavka.Type
 
-export const ioStavkaOrder = Schema.Literal('naziv', 'stanje')
+export const ioStavkaOrder = Schema.Literals(['naziv', 'stanje'])
 export type StavkaOrder = typeof ioStavkaOrder.Type
 
 export const ioStavkaCriteria = Schema.Struct({
@@ -29,7 +29,7 @@ export type StavkaCriteria = typeof ioStavkaCriteria.Type
 ```
 
 Kriterijum je sema jer iz nje nastaje i `RouteQuery`. Kodeci su query-string kodeci: `ioId` za
-identifikatore, `Schema.BooleanFromString` za `da/ne`.
+identifikatore, `ioBoolean` za `da/ne`.
 
 `src/<oblast>/api/routes.ts`:
 
@@ -170,9 +170,12 @@ Svako novo polje dobija i generator, inace property test ne zna za njega. Genera
 const stringPredicateOf = (operators: ReadonlyArray<StringOperator>) =>
   FastCheck.tuple(FastCheck.constantFrom(...operators), tekst)
 
-const enumPredicate = <A>(value: Schema.Schema<A>) =>
-  FastCheck.tuple(Arbitrary.make(ioEnumOperator), Arbitrary.make(value), FastCheck.array(Arbitrary.make(value)))
-    .map(([operator, first, rest]) => [operator, first, ...(isList(operator) ? rest : [])] as const)
+const enumPredicate = <A extends string>(value: Schema.Literals<ReadonlyArray<A>>) =>
+  FastCheck.tuple(
+    FastCheck.constantFrom(...ioEnumOperator.literals),
+    FastCheck.constantFrom(...value.literals),
+    FastCheck.array(FastCheck.constantFrom(...value.literals)),
+  ).map(([operator, first, rest]) => [operator, first, ...(isList(operator) ? rest : [])] as const)
 ```
 
 Enum uvek dobije bar jednu vrednost, a vise njih samo uz `in`. Brojcano polje dobija brojcani tekst,
@@ -340,7 +343,7 @@ Adresa bez kriterijuma je **ispravna adresa koja nije pretraga**. Zato se prover
 
 | | ulaz | pravilo |
 |---|---|---|
-| fioka | nacrt (`FormValue`) | cela sema: `Trim`, `nonEmptyString`, `maxLength` |
+| fioka | nacrt (`FormValue`) | cela sema: `Trim`, `isNonEmpty`, `isMaxLength` |
 | adresa | `VozacCriteria` | polje postoji |
 
 Spajanje ne radi. Adresa nosi `kategorijaID: 3`, a nacrt trazi ceo objekat `{ id, oznaka }` koji tek
@@ -348,7 +351,7 @@ stize sa servera. Kad bi se `isSearch` oslanjao na `Form.validate`, ekran sa oba
 pretrazivao dok combo ne odgovori.
 
 Posledica koja se prihvata: rucno otkucan `?ime=contains&ime=` pokrece pretragu sa praznim imenom.
-Kroz fioku se do toga ne moze doci, jer `Schema.Trim` + `nonEmptyString` zaustave razmake.
+Kroz fioku se do toga ne moze doci, jer `Schema.Trim` + `isNonEmpty` zaustave razmake.
 
 ### Testovi
 
@@ -729,7 +732,7 @@ kompajler — i vezuje se anotacijom:
 
 ```ts
 export const vForm = Schema.String.pipe(
-  Schema.pattern(PATTERN),                       // pravilo prvo
+  Schema.check(Schema.isPattern(PATTERN)),       // pravilo prvo
   Annotation.template(mojeFieldPolje),           // widget
   Annotation.message((value: Form) => ...),      // tekst greske
 )

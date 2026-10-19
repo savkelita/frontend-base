@@ -29,7 +29,7 @@ Open https://localhost:3000
 - **Language**: TypeScript 5
 - **Build**: Webpack 5 + Babel
 - **Linting**: ESLint 9 (flat config) + Prettier 3
-- **Testing**: Vitest, `@effect/vitest` for `TestClock`, property tests through `effect`'s `FastCheck`
+- **Testing**: Vitest, `TestClock` from `effect/testing`, property tests through `fast-check`
 - **Git hooks**: Husky + lint-staged + commitlint
 
 ## Before You Call It Done

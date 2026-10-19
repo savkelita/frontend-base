@@ -7,15 +7,15 @@ import { accepts, canonical, editable, format, normalize } from '../../field/num
 import * as Int from '../../int'
 import type * as NumberDomain from '../index'
 
-const check = <A, I, R>(schema: Schema.Schema<A, I, R>, value: NumberDomain.Form) =>
+const check = <A, I, R>(schema: Schema.Codec<A, I, R>, value: NumberDomain.Form) =>
   Form.validate(() => Schema.Struct({ x: schema }), { x: value })
 
-const decoded = <A, I, R>(schema: Schema.Schema<A, I, R>, value: NumberDomain.Form) => {
+const decoded = <A, I, R>(schema: Schema.Codec<A, I, R>, value: NumberDomain.Form) => {
   const r = check(schema, value)
   return r.isValid ? (r.value as { readonly x: number }).x : undefined
 }
 
-const message = <A, I, R>(schema: Schema.Schema<A, I, R>, value: NumberDomain.Form) => {
+const message = <A, I, R>(schema: Schema.Codec<A, I, R>, value: NumberDomain.Form) => {
   const r = check(schema, value)
   return r.isValid ? undefined : r.issues[0]?.message
 }
@@ -171,7 +171,7 @@ describe('round trip', () => {
 })
 
 describe('widget', () => {
-  const draw = <A, I, R>(schema: Schema.Schema<A, I, R>) => {
+  const draw = <A, I, R>(schema: Schema.Codec<A, I, R>) => {
     const options: Form.Options<{ readonly x: NumberDomain.Form }> = { template: l => l.inputs.x }
     return renderToStaticMarkup(
       Form.render({ schema: Schema.Struct({ x: schema }), value: { x: '42' }, onChange: () => {}, options }) as never,

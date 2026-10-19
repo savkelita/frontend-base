@@ -7,10 +7,10 @@ import * as Desc from '../../desc'
 import * as Name from '../../name'
 import type * as Text from '../index'
 
-const check = <A, I, R>(schema: Schema.Schema<A, I, R>, value: Text.Form) =>
+const check = <A, I, R>(schema: Schema.Codec<A, I, R>, value: Text.Form) =>
   Form.validate(() => Schema.Struct({ x: schema }), { x: value })
 
-const message = <A, I, R>(schema: Schema.Schema<A, I, R>, value: Text.Form) => {
+const message = <A, I, R>(schema: Schema.Codec<A, I, R>, value: Text.Form) => {
   const r = check(schema, value)
   return r.isValid ? undefined : r.issues[0]?.message
 }

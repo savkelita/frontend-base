@@ -1,7 +1,7 @@
 import { Data, Option, Schema } from 'effect'
 import type * as Http from 'tea-effect/Http'
 
-export const Severity = Schema.Literal('ERROR', 'WARNING')
+export const Severity = Schema.Literals(['ERROR', 'WARNING'])
 
 export type Severity = typeof Severity.Type
 
@@ -24,13 +24,13 @@ export const PreconditionError = Schema.Struct({
   message: Schema.String,
 })
 
-export const ServerError = Schema.Union(BusinessError, SystemError, PreconditionError)
+export const ServerError = Schema.Union([BusinessError, SystemError, PreconditionError])
 
 export type ServerError = typeof ServerError.Type
 
-const decodeMany = Schema.decodeUnknownOption(Schema.parseJson(Schema.Array(ServerError)))
+const decodeMany = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Array(ServerError)))
 
-const decodeOne = Schema.decodeUnknownOption(Schema.parseJson(ServerError))
+const decodeOne = Schema.decodeUnknownOption(Schema.fromJsonString(ServerError))
 
 export const parseErrors = (body: string): ReadonlyArray<ServerError> =>
   Option.getOrElse(

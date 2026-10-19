@@ -23,7 +23,7 @@ const ucitan = (open: boolean): Combo.Model<Kategorija> => ({
   data: Data.Ready({ page: { rows: [B, C], total: 2 } }),
 })
 
-const draw = <V>(schema: Schema.Schema.Any, value: V, model: Combo.Model<Kategorija>): Array<string> => {
+const draw = <V>(schema: Schema.Top, value: V, model: Combo.Model<Kategorija>): Array<string> => {
   const tags: Array<string> = []
   mount(
     render({

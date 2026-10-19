@@ -1,4 +1,4 @@
-import { Chunk, Data, Effect, Option, Stream } from 'effect'
+import { Data, Effect, Option, Stream } from 'effect'
 import * as Cmd from 'tea-effect/Cmd'
 import { describe, expect, it } from 'vitest'
 import { app, jumped, requested, update, type Model, type Msg } from '../index'
@@ -28,7 +28,7 @@ const paused = (count: number, shown: number, queue: ReadonlyArray<Counted> = []
 })
 
 const run = (cmd: Cmd.Cmd<Msg<number, Counted>>): Promise<ReadonlyArray<Msg<number, Counted>>> =>
-  Effect.runPromise(Stream.runCollect(cmd)).then(Chunk.toReadonlyArray)
+  Effect.runPromise(Stream.runCollect(cmd))
 
 describe('zivo stanje', () => {
   it('poruka aplikacije prolazi kroz njen update i pamti se kao poslednja', () => {

@@ -139,11 +139,11 @@ Submitted: () => {
 ### Poruka bez pravila ne postoji
 
 `Annotation.message` **samo preimenuje gresku koju je sema vec proizvela**. Ako iza nje nema
-`Schema.filter` / `Schema.pattern` / `Schema.minItems`, poruka se nikad nece prikazati.
+`Schema.makeFilter` / `Schema.isPattern` / `Schema.isMinLength`, poruka se nikad nece prikazati.
 
 ```ts
 export const vForm = Schema.String.pipe(
-  Schema.pattern(PATTERN),                          // pravilo
+  Schema.check(Schema.isPattern(PATTERN)),          // pravilo
   Annotation.template(telefonField),                // widget
   Annotation.message((value: Form) => { ... }),     // tekst greske
 )
@@ -238,9 +238,9 @@ zatvaranju kartice. Prvo racuna sam dijalog, drugo je pretplata rutera.
 Model izlaze `isDirty`, poredjenjem sa polaznom vrednoscu preko `Equivalence`:
 
 ```ts
-export const sameForm: Equivalence.Equivalence<FormValue> = Equivalence.struct({
-  ime: Equivalence.strict<Name.Form>(),
-  kategorije: Equivalence.mapInput(Equivalence.array(Equivalence.number), ids),
+export const sameForm: Equivalence.Equivalence<FormValue> = Equivalence.Struct({
+  ime: Equivalence.strictEqual<Name.Form>(),
+  kategorije: Equivalence.mapInput(Equivalence.Array(Equivalence.Number), ids),
 })
 
 export const isDirty = (model: Model): boolean => !sameForm(EMPTY, model.value)

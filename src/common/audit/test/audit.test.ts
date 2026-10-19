@@ -1,8 +1,8 @@
-import { Either, Schema } from 'effect'
+import { Result, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { Audit, changed, renderUser, type Audit as AuditValue } from '../audit'
 
-const decode = Schema.decodeUnknownEither(Audit)
+const decode = Schema.decodeUnknownResult(Audit)
 
 const CREATED_WIRE = {
   korisnikKreirao: { ime: 'Petar', prezime: 'Petrovic' },
@@ -27,7 +27,7 @@ const created: AuditValue = {
 describe('Audit', () => {
   it('cita zapis o kreiranju i izmeni, sa pravim datumima', () => {
     expect(decode(UPDATED_WIRE)).toStrictEqual(
-      Either.right({
+      Result.succeed({
         korisnikKreirao: { ime: 'Petar', prezime: 'Petrovic' },
         datumKreiranja: new Date(2026, 7, 12, 9, 14),
         korisnikPromenio: { ime: 'Ana', prezime: 'Anic' },
@@ -37,15 +37,15 @@ describe('Audit', () => {
   })
 
   it('cita zapis koji jos nije menjan', () => {
-    expect(decode(CREATED_WIRE)).toStrictEqual(Either.right(created))
+    expect(decode(CREATED_WIRE)).toStrictEqual(Result.succeed(created))
   })
 
   it('odbija zapis bez korisnika koji je kreirao', () => {
-    expect(Either.isLeft(decode({ ...CREATED_WIRE, korisnikKreirao: null }))).toBe(true)
+    expect(Result.isFailure(decode({ ...CREATED_WIRE, korisnikKreirao: null }))).toBe(true)
   })
 
   it('odbija datum koji nije datum', () => {
-    expect(Either.isLeft(decode({ ...CREATED_WIRE, datumKreiranja: 'juce' }))).toBe(true)
+    expect(Result.isFailure(decode({ ...CREATED_WIRE, datumKreiranja: 'juce' }))).toBe(true)
   })
 
   describe('promenjen', () => {

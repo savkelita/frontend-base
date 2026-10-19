@@ -39,13 +39,13 @@ export const EMPTY: FormValue = {
 const ids = (kategorije: Kategorija.FormMulti): ReadonlyArray<number> =>
   [...kategorije.map(Kategorija.id)].sort((a, b) => a - b)
 
-export const sameForm: Equivalence.Equivalence<FormValue> = Equivalence.struct({
-  ime: Equivalence.strict<Name.Form>(),
-  prezime: Equivalence.strict<Name.Form>(),
-  imeZaPrikaz: Equivalence.strict<Name.Form>(),
-  email: Equivalence.strict<Email.Form>(),
-  telefon: Equivalence.strict<Phone.Form>(),
-  kategorije: Equivalence.mapInput(Equivalence.array(Equivalence.number), ids),
+export const sameForm: Equivalence.Equivalence<FormValue> = Equivalence.Struct({
+  ime: Equivalence.strictEqual<Name.Form>(),
+  prezime: Equivalence.strictEqual<Name.Form>(),
+  imeZaPrikaz: Equivalence.strictEqual<Name.Form>(),
+  email: Equivalence.strictEqual<Email.Form>(),
+  telefon: Equivalence.strictEqual<Phone.Form>(),
+  kategorije: Equivalence.mapInput(Equivalence.Array(Equivalence.Number), ids),
 })
 
 export type Model = {

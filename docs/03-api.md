@@ -68,7 +68,7 @@ Ne pravi se jedan "veliki" tip sa opcionim poljima.
 ### Kriterijumi i sortiranje
 
 ```ts
-export const ioVozacOrder = Schema.Literal('prezime', 'ime', 'imeZaPrikaz', 'email', 'telefon', 'stanje')
+export const ioVozacOrder = Schema.Literals(['prezime', 'ime', 'imeZaPrikaz', 'email', 'telefon', 'stanje'])
 export type VozacOrder = typeof ioVozacOrder.Type
 
 export const ioVozacCriteria = Schema.Struct({
@@ -178,7 +178,7 @@ Ne vidzet. Dva polja koja u fioci izgledaju isto — oba su combo — na zici su
 |---|---|---|
 | `vrstaGoriva` | `vrstaGorivaID: ioId` | server ima sifarnik, salje se identifikator |
 | `markaVozila` | `markaVozila: ioStringPredicate` | marka nema identifikator, ide tekst |
-| `dostavljaMesecnuKm` | `Schema.BooleanFromString` | da/ne nema sta da bira |
+| `dostavljaMesecnuKm` | `ioBoolean` | da/ne nema sta da bira |
 
 Combo koji salje `ioId` nema operator i nece ga dobiti. Combo koji salje predikat moze da ga dobije
 kad ga PJ zatrazi; za sada koristi samo `eq`:

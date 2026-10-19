@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { Chunk, Effect, Option, Schema, Stream } from 'effect'
+import { Effect, Option, Schema, Stream } from 'effect'
 import type * as Navigation from 'tea-effect/Navigation'
 import { afterEach, describe, expect, it } from 'vitest'
 import { SESSION_KEY, Session } from '../../auth/session'
@@ -38,7 +38,7 @@ const clearCookie = (): void => {
 
 const boot = async (): Promise<Msg> => {
   const messages = await Effect.runPromise(Stream.runCollect(init(location)[1]))
-  return Chunk.toReadonlyArray(messages)[0]!
+  return messages[0]!
 }
 
 const loadedSession = (msg: Msg): Option.Option<Session> => {

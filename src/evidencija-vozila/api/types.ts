@@ -2,6 +2,7 @@ import { Schema } from 'effect'
 import { Audit } from '../../common/audit'
 import { ioValue as ioDate } from '../../common/domain/date/api'
 import {
+  ioBoolean,
   ioDatePredicate,
   ioEnumPredicate,
   ioId,
@@ -33,7 +34,7 @@ export const Vozilo = Schema.Struct({
 
 export type Vozilo = typeof Vozilo.Type
 
-export const ioVoziloOrder = Schema.Literal(
+export const ioVoziloOrder = Schema.Literals([
   'registarskaOznaka',
   'datumPrveRegistracije',
   'datumIsticanjaRegistracije',
@@ -46,7 +47,7 @@ export const ioVoziloOrder = Schema.Literal(
   'korisnikVozilaNaziv',
   'dostavljaMesecnuKm',
   'stanje',
-)
+])
 
 export type VoziloOrder = typeof ioVoziloOrder.Type
 
@@ -62,7 +63,7 @@ export const ioVoziloCriteria = Schema.Struct({
   vozacID: Schema.optional(ioId),
   datumPrveRegistracije: Schema.optional(ioDatePredicate),
   datumIsticanjaRegistracije: Schema.optional(ioDatePredicate),
-  dostavljaMesecnuKm: Schema.optional(Schema.BooleanFromString),
+  dostavljaMesecnuKm: Schema.optional(ioBoolean),
   stanje: Schema.optional(ioEnumPredicate(VoziloStanje.ioValue)),
   istekRegistracije: Schema.optional(ioEnumPredicate(IstekRegistracije.ioValue)),
 })

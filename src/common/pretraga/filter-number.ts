@@ -11,7 +11,7 @@ export type Form = NumberFilterForm
 
 export const vForm = (decimals = 0, operators: Operators = NUMBER_OPERATORS) =>
   Schema.NullOr(
-    Schema.Tuple([Schema.Literal(...operators)], Schema.String).pipe(
+    Schema.TupleWithRest(Schema.Tuple([Schema.Literals(operators)]), [Schema.String]).pipe(
       Annotation.template(numberFilterField(operators, decimals)),
     ),
   )

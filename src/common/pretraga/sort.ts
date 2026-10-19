@@ -1,6 +1,6 @@
 import { Array as Arr, Order, Schema } from 'effect'
 
-export const ioDirection = Schema.Literal('ASC', 'DESC')
+export const ioDirection = Schema.Literals(['ASC', 'DESC'])
 
 export type Direction = typeof ioDirection.Type
 
@@ -40,23 +40,23 @@ export const byText = <R>(f: (row: R) => string | null | undefined): ColumnOrder
 
 export const byNumber = <R>(f: (row: R) => number | null | undefined): ColumnOrder<R> => ({
   blank: row => missing(f(row)),
-  value: Order.mapInput(Order.number, (row: R) => f(row) ?? 0),
+  value: Order.mapInput(Order.Number, (row: R) => f(row) ?? 0),
 })
 
 export const byDate = <R>(f: (row: R) => Date | null | undefined): ColumnOrder<R> => ({
   blank: row => missing(f(row)),
-  value: Order.mapInput(Order.number, (row: R) => f(row)?.getTime() ?? 0),
+  value: Order.mapInput(Order.Number, (row: R) => f(row)?.getTime() ?? 0),
 })
 
 export const byBoolean = <R>(f: (row: R) => boolean | null | undefined): ColumnOrder<R> => ({
   blank: row => missing(f(row)),
-  value: Order.mapInput(Order.boolean, (row: R) => f(row) ?? false),
+  value: Order.mapInput(Order.Boolean, (row: R) => f(row) ?? false),
 })
 
 const ordering = <R>(column: ColumnOrder<R>, direction: Direction): Order.Order<R> =>
   Order.combine(
-    Order.mapInput(Order.boolean, column.blank),
-    direction === 'ASC' ? column.value : Order.reverse(column.value),
+    Order.mapInput(Order.Boolean, column.blank),
+    direction === 'ASC' ? column.value : Order.flip(column.value),
   )
 
 export const sortRows = <R>(

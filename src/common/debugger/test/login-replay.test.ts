@@ -39,13 +39,13 @@ const config = {
   onUrlChange: App.onUrlChange,
 }
 
-const scopes: Array<Scope.CloseableScope> = []
+const scopes: Array<Scope.Closeable> = []
 
 const start = async (extension: Extension) => {
   const scope = Effect.runSync(Scope.make())
   scopes.push(scope)
   const prog = await Effect.runPromise(
-    Scope.extend(program(extension, { build: '0.1.0+test', maxAge: 200, actionsDenylist: [] }, config), scope),
+    Scope.provide(program(extension, { build: '0.1.0+test', maxAge: 200, actionsDenylist: [] }, config), scope),
   )
   const shown: Array<App.Model> = []
   prog.subscribe(model => void shown.push(Option.getOrElse(model.shown, () => model.app)))

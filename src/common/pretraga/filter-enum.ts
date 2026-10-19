@@ -16,7 +16,7 @@ export const vForm = <K extends Keys>(
 ) => {
   const list = choices(keys, only)
   return Schema.NullOr(
-    ioEnumPredicateOf(Schema.Literal(...list.map(one => one.value)), operators).pipe(
+    ioEnumPredicateOf(Schema.Literals(list.map(one => one.value)), operators).pipe(
       Annotation.template(enumFilterField(operators, list)),
     ),
   )

@@ -13,7 +13,7 @@ import * as Telefon from '../../phone'
 
 const LABELABLE = ['button', 'input', 'meter', 'output', 'progress', 'select', 'textarea']
 
-const draw = (schema: Schema.Schema.Any): string => {
+const draw = (schema: Schema.Top): string => {
   const options: Options<{ readonly x: unknown }> = {
     template: l => l.inputs.x,
     fields: { x: { label: 'Polje' } },
@@ -28,7 +28,7 @@ const labelFor = (markup: string): string | undefined => markup.match(/<label[^>
 const owner = (markup: string, id: string): string | undefined =>
   markup.match(new RegExp(`<([a-z]+)(?=[^>]*\\bid="${id}")`))?.[1]
 
-const FIELDS: ReadonlyArray<readonly [string, Schema.Schema.Any]> = [
+const FIELDS: ReadonlyArray<readonly [string, Schema.Top]> = [
   ['tekst', Name.vForm],
   ['e-mail', Email.vForm],
   ['telefon', Telefon.vForm],

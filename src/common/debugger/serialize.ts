@@ -4,11 +4,11 @@ export const REDACTED = '<redacted>'
 
 const SECRET = /lozinka|password/i
 
-const ioMark = Schema.Union(
+const ioMark = Schema.Union([
   Schema.Struct({ _id: Schema.Literal('Option'), _tag: Schema.Literal('None') }),
   Schema.Struct({ _id: Schema.Literal('Option'), _tag: Schema.Literal('Some'), value: Schema.Unknown }),
   Schema.Struct({ _id: Schema.Literal('Date'), value: Schema.NullOr(Schema.String) }),
-)
+])
 
 type Mark = typeof ioMark.Type
 

@@ -9,9 +9,7 @@ const PATTERN = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/
 export type Form = TextForm
 
 export const vForm = Schema.Trim.pipe(
-  Schema.nonEmptyString(),
-  Schema.maxLength(MAX_LENGTH),
-  Schema.pattern(PATTERN),
+  Schema.check(Schema.isNonEmpty(), Schema.isMaxLength(MAX_LENGTH), Schema.isPattern(PATTERN)),
   Annotation.template(textField),
   Annotation.message((value: Form) => {
     const entered = value === null ? '' : value.trim()

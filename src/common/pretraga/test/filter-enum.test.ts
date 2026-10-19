@@ -121,7 +121,7 @@ describe('suzen skup operatora', () => {
     proba: Router.path('/proba').query(
       pretragaQuery(
         Schema.Struct({
-          polje: Schema.optional(ioEnumPredicateOf(Schema.Literal('AKTIVAN', 'PASIVAN'), DOZVOLJENI)),
+          polje: Schema.optional(ioEnumPredicateOf(Schema.Literals(['AKTIVAN', 'PASIVAN']), DOZVOLJENI)),
         }),
         Schema.Literal('polje'),
       ),

@@ -6,8 +6,7 @@ export type Form = TextForm
 
 export const vForm = (maxLength: number) =>
   Schema.Trim.pipe(
-    Schema.nonEmptyString(),
-    Schema.maxLength(maxLength),
+    Schema.check(Schema.isNonEmpty(), Schema.isMaxLength(maxLength)),
     Annotation.template(textField),
     Annotation.message((value: Form) =>
       value === null || value.trim() === ''

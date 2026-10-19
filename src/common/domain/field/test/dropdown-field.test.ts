@@ -13,7 +13,7 @@ const KEYS = {
 const single = Enum.vForm(KEYS)
 const multi = Enum.vFormMulti(KEYS)
 
-const draw = <A, I, R>(schema: Schema.Schema<A, I, R>, x: unknown) => {
+const draw = <A, I, R>(schema: Schema.Codec<A, I, R>, x: unknown) => {
   const options: Options<{ readonly x: unknown }> = { template: l => l.inputs.x }
   return renderToStaticMarkup(
     render({ schema: Schema.Struct({ x: schema }), value: { x }, onChange: () => {}, options }) as never,

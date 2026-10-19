@@ -122,7 +122,7 @@ tri mesta: tip `Env`, `webpack/webpack.dev.js` i `webpack/webpack.prod.js`.
 
 - Nadogradnja **u okviru postojecih opsega** (`yarn upgrade <paket>`) je rutinska.
 - Major verzije se ne diraju bez odluke. Trenutno namerno stoje na mestu: React 18, TypeScript 5,
-  ESLint 9, Vitest 3, Babel 7, webpack-cli 6, `@effect/platform` 0.94.
+  ESLint 9, Vitest 3, Babel 7, webpack-cli 6.
 - `resolutions` u `package.json` drze Fluent pakete na jednoj kopiji. Dve kopije
   `@fluentui/react-motion` daju `presenceFn is not a function` u vreme izvrsavanja.
 - `redux` je tu samo kao store za Redux DevTools (`common/debugger`); stanje aplikacije ne ide u

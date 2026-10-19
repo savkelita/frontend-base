@@ -24,6 +24,6 @@ export type Extension = (
 ) => StoreEnhancer
 
 export const extension = (): Option.Option<Extension> =>
-  Option.fromNullable(
+  Option.fromNullishOr(
     (globalThis as { readonly __REDUX_DEVTOOLS_EXTENSION__?: Extension }).__REDUX_DEVTOOLS_EXTENSION__,
   )

@@ -7,7 +7,7 @@ export const { render } = EffectForm.make<ReactNode>()
 
 export type { FieldOptions, Options } from '../domain/field/options'
 
-export type VForm<A, I, R, V> = (form: V) => Schema.Schema<A, I, R>
+export type VForm<A, I, R, V> = (form: V) => Schema.Codec<A, I, R>
 
 export const validate = <A, I, R, V>(vForm: VForm<A, I, R, V>, form: V): Validation.Result<A> =>
   Validation.validate(vForm(form), form)

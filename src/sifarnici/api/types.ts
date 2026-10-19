@@ -118,7 +118,7 @@ export const KreirajVozacCmd = Schema.Struct({
 
 export type KreirajVozacCmd = typeof KreirajVozacCmd.Type
 
-export const ioVozacOrder = Schema.Literal('prezime', 'ime', 'imeZaPrikaz', 'email', 'telefon', 'stanje')
+export const ioVozacOrder = Schema.Literals(['prezime', 'ime', 'imeZaPrikaz', 'email', 'telefon', 'stanje'])
 
 export type VozacOrder = typeof ioVozacOrder.Type
 

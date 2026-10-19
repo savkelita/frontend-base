@@ -1,4 +1,4 @@
-import { Chunk, Effect, Either, Option, Schema, Stream } from 'effect'
+import { Effect, Option, Result, Schema, Stream } from 'effect'
 import * as Http from 'tea-effect/Http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { expectNoContent, get, hasXsrfToken, readCookie, withSession } from '../request'
@@ -62,7 +62,7 @@ describe('odgovor bez sadrzaja', () => {
           onError: error => ({ err: error._tag }),
         }),
       ),
-    ).then(Chunk.toReadonlyArray)
+    )
 
   it('204 daje undefined, ne prazan string i ne null', async () => {
     globalThis.fetch = (() => Promise.resolve(new Response(null, { status: 204 }))) as typeof fetch
@@ -78,7 +78,7 @@ describe('odgovor bez sadrzaja', () => {
 })
 
 describe('NoContent shema', () => {
-  const decode = Schema.decodeUnknownEither(expectNoContent.decoder)
+  const decode = Schema.decodeUnknownResult(expectNoContent.decoder)
 
   it.each([
     ['prazan tekst', ''],
@@ -87,7 +87,7 @@ describe('NoContent shema', () => {
     ['prazan objekat', {}],
   ])('prihvata %s kao odsustvo sadrzaja', (_label, value) => {
     const result = decode(value)
-    expect(Either.isRight(result) && result.right).toBeUndefined()
+    expect(Result.isSuccess(result) && result.success).toBeUndefined()
   })
 
   it.each([
@@ -95,7 +95,7 @@ describe('NoContent shema', () => {
     ['objekat sa poljem', { a: 1 }],
     ['broj', 0],
   ])('odbija %s — to jeste sadrzaj', (_label, value) => {
-    expect(Either.isLeft(decode(value))).toBe(true)
+    expect(Result.isFailure(decode(value))).toBe(true)
   })
 })
 

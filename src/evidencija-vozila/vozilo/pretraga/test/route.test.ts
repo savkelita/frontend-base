@@ -1,4 +1,5 @@
-import { Arbitrary, FastCheck, Option, Schema } from 'effect'
+import { Option, Schema } from 'effect'
+import * as FastCheck from 'fast-check'
 import * as Router from 'tea-effect/Router'
 import { describe, expect, it } from 'vitest'
 import {
@@ -24,24 +25,26 @@ const tekst = FastCheck.oneof(
   FastCheck.constantFrom('BG 123-AA', 'NŠ-456-ББ', 'contains', '%41', 'a+b', '#', '?', '&', '=', '../..', '😀'),
 )
 
-const stringPredicate = FastCheck.tuple(Arbitrary.make(ioStringOperator), tekst)
+const stringPredicate = FastCheck.tuple(FastCheck.constantFrom(...ioStringOperator.literals), tekst)
 
 const stringPredicateOf = (operators: ReadonlyArray<StringOperator>) =>
   FastCheck.tuple(FastCheck.constantFrom(...operators), tekst)
-const enumPredicate = <A>(value: Schema.Schema<A>): FastCheck.Arbitrary<readonly [EnumOperator, ...Array<A>]> =>
+const enumPredicate = <A extends string>(
+  value: Schema.Literals<ReadonlyArray<A>>,
+): FastCheck.Arbitrary<readonly [EnumOperator, ...Array<A>]> =>
   FastCheck.tuple(
-    Arbitrary.make(ioEnumOperator),
-    Arbitrary.make(value),
-    FastCheck.array(Arbitrary.make(value), { maxLength: 3 }),
+    FastCheck.constantFrom(...ioEnumOperator.literals),
+    FastCheck.constantFrom(...value.literals),
+    FastCheck.array(FastCheck.constantFrom(...value.literals), { maxLength: 3 }),
   ).map(([operator, first, rest]) => [operator, first, ...(isList(operator) ? rest : [])] as const)
 
-const datePredicate = FastCheck.tuple(Arbitrary.make(ioDateOperator), tekst)
+const datePredicate = FastCheck.tuple(FastCheck.constantFrom(...ioDateOperator.literals), tekst)
 
 const upit: FastCheck.Arbitrary<Query> = FastCheck.record(
   {
     offset: FastCheck.nat(),
-    order: Arbitrary.make(ioVoziloOrder),
-    dir: Arbitrary.make(ioDirection),
+    order: FastCheck.constantFrom(...ioVoziloOrder.literals),
+    dir: FastCheck.constantFrom(...ioDirection.literals),
     registarskaOznaka: stringPredicateOf(OZNAKA_OPERATORI),
     markaVozila: stringPredicate,
     modelVozila: stringPredicate,

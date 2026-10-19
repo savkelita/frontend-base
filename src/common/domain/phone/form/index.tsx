@@ -56,7 +56,7 @@ export const phoneField = (l: Locals<Form, PhoneFieldOptions>): ReactNode => (
 )
 
 export const vForm = Schema.String.pipe(
-  Schema.pattern(PATTERN),
+  Schema.check(Schema.isPattern(PATTERN)),
   Annotation.template(phoneField),
   Annotation.message((value: Form) => {
     if (value === null || value === '') return 'Podatak je obavezan'

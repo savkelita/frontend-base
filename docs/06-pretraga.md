@@ -69,7 +69,7 @@ Upit se **ne pise rukom**. `pretragaQuery` uzima semu kriterijuma iz API sloja i
 ```ts
 export const pretragaQuery = <F extends Schema.Struct.Fields & { [K in keyof Paging]?: never }, O extends string>(
   criteria: Schema.Struct<F>,
-  order: Schema.Schema<O, O>,
+  order: Schema.Codec<O, O>,
 ) =>
   Schema.Struct({
     offset: Schema.optional(Router.IntFromString),
@@ -522,13 +522,13 @@ Sam redosled je kompozicija, ne rucno pisano poredjenje:
 
 ```ts
 Order.combine(
-  Order.mapInput(Order.boolean, column.blank),
-  direction === 'ASC' ? column.value : Order.reverse(column.value),
+  Order.mapInput(Order.Boolean, column.blank),
+  direction === 'ASC' ? column.value : Order.flip(column.value),
 )
 ```
 
 Odatle slede dve stvari koje vrede znati. **Prazne vrednosti idu na kraj u oba smera** — prazno je
-zasebna osa koja se ne obrce; da je samo `Order.reverse(sve)`, u opadajucem redosledu bi prazna
+zasebna osa koja se ne obrce; da je samo `Order.flip(sve)`, u opadajucem redosledu bi prazna
 polja isplivala na vrh. I **redosled se komponuje**: kolona sme da nosi svoj `ColumnOrder` sa dva
 kljuca, gde drugi razresava izjednacene.
 

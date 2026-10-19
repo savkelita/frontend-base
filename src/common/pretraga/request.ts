@@ -19,7 +19,7 @@ export type PretragaResponse<A> = {
   readonly result: ReadonlyArray<A>
 }
 
-export const ioPretragaResponse = <A>(item: Schema.Schema<A>) =>
+export const ioPretragaResponse = <A>(item: Schema.Codec<A>) =>
   Schema.Struct({
     total_: Schema.Number,
     offset_: Schema.Number,

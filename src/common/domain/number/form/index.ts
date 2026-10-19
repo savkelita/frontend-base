@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Schema, SchemaTransformation } from 'effect'
 import * as Annotation from 'effect-form/Annotation'
 import { format, normalize, numberField, type NumberForm } from '../../field/number-field'
 
@@ -14,23 +14,28 @@ export const vForm = (decimals: number, maxIntegerDigits: number) => {
   const pattern = patternFor(decimals)
 
   const digits = Schema.String.pipe(
-    Schema.transform(Schema.String, { strict: true, decode: normalize, encode: text => text }),
-    Schema.filter(text =>
-      text === ''
-        ? 'prazno'
-        : !pattern.test(text)
-          ? 'nije broj'
-          : integerDigits(text) > maxIntegerDigits
-            ? 'previse cifara'
-            : undefined,
+    Schema.decodeTo(Schema.String, SchemaTransformation.transform({ decode: normalize, encode: text => text })),
+    Schema.check(
+      Schema.makeFilter((text: string) =>
+        text === ''
+          ? 'prazno'
+          : !pattern.test(text)
+            ? 'nije broj'
+            : integerDigits(text) > maxIntegerDigits
+              ? 'previse cifara'
+              : undefined,
+      ),
     ),
   )
 
-  return Schema.transform(digits, Schema.Number, {
-    strict: true,
-    decode: (text: string) => round(Number(text), decimals),
-    encode: (n: number) => format(n, decimals),
-  }).pipe(
+  return digits.pipe(
+    Schema.decodeTo(
+      Schema.Number,
+      SchemaTransformation.transform({
+        decode: (text: string) => round(Number(text), decimals),
+        encode: (n: number) => format(n, decimals),
+      }),
+    ),
     Annotation.template(numberField(decimals)),
     Annotation.message((value: Form) => {
       if (value === null || value.trim() === '') return 'Podatak je obavezan'

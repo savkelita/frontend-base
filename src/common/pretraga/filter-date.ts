@@ -13,7 +13,7 @@ export const fromEnds = dateFromEnds
 
 export const vForm = () =>
   Schema.NullOr(
-    Schema.Tuple([Schema.Literal(...DATE_OPERATORS)], Schema.ValidDateFromSelf).pipe(
+    Schema.TupleWithRest(Schema.Tuple([Schema.Literals(DATE_OPERATORS)]), [Schema.Date]).pipe(
       Annotation.template(dateFilterField),
     ),
   )

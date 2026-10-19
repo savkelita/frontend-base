@@ -1,4 +1,5 @@
-import { FastCheck, Option, Schema } from 'effect'
+import { Option, Schema } from 'effect'
+import * as FastCheck from 'fast-check'
 import * as Cmd from 'tea-effect/Cmd'
 import { describe, expect, it } from 'vitest'
 import * as Combo from '../../../../../common/domain/combo'

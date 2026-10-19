@@ -1,12 +1,16 @@
-import { Chunk, Effect, Fiber, Stream } from 'effect'
+import { Effect, Fiber, Stream } from 'effect'
 import type * as Cmd from 'tea-effect/Cmd'
 import { afterEach, describe, expect, it } from 'vitest'
 import { failure, notify, register, success, type Toast } from '../toast'
 
-const run = <Msg>(cmd: Cmd.Cmd<Msg>): Promise<ReadonlyArray<Msg>> =>
-  Effect.runPromise(Stream.runCollect(cmd)).then(Chunk.toReadonlyArray)
+const run = <Msg>(cmd: Cmd.Cmd<Msg>): Promise<ReadonlyArray<Msg>> => Effect.runPromise(Stream.runCollect(cmd))
 
 const tick = (ms = 0): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+
+const until = async (condition: () => boolean): Promise<void> => {
+  for (let i = 0; i < 200 && !condition(); i++) await tick(5)
+  expect(condition()).toBe(true)
+}
 
 let unregister: (() => void) | null = null
 
@@ -24,7 +28,7 @@ const drive = async <Msg>(
   const msgs: Array<Msg> = []
   const fiber = Effect.runFork(Stream.runForEach(cmd, msg => Effect.sync(() => void msgs.push(msg))))
 
-  await tick()
+  await until(() => raised.length > 0)
   const shown = raised[0]
   if (shown !== undefined) act(shown)
 
